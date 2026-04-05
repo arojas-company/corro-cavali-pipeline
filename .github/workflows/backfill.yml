@@ -1,0 +1,26 @@
+name: Backfill Historical Data
+
+on:
+  workflow_dispatch:
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests gspread google-auth pytz python-dateutil
+
+      - name: Run backfill
+        env:
+          SHOPIFY_TOKEN_CORRO: ${{ secrets.SHOPIFY_TOKEN_CORRO }}
+          SHOPIFY_TOKEN_CAVALI: ${{ secrets.SHOPIFY_TOKEN_CAVALI }}
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+        run: python backfill.py
