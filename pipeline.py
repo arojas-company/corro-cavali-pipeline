@@ -102,10 +102,11 @@ def get_periods():
 def fetch_orders(store_url, token, start_date, end_date):
     params = {
         "status": "any",
+        "financial_status": "paid,partially_paid,partially_refunded,refunded",
         "created_at_min": f"{start_date}T00:00:00-05:00",
         "created_at_max": f"{end_date}T23:59:59-05:00",
         "limit": 250,
-        "fields": "id,created_at,financial_status,total_price,subtotal_price,total_discounts,total_line_items_price,line_items,source_name,gateway,tags,refunds",
+        "fields": "id,created_at,financial_status,total_price,subtotal_price,total_discounts,total_line_items_price,line_items,source_name,gateway,tags,refunds,cancel_reason",
     }
     return shopify_get(store_url, token, "orders.json", params)
 
@@ -126,16 +127,34 @@ def calc_kpis(orders):
         sum(int(li.get("quantity", 0)) for li in o.get("line_items", []))
         for o in orders
     )
-    returns = sum(
-        sum(float(r.get("total_duties_set", {}).get("presentment_money", {}).get("amount", 0))
-            for r in o.get("refunds", []))
-        for o in orders
-    )
+    returns = 0
+    for o in orders:
+        for refund in o.get("refunds", []):
+            for txn in refund.get("transactions", []):
+                if txn.get("kind") in ("refund", "void"):
+                    try:
+                        returns += float(txn.get("amount", 0))
+                    except:
+                        pass
 
     pct_discount = round((discounts / gross * 100), 2) if gross else 0
     pct_returns = round((returns / gross * 100), 2) if gross else 0
     aov = round(net / nb_orders, 2) if nb_orders else 0
     upo = round(nb_units / nb_orders, 2) if nb_orders else 0
+
+    # Gross margin: sum of (price - cost) * qty per line item
+    # El campo "cost" viene en line_items cuando se pide con access scope read_products
+    total_cost = 0
+    for o in orders:
+        for li in o.get("line_items", []):
+            try:
+                qty = int(li.get("quantity", 0))
+                # Shopify devuelve cost en line_items si tienes el scope correcto
+                cost_per_unit = float(li.get("cost", 0))
+                total_cost += cost_per_unit * qty
+            except:
+                pass
+    pct_gm = round(((net - total_cost) / net * 100), 2) if net and total_cost else 0
 
     return {
         "gross_sales": round(gross, 2),
@@ -148,6 +167,7 @@ def calc_kpis(orders):
         "pct_returns": pct_returns,
         "aov": aov,
         "units_per_order": upo,
+        "pct_gm": pct_gm,
     }
 
 # ── REVENUE SHARE POR CANAL ────────────────────────────────
@@ -195,12 +215,13 @@ def write_kpis(gc, sheet_id, periods_data):
 
     headers = [
         "updated_at", "period", "period_start", "period_end",
-        "gross_sales", "net_sales", "pct_discount", "pct_returns",
+        "gross_sales", "net_sales", "pct_discount", "pct_returns", "pct_gm",
         "nb_orders", "nb_units", "aov", "units_per_order",
         "gross_sales_mom", "gross_sales_yoy",
         "net_sales_mom", "net_sales_yoy",
         "nb_orders_mom", "nb_orders_yoy",
         "pct_discount_mom", "pct_discount_yoy",
+        "aov_mom", "aov_yoy",
     ]
 
     existing = ws.get_all_values()
@@ -221,6 +242,7 @@ def write_kpis(gc, sheet_id, periods_data):
             cur.get("net_sales", 0),
             cur.get("pct_discount", 0),
             cur.get("pct_returns", 0),
+            cur.get("pct_gm", 0),
             cur.get("nb_orders", 0),
             cur.get("nb_units", 0),
             cur.get("aov", 0),
@@ -233,6 +255,8 @@ def write_kpis(gc, sheet_id, periods_data):
             pct_change(cur.get("nb_orders", 0), yoy.get("nb_orders")),
             pct_change(cur.get("pct_discount", 0), mom.get("pct_discount")),
             pct_change(cur.get("pct_discount", 0), yoy.get("pct_discount")),
+            pct_change(cur.get("aov", 0), mom.get("aov")),
+            pct_change(cur.get("aov", 0), yoy.get("aov")),
         ]
         ws.append_row(row)
 
