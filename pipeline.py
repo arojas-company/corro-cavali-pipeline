@@ -11,14 +11,14 @@ TIMEZONE = pytz.timezone("America/Bogota")
 
 STORES = {
     "corro": {
-        "url": os.environ["SHOPIFY_URL_CORRO"],
+        "url": os.environ.get("SHOPIFY_URL_CORRO", "equestrian-labs.myshopify.com"),
         "token": os.environ["SHOPIFY_TOKEN_CORRO"],
-        "sheet_id": os.environ["SHEET_ID_CORRO"],
+        "sheet_id": os.environ.get("SHEET_ID_CORRO", "1nq8xkDzowAvhD3wpMBlVK2M3FZSNS2DrAiPxz-Y2tdU"),
     },
     "cavali": {
-        "url": os.environ["SHOPIFY_URL_CAVALI"],
+        "url": os.environ.get("SHOPIFY_URL_CAVALI", "cavali-club.myshopify.com"),
         "token": os.environ["SHOPIFY_TOKEN_CAVALI"],
-        "sheet_id": os.environ["SHEET_ID_CAVALI"],
+        "sheet_id": os.environ.get("SHEET_ID_CAVALI", "1QUdJc2EIdElIX5nlLQxWxS98aAz-TgQnSg9glJpNtig"),
     },
 }
 
