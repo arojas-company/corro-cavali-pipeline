@@ -10,15 +10,15 @@ import pytz
 TIMEZONE = pytz.timezone("America/Bogota")
 
 STORES = {
-    "coro": {
-        "url": os.environ["SHOPIFY_URL_CORO"],
-        "token": os.environ["SHOPIFY_TOKEN_CORO"],
-        "sheet_id": os.environ["SHEET_ID_CORO"],
+    "corro": {
+        "url": os.environ["SHOPIFY_URL_CORRO"],
+        "token": os.environ["SHOPIFY_TOKEN_CORRO"],
+        "sheet_id": os.environ["SHEET_ID_CORRO"],
     },
-    "cavalli": {
-        "url": os.environ["SHOPIFY_URL_CAVALLI"],
-        "token": os.environ["SHOPIFY_TOKEN_CAVALLI"],
-        "sheet_id": os.environ["SHEET_ID_CAVALLI"],
+    "cavali": {
+        "url": os.environ["SHOPIFY_URL_CAVALI"],
+        "token": os.environ["SHOPIFY_TOKEN_CAVALI"],
+        "sheet_id": os.environ["SHEET_ID_CAVALI"],
     },
 }
 
