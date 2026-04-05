@@ -24,11 +24,11 @@ jobs:
 
       - name: Run pipeline
         env:
-          SHOPIFY_URL_CORO: ${{ secrets.SHOPIFY_URL_CORRO }}
-          SHOPIFY_TOKEN_CORO: ${{ secrets.SHOPIFY_TOKEN_CORRO }}
-          SHOPIFY_URL_CAVALLI: ${{ secrets.SHOPIFY_URL_CAVALI }}
-          SHOPIFY_TOKEN_CAVALLI: ${{ secrets.SHOPIFY_TOKEN_CAVALI }}
-          SHEET_ID_CORO: ${{ secrets.SHEET_ID_CORRO }}
-          SHEET_ID_CAVALLI: ${{ secrets.SHEET_ID_CAVALI }}
+          SHOPIFY_URL_CORRO: ${{ secrets.SHOPIFY_URL_CORRO }}
+          SHOPIFY_TOKEN_CORRO: ${{ secrets.SHOPIFY_TOKEN_CORRO }}
+          SHOPIFY_URL_CAVALI: ${{ secrets.SHOPIFY_URL_CAVALI }}
+          SHOPIFY_TOKEN_CAVALI: ${{ secrets.SHOPIFY_TOKEN_CAVALI }}
+          SHEET_ID_CORRO: ${{ secrets.SHEET_ID_CORRO }}
+          SHEET_ID_CAVALI: ${{ secrets.SHEET_ID_CAVALI }}
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
         run: python pipeline.py
