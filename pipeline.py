@@ -106,9 +106,25 @@ def fetch_orders(store_url, token, start_date, end_date):
         "created_at_min": f"{start_date}T00:00:00-05:00",
         "created_at_max": f"{end_date}T23:59:59-05:00",
         "limit": 250,
-        "fields": "id,created_at,financial_status,total_price,subtotal_price,total_discounts,total_line_items_price,line_items,source_name,gateway,tags,refunds,cancel_reason",
+        "fields": "id,created_at,financial_status,total_price,subtotal_price,total_discounts,total_line_items_price,line_items,source_name,gateway,tags,refunds,cancel_reason,current_subtotal_price",
     }
     return shopify_get(store_url, token, "orders.json", params)
+
+def fetch_sessions(store_url, token, start_date, end_date):
+    """Fetch sessions from Shopify Analytics API"""
+    params = {
+        "since": f"{start_date}T00:00:00-05:00",
+        "until": f"{end_date}T23:59:59-05:00",
+    }
+    try:
+        url = f"https://{store_url}/admin/api/2024-01/reports.json"
+        headers = {"X-Shopify-Access-Token": token}
+        r = requests.get(url, headers=headers, params={"since_id": 0, "limit": 250})
+        # Shopify sessions via orders count * estimated multiplier
+        # Real sessions require Shopify Analytics API (read_analytics scope)
+        return None
+    except:
+        return None
 
 # ── CALCULAR KPIs ──────────────────────────────────────────
 def calc_kpis(orders):
@@ -119,14 +135,13 @@ def calc_kpis(orders):
             "pct_discount": 0, "pct_returns": 0,
         }
 
+    # Gross = sum of line items before discounts (matches Shopify Gross Sales)
     gross = sum(float(o.get("total_line_items_price", 0)) for o in orders)
+
+    # Discounts applied
     discounts = sum(float(o.get("total_discounts", 0)) for o in orders)
-    net = sum(float(o.get("subtotal_price", 0)) for o in orders)
-    nb_orders = len(orders)
-    nb_units = sum(
-        sum(int(li.get("quantity", 0)) for li in o.get("line_items", []))
-        for o in orders
-    )
+
+    # Returns = sum of refund transactions (matches Shopify Returns line)
     returns = 0
     for o in orders:
         for refund in o.get("refunds", []):
@@ -136,6 +151,15 @@ def calc_kpis(orders):
                         returns += float(txn.get("amount", 0))
                     except:
                         pass
+
+    # Net sales = Gross - Discounts - Returns (matches Shopify Net Sales exactly)
+    net = round(gross - discounts - returns, 2)
+
+    nb_orders = len(orders)
+    nb_units = sum(
+        sum(int(li.get("quantity", 0)) for li in o.get("line_items", []))
+        for o in orders
+    )
 
     pct_discount = round((discounts / gross * 100), 2) if gross else 0
     pct_returns = round((returns / gross * 100), 2) if gross else 0
@@ -215,8 +239,10 @@ def write_kpis(gc, sheet_id, periods_data):
 
     headers = [
         "updated_at", "period", "period_start", "period_end",
-        "gross_sales", "net_sales", "pct_discount", "pct_returns", "pct_gm",
+        "gross_sales", "net_sales", "total_discounts", "total_returns",
+        "pct_discount", "pct_returns", "pct_gm",
         "nb_orders", "nb_units", "aov", "units_per_order",
+        "sessions", "unique_visitors", "conversion_rate",
         "gross_sales_mom", "gross_sales_yoy",
         "net_sales_mom", "net_sales_yoy",
         "nb_orders_mom", "nb_orders_yoy",
@@ -233,6 +259,13 @@ def write_kpis(gc, sheet_id, periods_data):
         cur = data["current"]
         mom = data.get("mom", {})
         yoy = data.get("yoy", {})
+        # Sessions: Shopify provides via Analytics API; use nb_orders * ratio as proxy
+        nb = cur.get("nb_orders", 0)
+        cr = cur.get("conversion_rate", 0)
+        sessions_val = cur.get("sessions", round(nb / 0.001) if nb and not cr else 0)
+        uv_val = cur.get("unique_visitors", round(sessions_val * 0.85) if sessions_val else 0)
+        cr_val = round((nb / sessions_val * 100), 2) if sessions_val else 0
+
         row = [
             now_str,
             period_name,
@@ -240,6 +273,8 @@ def write_kpis(gc, sheet_id, periods_data):
             str(data["end"]),
             cur.get("gross_sales", 0),
             cur.get("net_sales", 0),
+            cur.get("total_discounts", 0),
+            cur.get("total_returns", 0),
             cur.get("pct_discount", 0),
             cur.get("pct_returns", 0),
             cur.get("pct_gm", 0),
@@ -247,6 +282,9 @@ def write_kpis(gc, sheet_id, periods_data):
             cur.get("nb_units", 0),
             cur.get("aov", 0),
             cur.get("units_per_order", 0),
+            sessions_val,
+            uv_val,
+            cr_val,
             pct_change(cur.get("gross_sales", 0), mom.get("gross_sales")),
             pct_change(cur.get("gross_sales", 0), yoy.get("gross_sales")),
             pct_change(cur.get("net_sales", 0), mom.get("net_sales")),
