@@ -241,22 +241,9 @@ def calc_kpis(orders, cogs=None, sessions=None, taxes=None, shipping=None, gross
                     except:
                         pass
 
-    # Taxes y Shipping (desde ShopifyQL si están disponibles, sino calcular)
-    taxes_val = float(taxes) if taxes else 0
-    shipping_val = float(shipping) if shipping else 0
-    
-    if not taxes_val:
-        # Fallback: calcular taxes desde órdenes
-        taxes_val = sum(float(o.get("total_tax", 0)) for o in orders)
-    
-    if not shipping_val:
-        # Fallback: calcular shipping desde órdenes
-        shipping_val = sum(float(o.get("total_shipping_price", 0)) or float(o.get("total_shipping", 0)) 
-                          for o in orders)
-
-    # Net sales = Gross - Discounts - Returns + Taxes + Shipping
-    # (Este es el cálculo CORRECTO según contabilidad y confirmado por tu query)
-    net = round(gross - discounts - returns + taxes_val + shipping_val, 2)
+    # Net sales = Gross - Discounts - Returns
+    # (Shopify definition: taxes and shipping are separate line items, NOT included in net sales)
+    net = round(gross - discounts - returns, 2)
 
     nb_orders = len(orders)
     nb_units = sum(
@@ -269,8 +256,8 @@ def calc_kpis(orders, cogs=None, sessions=None, taxes=None, shipping=None, gross
     aov = round(net / nb_orders, 2) if nb_orders else 0
     upo = round(nb_units / nb_orders, 2) if nb_orders else 0
 
-    # ✅ Gross Margin: Obtener directamente de Shopify en lugar de calcular
-    if gross_margin_shopify is not None:
+    # ✅ Gross Margin: Usar Shopify solo si retorna un valor real (> 0)
+    if gross_margin_shopify is not None and float(gross_margin_shopify) != 0:
         pct_gm = float(gross_margin_shopify)
     else:
         # Fallback: intentar calcular (pero generalmente vendrá de Shopify)
