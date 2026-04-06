@@ -189,16 +189,20 @@ def fetch_cogs_and_sessions(store_url, token, start_date, end_date):
                 result["sessions"] = int(float(row_dict.get("sessions", 0)))
                 
                 # ✅ GROSS MARGIN DIRECTO DE SHOPIFY
-                result["gross_margin"] = float(row_dict.get("gross_margin", 0))
+                # ShopifyQL devuelve gross_margin como decimal (ej. 0.32 = 32%)
+                raw_gm = float(row_dict.get("gross_margin", 0))
+                result["gross_margin"] = round(raw_gm * 100, 2) if raw_gm <= 1 else round(raw_gm, 2)
                 
-                # NET SALES DE SHOPIFY (para referencia)
+                # NET SALES DE SHOPIFY (fuente de verdad)
                 result["net_sales"] = float(row_dict.get("net_sales", 0))
                 
                 print(f"    ✓ Gross Sales: ${result['gross_sales']:,.2f}")
-                print(f"    ✓ COGS: ${result['cogs']:,.2f}")
-                print(f"    ✓ Gross Margin (Shopify): {result['gross_margin']:.2f}%")
-                print(f"    ✓ Net Sales (Shopify): ${result['net_sales']:,.2f}")
-                print(f"    ✓ Sessions: {result['sessions']:,}")
+                print(f"    ✓ Discounts:   ${result['discounts']:,.2f}")
+                print(f"    ✓ Returns:     ${result['returns']:,.2f}")
+                print(f"    ✓ Net Sales:   ${result['net_sales']:,.2f}")
+                print(f"    ✓ COGS:        ${result['cogs']:,.2f}")
+                print(f"    ✓ Gross Margin:{result['gross_margin']:.2f}%")
+                print(f"    ✓ Sessions:    {result['sessions']:,}")
                 
                 return result
                 
