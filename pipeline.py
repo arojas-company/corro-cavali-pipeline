@@ -160,12 +160,13 @@ def fetch_cogs_and_sessions(store_url, token, start_date, end_date):
     return result
 
 # ── CALCULAR KPIs ──────────────────────────────────────────
-def calc_kpis(orders):
+def calc_kpis(orders, cogs=None, sessions=None):
     if not orders:
         return {
             "gross_sales": 0, "net_sales": 0, "total_discounts": 0,
             "total_returns": 0, "nb_orders": 0, "nb_units": 0,
-            "pct_discount": 0, "pct_returns": 0,
+            "pct_discount": 0, "pct_returns": 0, "aov": 0, "units_per_order": 0,
+            "pct_gm": 0, "sessions": 0, "unique_visitors": 0, "conversion_rate": 0,
         }
 
     # Gross = sum of line items before discounts (matches Shopify Gross Sales)
