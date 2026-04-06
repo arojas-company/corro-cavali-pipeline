@@ -112,18 +112,28 @@ def fetch_orders(store_url, token, start_date, end_date):
 
 def fetch_cogs_and_sessions(store_url, token, start_date, end_date):
     """
-    Fetch COGS and sessions via Shopify GraphQL Analytics API
-    With fallbacks to REST API and order line_items cost
+    Fetch COGS, sessions, and financial metrics from Shopify Analytics API
+    Using the proven ShopifyQL query that works correctly
     """
     headers = {"X-Shopify-Access-Token": token, "Content-Type": "application/json"}
-    result = {"cogs": 0, "sessions": 0, "source": "default"}
+    result = {
+        "cogs": 0,
+        "sessions": 0,
+        "gross_sales": 0,
+        "discounts": 0,
+        "returns": 0,
+        "taxes": 0,
+        "shipping": 0,
+        "orders": 0,
+    }
     
-    # STRATEGY 1: Try ShopifyQL GraphQL
     try:
         graphql_url = f"https://{store_url}/admin/api/2024-01/graphql.json"
+        
+        # Query mejorada - sin GROUP BY para obtener TOTALS correctos
         shopify_ql = f"""
         {{
-          shopifyqlQuery(query: "FROM sales SHOW cost_of_goods_sold, gross_sales, net_sales, sessions DURING custom(\"{start_date}\",\"{end_date}\") WITH TOTALS") {{
+          shopifyqlQuery(query: "FROM sales SHOW gross_sales, discounts, returns, taxes, shipping_charges, cost_of_goods_sold, orders, sessions DURING custom(\"{start_date}\",\"{end_date}\") WITH TOTALS") {{
             __typename
             ... on TableResponse {{
               tableData {{
@@ -134,76 +144,78 @@ def fetch_cogs_and_sessions(store_url, token, start_date, end_date):
           }}
         }}
         """
+        
         r = requests.post(graphql_url, headers=headers, json={"query": shopify_ql}, timeout=30)
         
         if r.status_code == 200:
             data = r.json()
             
-            # Check for API errors
-            if "errors" in data:
-                print(f"    ⚠️  ShopifyQL API Error (Strategy 1): {data.get('errors', [])}")
-            else:
-                table = data.get("data", {}).get("shopifyqlQuery", {}).get("tableData", {})
-                
-                if table and table.get("rowData"):
-                    cols = [c["name"] for c in table.get("columns", [])]
-                    rows = table.get("rowData", [])
-                    last_row = rows[-1]
-                    row_dict = dict(zip(cols, last_row))
-                    
-                    try:
-                        cogs_val = float(row_dict.get("cost_of_goods_sold", 0))
-                        result["cogs"] = cogs_val
-                        result["source"] = "shopifyql_cogs"
-                        print(f"    ✓ COGS (Strategy 1 - ShopifyQL): ${cogs_val:,.2f}")
-                    except:
-                        pass
-                    
-                    try:
-                        sessions_val = int(float(row_dict.get("sessions", 0)))
-                        result["sessions"] = sessions_val
-                        print(f"    ✓ Sessions (Strategy 1 - ShopifyQL): {sessions_val:,}")
-                    except:
-                        pass
-                    
-                    # Si obtuvimos datos, retornar aquí
-                    if result["cogs"] > 0 or result["sessions"] > 0:
-                        return result
-        else:
-            print(f"    ⚠️  ShopifyQL request failed: Status {r.status_code}")
+            # Verificar errores de API
+            if "errors" in data and data["errors"]:
+                error_msg = str(data.get('errors', []))
+                print(f"    ⚠️  ShopifyQL API Error: {error_msg}")
+                return result
             
-    except Exception as e:
-        print(f"    ⚠️  ShopifyQL Strategy 1 error: {str(e)}")
-    
-    # STRATEGY 2: Try REST Reports API
-    try:
-        rest_url = f"https://{store_url}/admin/api/2024-01/reports.json"
-        params = {
-            "limit": 250,
-            "fields": "id,name,title,updated_at,generated_at"
-        }
-        r = requests.get(rest_url, headers=headers, params=params, timeout=30)
+            table = data.get("data", {}).get("shopifyqlQuery", {}).get("tableData", {})
+            
+            if not table or not table.get("rowData"):
+                print(f"    ⚠️  No data from ShopifyQL")
+                return result
+            
+            cols = [c["name"] for c in table.get("columns", [])]
+            rows = table.get("rowData", [])
+            
+            print(f"    ℹ️  ShopifyQL returned {len(rows)} rows, {len(cols)} columns")
+            
+            if not rows:
+                print(f"    ⚠️  No rows returned from ShopifyQL")
+                return result
+            
+            # Última fila contiene TOTALS
+            last_row = rows[-1]
+            row_dict = dict(zip(cols, last_row))
+            
+            # Extraer valores
+            try:
+                result["gross_sales"] = float(row_dict.get("gross_sales", 0))
+                result["discounts"] = float(row_dict.get("discounts", 0))
+                result["returns"] = float(row_dict.get("returns", 0))
+                result["taxes"] = float(row_dict.get("taxes", 0))
+                result["shipping"] = float(row_dict.get("shipping_charges", 0))
+                result["cogs"] = float(row_dict.get("cost_of_goods_sold", 0))
+                result["orders"] = int(float(row_dict.get("orders", 0)))
+                result["sessions"] = int(float(row_dict.get("sessions", 0)))
+                
+                print(f"    ✓ Gross Sales: ${result['gross_sales']:,.2f}")
+                print(f"    ✓ Discounts: ${result['discounts']:,.2f}")
+                print(f"    ✓ Returns: ${result['returns']:,.2f}")
+                print(f"    ✓ Taxes: ${result['taxes']:,.2f}")
+                print(f"    ✓ Shipping: ${result['shipping']:,.2f}")
+                print(f"    ✓ COGS: ${result['cogs']:,.2f}")
+                print(f"    ✓ Orders: {result['orders']:,}")
+                print(f"    ✓ Sessions: {result['sessions']:,}")
+                
+                # Calcular Net Sales correctamente
+                calculated_net = result["gross_sales"] - result["discounts"] - result["returns"] + result["taxes"] + result["shipping"]
+                print(f"    ✓ Calculated Net Sales: ${calculated_net:,.2f}")
+                
+                return result
+                
+            except Exception as e:
+                print(f"    ⚠️  Error parsing ShopifyQL response: {e}")
+                return result
         
-        if r.status_code == 200:
-            reports = r.json().get("reports", [])
-            # Look for sales/COGS related report
-            for report in reports:
-                if any(keyword in report.get("title", "").lower() 
-                       for keyword in ["cogs", "cost", "margin", "sales"]):
-                    print(f"    ℹ️  Found report (Strategy 2): {report.get('title')}")
-                    # You would need to fetch the specific report data here
-                    # For now, log that it was found
-        
+        else:
+            print(f"    ⚠️  GraphQL request failed: HTTP {r.status_code}")
+            print(f"       Response: {r.text[:200]}")
+            return result
+    
     except Exception as e:
-        print(f"    ⚠️  REST Reports Strategy 2 error: {str(e)}")
-    
-    # STRATEGY 3: Will be computed from order line_items in calc_kpis()
-    print(f"    ℹ️  COGS will fallback to line_items calculation in calc_kpis()")
-    
-    return result
+        print(f"    ⚠️  Exception in fetch_cogs_and_sessions: {str(e)}")
+        return result
 
 # ── CALCULAR KPIs ──────────────────────────────────────────
-def calc_kpis(orders, cogs=None, sessions=None):
+def calc_kpis(orders, cogs=None, sessions=None, taxes=None, shipping=None):
     if not orders:
         return {
             "gross_sales": 0, "net_sales": 0, "total_discounts": 0,
@@ -229,8 +241,22 @@ def calc_kpis(orders, cogs=None, sessions=None):
                     except:
                         pass
 
-    # Net sales = Gross - Discounts - Returns (matches Shopify Net Sales exactly)
-    net = round(gross - discounts - returns, 2)
+    # Taxes y Shipping (desde ShopifyQL si están disponibles, sino calcular)
+    taxes_val = float(taxes) if taxes else 0
+    shipping_val = float(shipping) if shipping else 0
+    
+    if not taxes_val:
+        # Fallback: calcular taxes desde órdenes
+        taxes_val = sum(float(o.get("total_tax", 0)) for o in orders)
+    
+    if not shipping_val:
+        # Fallback: calcular shipping desde órdenes
+        shipping_val = sum(float(o.get("total_shipping_price", 0)) or float(o.get("total_shipping", 0)) 
+                          for o in orders)
+
+    # Net sales = Gross - Discounts - Returns + Taxes + Shipping
+    # (Este es el cálculo CORRECTO según contabilidad y confirmado por tu query)
+    net = round(gross - discounts - returns + taxes_val + shipping_val, 2)
 
     nb_orders = len(orders)
     nb_units = sum(
@@ -258,21 +284,27 @@ def calc_kpis(orders, cogs=None, sessions=None):
                 except:
                     pass
     
-    # Fallback 2: If still no cost data, calculate gross margin on gross sales (no COGS available)
-    # Only return 0 if we truly can't calculate
+    # Gross Margin = (Gross Sales - COGS) / Gross Sales × 100
     if total_cost and gross:
         pct_gm = round(((gross - total_cost) / gross * 100), 2)
     elif not total_cost and gross:
-        # No COGS data available - calculate as N/A or show 0 with warning
-        # NOTE: This means COGS data is NOT available from Shopify
-        pct_gm = 0  # Will show 0% but indicates missing COGS, not zero margin
+        # No COGS data available
+        pct_gm = 0
     else:
         pct_gm = 0
 
     # Sessions from ShopifyQL
     sessions_val = int(sessions) if sessions else 0
     uv_val = round(sessions_val * 0.85) if sessions_val else 0
-    cr_val = round((nb_orders / sessions_val * 100), 2) if sessions_val else 0
+    
+    # Conversion Rate = (Orders / Sessions) × 100
+    if sessions_val > 0:
+        cr_val = round((nb_orders / sessions_val * 100), 2)
+        # Sanity check: CR should typically be < 10% (but can be higher)
+        if cr_val > 50:
+            print(f"    ⚠️  WARNING: CR {cr_val}% seems high. Sessions: {sessions_val}, Orders: {nb_orders}")
+    else:
+        cr_val = 0
 
     return {
         "gross_sales": round(gross, 2),
@@ -444,28 +476,52 @@ def main():
         periods_data = {
             "mtd": {
                 "start": periods["mtd"][0], "end": periods["mtd"][1],
-                "current": calc_kpis(orders_mtd, cogs=analytics_mtd["cogs"], sessions=analytics_mtd["sessions"]),
+                "current": calc_kpis(
+                    orders_mtd, 
+                    cogs=analytics_mtd["cogs"], 
+                    sessions=analytics_mtd["sessions"],
+                    taxes=analytics_mtd.get("taxes", 0),
+                    shipping=analytics_mtd.get("shipping", 0)
+                ),
                 "mom": calc_kpis(orders_mtd_mom),
                 "yoy": calc_kpis(orders_mtd_yoy),
                 "revenue_share": calc_revenue_share(orders_mtd),
             },
             "week": {
                 "start": periods["week"][0], "end": periods["week"][1],
-                "current": calc_kpis(orders_week, cogs=analytics_week["cogs"], sessions=analytics_week["sessions"]),
+                "current": calc_kpis(
+                    orders_week, 
+                    cogs=analytics_week["cogs"], 
+                    sessions=analytics_week["sessions"],
+                    taxes=analytics_week.get("taxes", 0),
+                    shipping=analytics_week.get("shipping", 0)
+                ),
                 "mom": calc_kpis(orders_wk_prev),
                 "yoy": {},
                 "revenue_share": calc_revenue_share(orders_week),
             },
             "month": {
                 "start": periods["month"][0], "end": periods["month"][1],
-                "current": calc_kpis(orders_month, cogs=analytics_month["cogs"], sessions=analytics_month["sessions"]),
+                "current": calc_kpis(
+                    orders_month, 
+                    cogs=analytics_month["cogs"], 
+                    sessions=analytics_month["sessions"],
+                    taxes=analytics_month.get("taxes", 0),
+                    shipping=analytics_month.get("shipping", 0)
+                ),
                 "mom": {},
                 "yoy": {},
                 "revenue_share": calc_revenue_share(orders_month),
             },
             "quarter": {
                 "start": periods["quarter"][0], "end": periods["quarter"][1],
-                "current": calc_kpis(orders_quarter, cogs=analytics_quarter["cogs"], sessions=analytics_quarter["sessions"]),
+                "current": calc_kpis(
+                    orders_quarter, 
+                    cogs=analytics_quarter["cogs"], 
+                    sessions=analytics_quarter["sessions"],
+                    taxes=analytics_quarter.get("taxes", 0),
+                    shipping=analytics_quarter.get("shipping", 0)
+                ),
                 "mom": {},
                 "yoy": {},
                 "revenue_share": calc_revenue_share(orders_quarter),
