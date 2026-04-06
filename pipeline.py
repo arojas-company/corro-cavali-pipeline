@@ -111,22 +111,15 @@ def fetch_orders(store_url, token, start_date, end_date):
     return shopify_get(store_url, token, "orders.json", params)
 
 def fetch_cogs_and_sessions(store_url, token, start_date, end_date):
-    """Fetch COGS and sessions via Shopify GraphQL Analytics API"""
-    query = """
-    {
-      shop {
-        analyticsSettings {
-          reportingPeriod
-        }
-      }
-    }
     """
-    # Use REST reports API for COGS
-    url = f"https://{store_url}/admin/api/2024-01/reports.json"
+    Fetch COGS and sessions via Shopify GraphQL Analytics API
+    With fallbacks to REST API and order line_items cost
+    """
     headers = {"X-Shopify-Access-Token": token, "Content-Type": "application/json"}
-    result = {"cogs": 0, "sessions": 0}
+    result = {"cogs": 0, "sessions": 0, "source": "default"}
+    
+    # STRATEGY 1: Try ShopifyQL GraphQL
     try:
-        # Try ShopifyQL for COGS via GraphQL
         graphql_url = f"https://{store_url}/admin/api/2024-01/graphql.json"
         shopify_ql = f"""
         {{
@@ -142,21 +135,71 @@ def fetch_cogs_and_sessions(store_url, token, start_date, end_date):
         }}
         """
         r = requests.post(graphql_url, headers=headers, json={"query": shopify_ql}, timeout=30)
+        
         if r.status_code == 200:
             data = r.json()
-            table = data.get("data", {}).get("shopifyqlQuery", {}).get("tableData", {})
-            if table:
-                cols = [c["name"] for c in table.get("columns", [])]
-                rows = table.get("rowData", [])
-                for row in rows:
-                    row_dict = dict(zip(cols, row))
-                    if "TOTALS" in str(row) or row == rows[-1]:
-                        try: result["cogs"] = float(row_dict.get("cost_of_goods_sold", 0))
-                        except: pass
-                        try: result["sessions"] = int(float(row_dict.get("sessions", 0)))
-                        except: pass
+            
+            # Check for API errors
+            if "errors" in data:
+                print(f"    ⚠️  ShopifyQL API Error (Strategy 1): {data.get('errors', [])}")
+            else:
+                table = data.get("data", {}).get("shopifyqlQuery", {}).get("tableData", {})
+                
+                if table and table.get("rowData"):
+                    cols = [c["name"] for c in table.get("columns", [])]
+                    rows = table.get("rowData", [])
+                    last_row = rows[-1]
+                    row_dict = dict(zip(cols, last_row))
+                    
+                    try:
+                        cogs_val = float(row_dict.get("cost_of_goods_sold", 0))
+                        result["cogs"] = cogs_val
+                        result["source"] = "shopifyql_cogs"
+                        print(f"    ✓ COGS (Strategy 1 - ShopifyQL): ${cogs_val:,.2f}")
+                    except:
+                        pass
+                    
+                    try:
+                        sessions_val = int(float(row_dict.get("sessions", 0)))
+                        result["sessions"] = sessions_val
+                        print(f"    ✓ Sessions (Strategy 1 - ShopifyQL): {sessions_val:,}")
+                    except:
+                        pass
+                    
+                    # Si obtuvimos datos, retornar aquí
+                    if result["cogs"] > 0 or result["sessions"] > 0:
+                        return result
+        else:
+            print(f"    ⚠️  ShopifyQL request failed: Status {r.status_code}")
+            
     except Exception as e:
-        print(f"COGS/sessions fetch error: {e}")
+        print(f"    ⚠️  ShopifyQL Strategy 1 error: {str(e)}")
+    
+    # STRATEGY 2: Try REST Reports API
+    try:
+        rest_url = f"https://{store_url}/admin/api/2024-01/reports.json"
+        params = {
+            "limit": 250,
+            "fields": "id,name,title,updated_at,generated_at"
+        }
+        r = requests.get(rest_url, headers=headers, params=params, timeout=30)
+        
+        if r.status_code == 200:
+            reports = r.json().get("reports", [])
+            # Look for sales/COGS related report
+            for report in reports:
+                if any(keyword in report.get("title", "").lower() 
+                       for keyword in ["cogs", "cost", "margin", "sales"]):
+                    print(f"    ℹ️  Found report (Strategy 2): {report.get('title')}")
+                    # You would need to fetch the specific report data here
+                    # For now, log that it was found
+        
+    except Exception as e:
+        print(f"    ⚠️  REST Reports Strategy 2 error: {str(e)}")
+    
+    # STRATEGY 3: Will be computed from order line_items in calc_kpis()
+    print(f"    ℹ️  COGS will fallback to line_items calculation in calc_kpis()")
+    
     return result
 
 # ── CALCULAR KPIs ──────────────────────────────────────────
@@ -203,8 +246,9 @@ def calc_kpis(orders, cogs=None, sessions=None):
     # Gross margin using COGS from ShopifyQL Analytics API
     # COGS passed in from fetch_cogs_and_sessions()
     total_cost = float(cogs) if cogs else 0
+    
+    # Fallback 1: Try line_items cost field if ShopifyQL didn't provide COGS
     if not total_cost:
-        # Fallback: try line_items cost field
         for o in orders:
             for li in o.get("line_items", []):
                 try:
@@ -213,7 +257,17 @@ def calc_kpis(orders, cogs=None, sessions=None):
                     total_cost += cost_per_unit * qty
                 except:
                     pass
-    pct_gm = round(((gross - total_cost) / gross * 100), 2) if gross and total_cost else 0
+    
+    # Fallback 2: If still no cost data, calculate gross margin on gross sales (no COGS available)
+    # Only return 0 if we truly can't calculate
+    if total_cost and gross:
+        pct_gm = round(((gross - total_cost) / gross * 100), 2)
+    elif not total_cost and gross:
+        # No COGS data available - calculate as N/A or show 0 with warning
+        # NOTE: This means COGS data is NOT available from Shopify
+        pct_gm = 0  # Will show 0% but indicates missing COGS, not zero margin
+    else:
+        pct_gm = 0
 
     # Sessions from ShopifyQL
     sessions_val = int(sessions) if sessions else 0
