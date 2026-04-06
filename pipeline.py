@@ -103,23 +103,16 @@ def fetch_orders(store_url, token, start_date, end_date):
     }
     return shopify_get(store_url, token, "orders.json", params)
 
-# ── FETCH ANALYTICS (ShopifyQL) ─────────────────────────────
-def fetch_analytics(store_url, token, start_date, end_date):
-    """
-    Devuelve gross_sales, discounts, returns, cogs, sessions de ShopifyQL.
-    discounts y returns vienen negativos de Shopify → se convierten a positivos aquí.
-    """
-    empty = {
-        "gross_sales": 0, "discounts": 0, "returns": 0,
-        "cogs": 0, "sessions": 0,
-    }
+# ── FETCH SESSIONS (ShopifyQL API 2024-10+) ─────────────────
+def fetch_sessions(store_url, token, start_date, end_date):
+    """Solo busca sessions via ShopifyQL. Si falla, retorna 0."""
     try:
-        graphql_url = f"https://{store_url}/admin/api/2024-01/graphql.json"
+        graphql_url = f"https://{store_url}/admin/api/2024-10/graphql.json"
         headers = {"X-Shopify-Access-Token": token, "Content-Type": "application/json"}
 
         query = f"""
         {{
-          shopifyqlQuery(query: "FROM sales SHOW gross_sales, discounts, returns, cost_of_goods_sold, sessions DURING custom({start_date},{end_date}) WITH TOTALS") {{
+          shopifyqlQuery(query: "FROM sessions SHOW sessions DURING custom({start_date},{end_date}) WITH TOTALS") {{
             __typename
             ... on TableResponse {{
               tableData {{
@@ -133,109 +126,107 @@ def fetch_analytics(store_url, token, start_date, end_date):
 
         r = requests.post(graphql_url, headers=headers, json={"query": query}, timeout=30)
         if r.status_code != 200:
-            print(f"    ⚠️  ShopifyQL HTTP {r.status_code}")
-            return empty
+            return 0
 
         data = r.json()
         if data.get("errors"):
-            print(f"    ⚠️  ShopifyQL error: {data['errors']}")
-            return empty
+            return 0
 
         table = data.get("data", {}).get("shopifyqlQuery", {}).get("tableData", {})
         if not table or not table.get("rowData"):
-            print(f"    ⚠️  ShopifyQL sin datos")
-            return empty
+            return 0
 
         cols = [c["name"] for c in table["columns"]]
-        # última fila = TOTALS
         row  = dict(zip(cols, table["rowData"][-1]))
-        print(f"    ℹ️  ShopifyQL TOTALS: {row}")
+        return int(float(row.get("sessions", 0) or 0))
 
-        gross_sales = float(row.get("gross_sales",          0) or 0)
-        discounts   = abs(float(row.get("discounts",        0) or 0))  # negativo → positivo
-        returns     = abs(float(row.get("returns",          0) or 0))  # negativo → positivo
-        cogs        = abs(float(row.get("cost_of_goods_sold", 0) or 0))
-        sessions    = int(float(row.get("sessions",         0) or 0))
+    except Exception:
+        return 0
 
-        print(f"    ✓ Gross Sales: ${gross_sales:,.2f}")
-        print(f"    ✓ Discounts:   ${discounts:,.2f}")
-        print(f"    ✓ Returns:     ${returns:,.2f}")
-        print(f"    ✓ COGS:        ${cogs:,.2f}")
-        print(f"    ✓ Sessions:    {sessions:,}")
-
-        return {
-            "gross_sales": gross_sales,
-            "discounts":   discounts,
-            "returns":     returns,
-            "cogs":        cogs,
-            "sessions":    sessions,
-        }
-
-    except Exception as e:
-        print(f"    ⚠️  fetch_analytics exception: {e}")
-        return empty
+# ── CALCULAR FINANCIEROS DESDE ÓRDENES ──────────────────────
+def calc_financials_from_orders(orders):
+    """
+    Calcula gross_sales, discounts, returns directamente desde las órdenes REST.
+    - gross_sales = suma de total_line_items_price (precio antes de descuentos)
+    - discounts   = suma de total_discounts por orden
+    - returns     = suma de transacciones de tipo refund/void
+    """
+    gross_sales = sum(float(o.get("total_line_items_price", 0)) for o in orders)
+    discounts   = sum(float(o.get("total_discounts", 0)) for o in orders)
+    returns     = 0
+    for o in orders:
+        for refund in o.get("refunds", []):
+            for txn in refund.get("transactions", []):
+                if txn.get("kind") in ("refund", "void"):
+                    try: returns += float(txn.get("amount", 0))
+                    except: pass
+    return {
+        "gross_sales": round(gross_sales, 2),
+        "discounts":   round(discounts, 2),
+        "returns":     round(returns, 2),
+    }
 
 # ── CALCULAR KPIs ───────────────────────────────────────────
-def calc_kpis(orders, analytics=None):
+def calc_kpis(orders, sessions=0):
     """
-    Financieros vienen de analytics (ShopifyQL).
-    nb_orders, nb_units vienen de órdenes REST.
+    Todos los financieros se calculan desde las órdenes REST (fuente confiable).
+    sessions viene de ShopifyQL si está disponible.
 
     Fórmulas:
       net_sales    = gross_sales - discounts - returns
       pct_discount = discounts / gross_sales * 100
       pct_returns  = returns   / gross_sales * 100
-      pct_gm       = (net_sales - cogs) / net_sales * 100   ← columna cogs en Sheet
+      pct_gm       = (net_sales - cogs) / net_sales * 100  → cogs=0 si no hay datos
       aov          = net_sales / nb_orders
       conversion   = nb_orders / sessions * 100
     """
-    a = analytics or {}
+    if not orders:
+        return {
+            "gross_sales": 0, "net_sales": 0, "total_discounts": 0,
+            "total_returns": 0, "cogs": 0, "nb_orders": 0, "nb_units": 0,
+            "pct_discount": 0, "pct_returns": 0, "pct_gm": 0,
+            "aov": 0, "units_per_order": 0,
+            "sessions": 0, "unique_visitors": 0, "conversion_rate": 0,
+        }
 
-    # ── Financieros desde ShopifyQL ──
-    gross_sales = float(a.get("gross_sales", 0))
-    discounts   = float(a.get("discounts",   0))   # ya positivo
-    returns     = float(a.get("returns",     0))   # ya positivo
-    cogs        = float(a.get("cogs",        0))
-    sessions    = int(a.get("sessions",      0))
-
-    # Si ShopifyQL no devolvió datos, calcular financieros desde órdenes (fallback MOM/YOY)
-    if gross_sales == 0 and orders:
-        gross_sales = sum(float(o.get("total_line_items_price", 0)) for o in orders)
-        discounts   = sum(float(o.get("total_discounts", 0)) for o in orders)
-        returns     = 0
-        for o in orders:
-            for refund in o.get("refunds", []):
-                for txn in refund.get("transactions", []):
-                    if txn.get("kind") in ("refund", "void"):
-                        try: returns += float(txn.get("amount", 0))
-                        except: pass
+    fin = calc_financials_from_orders(orders)
+    gross_sales = fin["gross_sales"]
+    discounts   = fin["discounts"]
+    returns     = fin["returns"]
+    cogs        = 0  # COGS no disponible vía REST; columna queda en 0
 
     # ── Fórmulas financieras ──
     net_sales    = round(gross_sales - discounts - returns, 2)
     pct_discount = round(discounts / gross_sales * 100, 2) if gross_sales else 0
     pct_returns  = round(returns   / gross_sales * 100, 2) if gross_sales else 0
-    # Gross Margin = (Net Sales - COGS) / Net Sales * 100
     pct_gm       = round((net_sales - cogs) / net_sales * 100, 2) if (net_sales and cogs) else 0
 
-    # ── Operacionales desde órdenes ──
-    nb_orders = len(orders) if orders else 0
+    # ── Operacionales ──
+    nb_orders = len(orders)
     nb_units  = sum(
         sum(int(li.get("quantity", 0)) for li in o.get("line_items", []))
         for o in orders
-    ) if orders else 0
-
+    )
     aov = round(net_sales / nb_orders, 2) if nb_orders else 0
     upo = round(nb_units  / nb_orders, 2) if nb_orders else 0
 
-    uv_val = round(sessions * 0.85) if sessions else 0
-    cr_val = round(nb_orders / sessions * 100, 2) if sessions else 0
+    sessions     = int(sessions)
+    uv_val       = round(sessions * 0.85) if sessions else 0
+    cr_val       = round(nb_orders / sessions * 100, 2) if sessions else 0
+
+    print(f"    ✓ Gross Sales: ${gross_sales:,.2f}")
+    print(f"    ✓ Discounts:   ${discounts:,.2f}")
+    print(f"    ✓ Returns:     ${returns:,.2f}")
+    print(f"    ✓ Net Sales:   ${net_sales:,.2f}")
+    print(f"    ✓ Orders:      {nb_orders}")
+    print(f"    ✓ Sessions:    {sessions}")
 
     return {
-        "gross_sales":     round(gross_sales, 2),
+        "gross_sales":     gross_sales,
         "net_sales":       net_sales,
-        "total_discounts": round(discounts, 2),
-        "total_returns":   round(returns, 2),
-        "cogs":            round(cogs, 2),
+        "total_discounts": discounts,
+        "total_returns":   returns,
+        "cogs":            cogs,
         "nb_orders":       nb_orders,
         "nb_units":        nb_units,
         "pct_discount":    pct_discount,
@@ -379,18 +370,20 @@ def main():
         orders_month   = fetch_orders(url, token, *periods["month"])
         orders_quarter = fetch_orders(url, token, *periods["quarter"])
 
-        # Analytics ShopifyQL (financieros + sessions) — solo para current
-        print("\n  → Fetching ShopifyQL analytics...")
-        analytics_mtd     = fetch_analytics(url, token, *periods["mtd"])
-        analytics_week    = fetch_analytics(url, token, *periods["week"])
-        analytics_month   = fetch_analytics(url, token, *periods["month"])
-        analytics_quarter = fetch_analytics(url, token, *periods["quarter"])
+        # Sessions via ShopifyQL (si falla retorna 0, no bloquea)
+        print("\n  → Fetching sessions from ShopifyQL...")
+        sessions_mtd     = fetch_sessions(url, token, *periods["mtd"])
+        sessions_week    = fetch_sessions(url, token, *periods["week"])
+        sessions_month   = fetch_sessions(url, token, *periods["month"])
+        sessions_quarter = fetch_sessions(url, token, *periods["quarter"])
+        print(f"    sessions MTD={sessions_mtd}, week={sessions_week}, month={sessions_month}, quarter={sessions_quarter}")
 
+        print("\n  → Calculando KPIs...")
         periods_data = {
             "mtd": {
                 "start":         periods["mtd"][0],
                 "end":           periods["mtd"][1],
-                "current":       calc_kpis(orders_mtd,     analytics_mtd),
+                "current":       calc_kpis(orders_mtd,     sessions_mtd),
                 "mom":           calc_kpis(orders_mtd_mom),
                 "yoy":           calc_kpis(orders_mtd_yoy),
                 "revenue_share": calc_revenue_share(orders_mtd),
@@ -398,7 +391,7 @@ def main():
             "week": {
                 "start":         periods["week"][0],
                 "end":           periods["week"][1],
-                "current":       calc_kpis(orders_week,    analytics_week),
+                "current":       calc_kpis(orders_week,    sessions_week),
                 "mom":           calc_kpis(orders_wk_prev),
                 "yoy":           {},
                 "revenue_share": calc_revenue_share(orders_week),
@@ -406,7 +399,7 @@ def main():
             "month": {
                 "start":         periods["month"][0],
                 "end":           periods["month"][1],
-                "current":       calc_kpis(orders_month,   analytics_month),
+                "current":       calc_kpis(orders_month,   sessions_month),
                 "mom":           {},
                 "yoy":           {},
                 "revenue_share": calc_revenue_share(orders_month),
@@ -414,7 +407,7 @@ def main():
             "quarter": {
                 "start":         periods["quarter"][0],
                 "end":           periods["quarter"][1],
-                "current":       calc_kpis(orders_quarter, analytics_quarter),
+                "current":       calc_kpis(orders_quarter, sessions_quarter),
                 "mom":           {},
                 "yoy":           {},
                 "revenue_share": calc_revenue_share(orders_quarter),
