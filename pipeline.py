@@ -119,7 +119,7 @@ def fetch_analytics(store_url, token, start_date, end_date):
 
         query = f"""
         {{
-          shopifyqlQuery(query: "FROM sales SHOW gross_sales, discounts, returns, cost_of_goods_sold, sessions DURING custom(\\"{start_date}\\",\\"{end_date}\\") WITH TOTALS") {{
+          shopifyqlQuery(query: "FROM sales SHOW gross_sales, discounts, returns, cost_of_goods_sold, sessions DURING custom({start_date},{end_date}) WITH TOTALS") {{
             __typename
             ... on TableResponse {{
               tableData {{
