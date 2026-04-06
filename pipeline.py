@@ -132,7 +132,9 @@ def _parse_ql_totals(data, query_key="shopifyqlQuery"):
     ql = data.get(query_key, {})
     if not ql:
         return None
-    parse_errors = ql.get("parseErrors", [])
+    # En 2025-10 parseErrors es un String scalar (no objeto)
+    # Viene vacío "" o null si no hay errores
+    parse_errors = ql.get("parseErrors") or ""
     if parse_errors:
         print(f"    ShopifyQL parseErrors: {parse_errors}")
         return None
@@ -190,7 +192,7 @@ def fetch_sales_ql(store_url, token, start_date, end_date):
           columns { name dataType }
           rows
         }
-        parseErrors { code message }
+        parseErrors
       }
     }
     """ % (start_date, end_date)
@@ -234,7 +236,7 @@ def fetch_sessions_ql(store_url, token, start_date, end_date):
           columns { name dataType }
           rows
         }
-        parseErrors { code message }
+        parseErrors
       }
     }
     """ % (start_date, end_date)
