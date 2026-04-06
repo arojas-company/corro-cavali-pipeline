@@ -215,7 +215,9 @@ def fetch_cogs_and_sessions(store_url, token, start_date, end_date):
         return result
 
 # ── CALCULAR KPIs ──────────────────────────────────────────
-def calc_kpis(orders, cogs=None, sessions=None, taxes=None, shipping=None, gross_margin_shopify=None):
+def calc_kpis(orders, cogs=None, sessions=None, taxes=None, shipping=None,
+              gross_margin_shopify=None, net_sales_shopify=None, gross_sales_shopify=None,
+              discounts_shopify=None, returns_shopify=None):
     if not orders:
         return {
             "gross_sales": 0, "net_sales": 0, "total_discounts": 0,
@@ -224,26 +226,38 @@ def calc_kpis(orders, cogs=None, sessions=None, taxes=None, shipping=None, gross
             "pct_gm": 0, "sessions": 0, "unique_visitors": 0, "conversion_rate": 0,
         }
 
-    # Gross = sum of line items before discounts (matches Shopify Gross Sales)
-    gross = sum(float(o.get("total_line_items_price", 0)) for o in orders)
+    # ── Valores financieros: usar ShopifyQL directo si están disponibles ──
+    # Gross Sales
+    if gross_sales_shopify is not None and float(gross_sales_shopify) != 0:
+        gross = float(gross_sales_shopify)
+    else:
+        gross = sum(float(o.get("total_line_items_price", 0)) for o in orders)
 
-    # Discounts applied
-    discounts = sum(float(o.get("total_discounts", 0)) for o in orders)
+    # Discounts
+    if discounts_shopify is not None:
+        discounts = abs(float(discounts_shopify))  # Shopify lo devuelve negativo
+    else:
+        discounts = sum(float(o.get("total_discounts", 0)) for o in orders)
 
-    # Returns = sum of refund transactions (matches Shopify Returns line)
-    returns = 0
-    for o in orders:
-        for refund in o.get("refunds", []):
-            for txn in refund.get("transactions", []):
-                if txn.get("kind") in ("refund", "void"):
-                    try:
-                        returns += float(txn.get("amount", 0))
-                    except:
-                        pass
+    # Returns
+    if returns_shopify is not None:
+        returns = abs(float(returns_shopify))  # Shopify lo devuelve negativo
+    else:
+        returns = 0
+        for o in orders:
+            for refund in o.get("refunds", []):
+                for txn in refund.get("transactions", []):
+                    if txn.get("kind") in ("refund", "void"):
+                        try:
+                            returns += float(txn.get("amount", 0))
+                        except:
+                            pass
 
-    # Net sales = Gross - Discounts - Returns
-    # (Shopify definition: taxes and shipping are separate line items, NOT included in net sales)
-    net = round(gross - discounts - returns, 2)
+    # ✅ Net Sales: usar directamente de ShopifyQL (es la fuente de verdad)
+    if net_sales_shopify is not None and float(net_sales_shopify) != 0:
+        net = float(net_sales_shopify)
+    else:
+        net = round(gross - discounts - returns, 2)
 
     nb_orders = len(orders)
     nb_units = sum(
@@ -252,39 +266,23 @@ def calc_kpis(orders, cogs=None, sessions=None, taxes=None, shipping=None, gross
     )
 
     pct_discount = round((discounts / gross * 100), 2) if gross else 0
-    pct_returns = round((returns / gross * 100), 2) if gross else 0
+    pct_returns  = round((returns  / gross * 100), 2) if gross else 0
     aov = round(net / nb_orders, 2) if nb_orders else 0
     upo = round(nb_units / nb_orders, 2) if nb_orders else 0
 
-    # ✅ Gross Margin: Usar Shopify solo si retorna un valor real (> 0)
+    # ✅ Gross Margin: usar directamente de ShopifyQL
     if gross_margin_shopify is not None and float(gross_margin_shopify) != 0:
         pct_gm = float(gross_margin_shopify)
     else:
-        # Fallback: intentar calcular (pero generalmente vendrá de Shopify)
-        total_cost = float(cogs) if cogs else 0
-        if not total_cost:
-            for o in orders:
-                for li in o.get("line_items", []):
-                    try:
-                        qty = int(li.get("quantity", 0))
-                        cost_per_unit = float(li.get("cost", 0))
-                        total_cost += cost_per_unit * qty
-                    except:
-                        pass
-        
-        if total_cost and gross:
-            pct_gm = round(((gross - total_cost) / gross * 100), 2)
-        else:
-            pct_gm = 0
+        pct_gm = 0  # Sin COGS en Shopify no se puede calcular
 
     # Sessions from ShopifyQL
     sessions_val = int(sessions) if sessions else 0
     uv_val = round(sessions_val * 0.85) if sessions_val else 0
-    
+
     # Conversion Rate = (Orders / Sessions) × 100
     if sessions_val > 0:
         cr_val = round((nb_orders / sessions_val * 100), 2)
-        # Sanity check: CR should typically be < 10% (but can be higher)
         if cr_val > 50:
             print(f"    ⚠️  WARNING: CR {cr_val}% seems high. Sessions: {sessions_val}, Orders: {nb_orders}")
     else:
@@ -462,12 +460,13 @@ def main():
                 "start": periods["mtd"][0], 
                 "end": periods["mtd"][1],
                 "current": calc_kpis(
-                    orders_mtd, 
-                    cogs=analytics_mtd["cogs"], 
+                    orders_mtd,
                     sessions=analytics_mtd["sessions"],
-                    taxes=analytics_mtd.get("taxes", 0),
-                    shipping=analytics_mtd.get("shipping", 0),
-                    gross_margin_shopify=analytics_mtd.get("gross_margin", 0)
+                    gross_sales_shopify=analytics_mtd.get("gross_sales"),
+                    discounts_shopify=analytics_mtd.get("discounts"),
+                    returns_shopify=analytics_mtd.get("returns"),
+                    net_sales_shopify=analytics_mtd.get("net_sales"),
+                    gross_margin_shopify=analytics_mtd.get("gross_margin"),
                 ),
                 "mom": calc_kpis(orders_mtd_mom),
                 "yoy": calc_kpis(orders_mtd_yoy),
@@ -477,12 +476,13 @@ def main():
                 "start": periods["week"][0], 
                 "end": periods["week"][1],
                 "current": calc_kpis(
-                    orders_week, 
-                    cogs=analytics_week["cogs"], 
+                    orders_week,
                     sessions=analytics_week["sessions"],
-                    taxes=analytics_week.get("taxes", 0),
-                    shipping=analytics_week.get("shipping", 0),
-                    gross_margin_shopify=analytics_week.get("gross_margin", 0)
+                    gross_sales_shopify=analytics_week.get("gross_sales"),
+                    discounts_shopify=analytics_week.get("discounts"),
+                    returns_shopify=analytics_week.get("returns"),
+                    net_sales_shopify=analytics_week.get("net_sales"),
+                    gross_margin_shopify=analytics_week.get("gross_margin"),
                 ),
                 "mom": calc_kpis(orders_wk_prev),
                 "yoy": {},
@@ -492,12 +492,13 @@ def main():
                 "start": periods["month"][0], 
                 "end": periods["month"][1],
                 "current": calc_kpis(
-                    orders_month, 
-                    cogs=analytics_month["cogs"], 
+                    orders_month,
                     sessions=analytics_month["sessions"],
-                    taxes=analytics_month.get("taxes", 0),
-                    shipping=analytics_month.get("shipping", 0),
-                    gross_margin_shopify=analytics_month.get("gross_margin", 0)
+                    gross_sales_shopify=analytics_month.get("gross_sales"),
+                    discounts_shopify=analytics_month.get("discounts"),
+                    returns_shopify=analytics_month.get("returns"),
+                    net_sales_shopify=analytics_month.get("net_sales"),
+                    gross_margin_shopify=analytics_month.get("gross_margin"),
                 ),
                 "mom": {},
                 "yoy": {},
@@ -507,12 +508,13 @@ def main():
                 "start": periods["quarter"][0], 
                 "end": periods["quarter"][1],
                 "current": calc_kpis(
-                    orders_quarter, 
-                    cogs=analytics_quarter["cogs"], 
+                    orders_quarter,
                     sessions=analytics_quarter["sessions"],
-                    taxes=analytics_quarter.get("taxes", 0),
-                    shipping=analytics_quarter.get("shipping", 0),
-                    gross_margin_shopify=analytics_quarter.get("gross_margin", 0)
+                    gross_sales_shopify=analytics_quarter.get("gross_sales"),
+                    discounts_shopify=analytics_quarter.get("discounts"),
+                    returns_shopify=analytics_quarter.get("returns"),
+                    net_sales_shopify=analytics_quarter.get("net_sales"),
+                    gross_margin_shopify=analytics_quarter.get("gross_margin"),
                 ),
                 "mom": {},
                 "yoy": {},
