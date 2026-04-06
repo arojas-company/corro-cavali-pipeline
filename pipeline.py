@@ -243,10 +243,17 @@ def calc_kpis(orders, analytics=None):
         gross     = float(analytics["gross_sales"])
         discounts = abs(float(analytics.get("discounts", 0)))   # viene negativo
         returns   = abs(float(analytics.get("returns",   0)))   # viene negativo
-        net       = float(analytics["net_sales"])
-        # gross_margin viene como decimal (0.32 = 32%) o ya como porcentaje (32)
+        net       = round(gross - discounts - returns, 2)
+        # gross_margin = (Net Sales - COGS) / Net Sales * 100
+        cogs      = float(analytics.get("cogs", 0))
         raw_gm    = float(analytics.get("gross_margin", 0))
-        pct_gm    = round(raw_gm * 100, 2) if 0 < raw_gm <= 1 else round(raw_gm, 2)
+        if cogs and net:
+            pct_gm = round((net - cogs) / net * 100, 2)
+        elif raw_gm:
+            # fallback: si ShopifyQL devuelve gross_margin directo
+            pct_gm = round(raw_gm * 100, 2) if 0 < raw_gm <= 1 else round(raw_gm, 2)
+        else:
+            pct_gm = 0
         sessions_val = int(analytics.get("sessions", 0))
     else:
         # Fallback para períodos de comparación (MOM/YOY) que no tienen ShopifyQL
