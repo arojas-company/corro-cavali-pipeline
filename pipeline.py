@@ -112,28 +112,30 @@ def fetch_orders(store_url, token, start_date, end_date):
 
 def fetch_cogs_and_sessions(store_url, token, start_date, end_date):
     """
-    Fetch COGS, sessions, and financial metrics from Shopify Analytics API
-    Using the proven ShopifyQL query that works correctly
+    Fetch metrics directly from Shopify Analytics API
+    Using ShopifyQL query - obtiene gross_margin directamente
     """
     headers = {"X-Shopify-Access-Token": token, "Content-Type": "application/json"}
     result = {
-        "cogs": 0,
-        "sessions": 0,
         "gross_sales": 0,
         "discounts": 0,
         "returns": 0,
         "taxes": 0,
         "shipping": 0,
+        "cogs": 0,
         "orders": 0,
+        "sessions": 0,
+        "gross_margin": 0,  # ← NUEVO: Obtener directamente de Shopify
+        "net_sales": 0,      # ← NUEVO: Para validación
     }
     
     try:
         graphql_url = f"https://{store_url}/admin/api/2024-01/graphql.json"
         
-        # Query mejorada - sin GROUP BY para obtener TOTALS correctos
+        # Query con TODOS los campos incluyendo gross_margin y net_sales
         shopify_ql = f"""
         {{
-          shopifyqlQuery(query: "FROM sales SHOW gross_sales, discounts, returns, taxes, shipping_charges, cost_of_goods_sold, orders, sessions DURING custom(\"{start_date}\",\"{end_date}\") WITH TOTALS") {{
+          shopifyqlQuery(query: "FROM sales SHOW gross_sales, discounts, returns, taxes, shipping_charges, cost_of_goods_sold, gross_margin, net_sales, orders, sessions DURING custom(\"{start_date}\",\"{end_date}\") WITH TOTALS") {{
             __typename
             ... on TableResponse {{
               tableData {{
@@ -165,7 +167,7 @@ def fetch_cogs_and_sessions(store_url, token, start_date, end_date):
             cols = [c["name"] for c in table.get("columns", [])]
             rows = table.get("rowData", [])
             
-            print(f"    ℹ️  ShopifyQL returned {len(rows)} rows, {len(cols)} columns")
+            print(f"    ℹ️  ShopifyQL returned {len(rows)} rows")
             
             if not rows:
                 print(f"    ⚠️  No rows returned from ShopifyQL")
@@ -175,7 +177,7 @@ def fetch_cogs_and_sessions(store_url, token, start_date, end_date):
             last_row = rows[-1]
             row_dict = dict(zip(cols, last_row))
             
-            # Extraer valores
+            # Extraer valores financieros
             try:
                 result["gross_sales"] = float(row_dict.get("gross_sales", 0))
                 result["discounts"] = float(row_dict.get("discounts", 0))
@@ -186,18 +188,17 @@ def fetch_cogs_and_sessions(store_url, token, start_date, end_date):
                 result["orders"] = int(float(row_dict.get("orders", 0)))
                 result["sessions"] = int(float(row_dict.get("sessions", 0)))
                 
-                print(f"    ✓ Gross Sales: ${result['gross_sales']:,.2f}")
-                print(f"    ✓ Discounts: ${result['discounts']:,.2f}")
-                print(f"    ✓ Returns: ${result['returns']:,.2f}")
-                print(f"    ✓ Taxes: ${result['taxes']:,.2f}")
-                print(f"    ✓ Shipping: ${result['shipping']:,.2f}")
-                print(f"    ✓ COGS: ${result['cogs']:,.2f}")
-                print(f"    ✓ Orders: {result['orders']:,}")
-                print(f"    ✓ Sessions: {result['sessions']:,}")
+                # ✅ GROSS MARGIN DIRECTO DE SHOPIFY
+                result["gross_margin"] = float(row_dict.get("gross_margin", 0))
                 
-                # Calcular Net Sales correctamente
-                calculated_net = result["gross_sales"] - result["discounts"] - result["returns"] + result["taxes"] + result["shipping"]
-                print(f"    ✓ Calculated Net Sales: ${calculated_net:,.2f}")
+                # NET SALES DE SHOPIFY (para referencia)
+                result["net_sales"] = float(row_dict.get("net_sales", 0))
+                
+                print(f"    ✓ Gross Sales: ${result['gross_sales']:,.2f}")
+                print(f"    ✓ COGS: ${result['cogs']:,.2f}")
+                print(f"    ✓ Gross Margin (Shopify): {result['gross_margin']:.2f}%")
+                print(f"    ✓ Net Sales (Shopify): ${result['net_sales']:,.2f}")
+                print(f"    ✓ Sessions: {result['sessions']:,}")
                 
                 return result
                 
@@ -207,7 +208,6 @@ def fetch_cogs_and_sessions(store_url, token, start_date, end_date):
         
         else:
             print(f"    ⚠️  GraphQL request failed: HTTP {r.status_code}")
-            print(f"       Response: {r.text[:200]}")
             return result
     
     except Exception as e:
@@ -215,7 +215,7 @@ def fetch_cogs_and_sessions(store_url, token, start_date, end_date):
         return result
 
 # ── CALCULAR KPIs ──────────────────────────────────────────
-def calc_kpis(orders, cogs=None, sessions=None, taxes=None, shipping=None):
+def calc_kpis(orders, cogs=None, sessions=None, taxes=None, shipping=None, gross_margin_shopify=None):
     if not orders:
         return {
             "gross_sales": 0, "net_sales": 0, "total_discounts": 0,
@@ -269,29 +269,26 @@ def calc_kpis(orders, cogs=None, sessions=None, taxes=None, shipping=None):
     aov = round(net / nb_orders, 2) if nb_orders else 0
     upo = round(nb_units / nb_orders, 2) if nb_orders else 0
 
-    # Gross margin using COGS from ShopifyQL Analytics API
-    # COGS passed in from fetch_cogs_and_sessions()
-    total_cost = float(cogs) if cogs else 0
-    
-    # Fallback 1: Try line_items cost field if ShopifyQL didn't provide COGS
-    if not total_cost:
-        for o in orders:
-            for li in o.get("line_items", []):
-                try:
-                    qty = int(li.get("quantity", 0))
-                    cost_per_unit = float(li.get("cost", 0))
-                    total_cost += cost_per_unit * qty
-                except:
-                    pass
-    
-    # Gross Margin = (Gross Sales - COGS) / Gross Sales × 100
-    if total_cost and gross:
-        pct_gm = round(((gross - total_cost) / gross * 100), 2)
-    elif not total_cost and gross:
-        # No COGS data available
-        pct_gm = 0
+    # ✅ Gross Margin: Obtener directamente de Shopify en lugar de calcular
+    if gross_margin_shopify is not None:
+        pct_gm = float(gross_margin_shopify)
     else:
-        pct_gm = 0
+        # Fallback: intentar calcular (pero generalmente vendrá de Shopify)
+        total_cost = float(cogs) if cogs else 0
+        if not total_cost:
+            for o in orders:
+                for li in o.get("line_items", []):
+                    try:
+                        qty = int(li.get("quantity", 0))
+                        cost_per_unit = float(li.get("cost", 0))
+                        total_cost += cost_per_unit * qty
+                    except:
+                        pass
+        
+        if total_cost and gross:
+            pct_gm = round(((gross - total_cost) / gross * 100), 2)
+        else:
+            pct_gm = 0
 
     # Sessions from ShopifyQL
     sessions_val = int(sessions) if sessions else 0
@@ -475,52 +472,60 @@ def main():
 
         periods_data = {
             "mtd": {
-                "start": periods["mtd"][0], "end": periods["mtd"][1],
+                "start": periods["mtd"][0], 
+                "end": periods["mtd"][1],
                 "current": calc_kpis(
                     orders_mtd, 
                     cogs=analytics_mtd["cogs"], 
                     sessions=analytics_mtd["sessions"],
                     taxes=analytics_mtd.get("taxes", 0),
-                    shipping=analytics_mtd.get("shipping", 0)
+                    shipping=analytics_mtd.get("shipping", 0),
+                    gross_margin_shopify=analytics_mtd.get("gross_margin", 0)
                 ),
                 "mom": calc_kpis(orders_mtd_mom),
                 "yoy": calc_kpis(orders_mtd_yoy),
                 "revenue_share": calc_revenue_share(orders_mtd),
             },
             "week": {
-                "start": periods["week"][0], "end": periods["week"][1],
+                "start": periods["week"][0], 
+                "end": periods["week"][1],
                 "current": calc_kpis(
                     orders_week, 
                     cogs=analytics_week["cogs"], 
                     sessions=analytics_week["sessions"],
                     taxes=analytics_week.get("taxes", 0),
-                    shipping=analytics_week.get("shipping", 0)
+                    shipping=analytics_week.get("shipping", 0),
+                    gross_margin_shopify=analytics_week.get("gross_margin", 0)
                 ),
                 "mom": calc_kpis(orders_wk_prev),
                 "yoy": {},
                 "revenue_share": calc_revenue_share(orders_week),
             },
             "month": {
-                "start": periods["month"][0], "end": periods["month"][1],
+                "start": periods["month"][0], 
+                "end": periods["month"][1],
                 "current": calc_kpis(
                     orders_month, 
                     cogs=analytics_month["cogs"], 
                     sessions=analytics_month["sessions"],
                     taxes=analytics_month.get("taxes", 0),
-                    shipping=analytics_month.get("shipping", 0)
+                    shipping=analytics_month.get("shipping", 0),
+                    gross_margin_shopify=analytics_month.get("gross_margin", 0)
                 ),
                 "mom": {},
                 "yoy": {},
                 "revenue_share": calc_revenue_share(orders_month),
             },
             "quarter": {
-                "start": periods["quarter"][0], "end": periods["quarter"][1],
+                "start": periods["quarter"][0], 
+                "end": periods["quarter"][1],
                 "current": calc_kpis(
                     orders_quarter, 
                     cogs=analytics_quarter["cogs"], 
                     sessions=analytics_quarter["sessions"],
                     taxes=analytics_quarter.get("taxes", 0),
-                    shipping=analytics_quarter.get("shipping", 0)
+                    shipping=analytics_quarter.get("shipping", 0),
+                    gross_margin_shopify=analytics_quarter.get("gross_margin", 0)
                 ),
                 "mom": {},
                 "yoy": {},
