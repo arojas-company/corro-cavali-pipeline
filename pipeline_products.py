@@ -187,8 +187,9 @@ def write_products_sheet(gc, sheet_id, period_key, products, now_str):
         ])
 
     # Batch write
-    for row in rows:
-        ws.append_row(row)
+   # Truly batch write all rows at once
+    if rows:
+        ws.append_rows(rows)
 
     print(f"  ✓ Written {len(rows)} products to tab '{tab_name}'")
     return sorted_products
