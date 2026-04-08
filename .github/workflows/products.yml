@@ -1,0 +1,31 @@
+name: Products Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      period:
+        description: 'Period to extract (e.g. q1_2026, q4_2025, or "all")'
+        required: false
+        default: 'q1_2026'
+  schedule:
+    - cron: '0 14 * * 1'
+
+jobs:
+  run-products:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install requests gspread google-auth pytz
+      - name: Run products pipeline
+        env:
+          SHOPIFY_TOKEN_CORRO: ${{ secrets.SHOPIFY_TOKEN_CORRO }}
+          SHOPIFY_TOKEN_CAVALI: ${{ secrets.SHOPIFY_TOKEN_CAVALI }}
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          TARGET_PERIOD: ${{ github.event.inputs.period || 'q1_2026' }}
+        run: python pipeline_products.py
