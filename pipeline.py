@@ -1,11 +1,12 @@
 """
 Pipeline CORRO / CAVALI — Shopify Analytics → Google Sheets
-v2: Fixed period keys, correct week matching, no fake session estimates
+v2.1: Fixed Weekly display, consistent period keys, and spreadsheet persistence.
 """
 import os, json, requests, gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta, date
 import pytz
+import calendar
 
 TIMEZONE    = pytz.timezone("America/Bogota")
 GQL_VERSION = "2025-10"
@@ -67,7 +68,7 @@ def run_ql(store_url, token, ql_query):
     if errs: print(f"    parseErrors: {errs}"); return None
     table = ql.get("tableData") or {}
     rows = table.get("rows") or []
-    if not rows: print("    no rows returned"); return None
+    if not rows: return None
     return rows[-1]
 
 def money(v):
@@ -83,7 +84,6 @@ def gm_ratio(v):
     except: return 0.0
 
 def fetch_sales(store_url, token, start, end):
-    """ShopifyQL FROM sales — exact same numbers as Shopify Analytics."""
     row = run_ql(store_url, token,
         f"FROM sales SHOW gross_sales, discounts, returns, net_sales, "
         f"cost_of_goods_sold, gross_margin, orders SINCE {start} UNTIL {end}")
@@ -96,19 +96,14 @@ def fetch_sales(store_url, token, start, end):
     c = round(money(row.get("cost_of_goods_sold")),2)
     gm = gm_ratio(row.get("gross_margin"))
     o = int(abs(money(row.get("orders"))))
-    print(f"    ✓ gross:{g:>12,.2f}  disc:{d:>9,.2f}  ret:{r:>9,.2f}  net:{n:>12,.2f}  cogs:{c:>9,.2f}  gm:{gm:>5.1f}%  ord:{o}")
     return {"gross_sales":g,"discounts":d,"returns":r,"net_sales":n,"cogs":c,"pct_gm":gm,"orders":o}
 
 def fetch_sessions(store_url, token, start, end):
-    """ShopifyQL FROM sessions — real sessions from Shopify Analytics."""
     row = run_ql(store_url, token, f"FROM sessions SHOW sessions SINCE {start} UNTIL {end}")
     if not row: return 0
-    s = int(abs(money(row.get("sessions",0))))
-    print(f"    sessions: {s:,}")
-    return s
+    return int(abs(money(row.get("sessions",0))))
 
 def fetch_orders(store_url, token, start, end):
-    """REST orders — for units and revenue share only."""
     return rest_get(store_url, token, "orders.json", {
         "status":"any",
         "financial_status":"paid,partially_paid,partially_refunded,refunded",
@@ -147,7 +142,6 @@ def build(ql, orders, sessions=0):
     upo=round(units/nb,2) if nb else 0
     pdisc=round(d/g*100,2) if g else 0
     pret=round(r/g*100,2) if g else 0
-    # Real sessions from ShopifyQL — NEVER estimate from orders
     s=int(sessions or 0)
     uv=round(s*0.85) if s else 0
     cr=round(nb/s*100,4) if s else 0
@@ -165,66 +159,53 @@ def pct(c, p):
 
 def get_periods():
     today = datetime.now(TIMEZONE).date()
-    # MTD
     mtd_start = today.replace(day=1)
     mtd_end   = today
-    # MTD prev month (same # of days)
     mom_end     = mtd_start - timedelta(days=1)
     mom_start   = mom_end.replace(day=1)
     mom_mtd_end = mom_end.replace(day=min(today.day, mom_end.day))
-    # MTD YOY
     yoy_start = mtd_start.replace(year=mtd_start.year-1)
     yoy_end   = today.replace(year=today.year-1)
-    # Current week Mon-Sun
-    dow = today.weekday()  # 0=Mon
+    
+    dow = today.weekday()
     wk_start = today - timedelta(days=dow)
     wk_end   = today
-    # Previous full week Mon-Sun
     pwk_end   = wk_start - timedelta(days=1)
     pwk_start = pwk_end - timedelta(days=6)
-    # Previous full month
+    
     mo_end   = mtd_start - timedelta(days=1)
     mo_start = mo_end.replace(day=1)
-    # Month prev
     pmo_end   = mo_start - timedelta(days=1)
     pmo_start = pmo_end.replace(day=1)
-    # Month YOY
     yoy_mo_start = mo_start.replace(year=mo_start.year-1)
     yoy_mo_end   = mo_end.replace(year=mo_end.year-1)
-    # Quarter
+    
     q_num     = (today.month-1)//3+1
     q_start   = today.replace(month=(q_num-1)*3+1, day=1)
     q_end     = today
-    q_label   = f"q{q_num}_{today.year}"
-    # Prev quarter
     pq = q_num-1 if q_num>1 else 4
     py = today.year if q_num>1 else today.year-1
     pq_start  = date(py,(pq-1)*3+1,1)
     pq_end_m  = pq*3
-    pq_end    = date(py,pq_end_m,1).replace(day=1)
-    import calendar
     pq_end    = date(py,pq_end_m,calendar.monthrange(py,pq_end_m)[1])
-    # YOY quarter
     yoy_q_start = q_start.replace(year=q_start.year-1)
     yoy_q_end   = today.replace(year=today.year-1)
-    yoy_q_label = f"q{q_num}_{today.year-1}"
 
     return {
         "mtd":         (mtd_start,  mtd_end,  "mtd"),
         "mtd_mom":     (mom_start,  mom_mtd_end, None),
         "mtd_yoy":     (yoy_start,  yoy_end,  None),
-        "week":        (wk_start,   wk_end,   None),  # period_key = date range
-        "week_prev":   (pwk_start,  pwk_end,  None),
+        "week":        (wk_start,   wk_end,   f"week_{wk_start}"),
+        "week_prev":   (pwk_start,  pwk_end,  f"week_{pwk_start}"),
         "month":       (mo_start,   mo_end,   mo_start.strftime("%Y-%m")),
         "month_prev":  (pmo_start,  pmo_end,  pmo_start.strftime("%Y-%m")),
         "month_yoy":   (yoy_mo_start, yoy_mo_end, None),
-        "quarter":     (q_start,    q_end,    q_label),
+        "quarter":     (q_start,    q_end,    f"q{q_num}_{today.year}"),
         "quarter_prev":(pq_start,   pq_end,   f"q{pq}_{py}"),
-        "quarter_yoy": (yoy_q_start,yoy_q_end,yoy_q_label),
+        "quarter_yoy": (yoy_q_start, yoy_q_end, f"q{q_num}_{today.year-1}"),
     }
 
 def make_row(now_str, period_key, start, end, cur, prev, yoy, rs):
-    rs_data = rs
     return {
         "kpi": [
             now_str, period_key, str(start), str(end),
@@ -249,109 +230,67 @@ def make_row(now_str, period_key, start, end, cur, prev, yoy, rs):
         "rs": [(now_str, period_key, ch, v["amount"], v["pct"]) for ch,v in rs.items()]
     }
 
-def write_kpis(gc, sheet_id, all_rows):
-    sh      = gc.open_by_key(sheet_id)
-    now_str = datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M")
-    try:    ws = sh.worksheet("kpis_daily")
-    except: ws = sh.add_worksheet("kpis_daily",rows=500,cols=35)
-    ws.clear(); ws.append_row(HEADERS_KPIS)
+def write_to_sheets(gc, sheet_id, all_rows):
+    sh = gc.open_by_key(sheet_id)
+    
+    # Update KPI sheet
+    try: ws = sh.worksheet("kpis_daily")
+    except: ws = sh.add_worksheet("kpis_daily", rows=1000, cols=30)
+    ws.clear()
+    ws.append_row(HEADERS_KPIS)
+    ws.append_rows([r["kpi"] for r in all_rows])
+    
+    # Update Revenue Share sheet
+    try: ws_rs = sh.worksheet("revenue_share")
+    except: ws_rs = sh.add_worksheet("revenue_share", rows=1000, cols=10)
+    ws_rs.clear()
+    ws_rs.append_row(["updated_at","period","channel","amount","pct"])
+    rs_flat = []
     for r in all_rows:
-        ws.append_row(r["kpi"])
-    try:    ws_rs = sh.worksheet("revenue_share")
-    except: ws_rs = sh.add_worksheet("revenue_share",rows=500,cols=10)
-    ws_rs.clear(); ws_rs.append_row(["updated_at","period","channel","amount","pct"])
-    for r in all_rows:
-        for rs_row in r["rs"]:
-            ws_rs.append_row(list(rs_row))
-    print(f"  ✓ Sheets OK: {now_str}")
+        for rs_row in r["rs"]: rs_flat.append(list(rs_row))
+    ws_rs.append_rows(rs_flat)
 
 def main():
-    gc      = get_gc()
+    gc = get_gc()
     periods = get_periods()
     now_str = datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M")
 
     for brand, cfg in STORES.items():
-        print(f"\n{'='*55}\n  {brand.upper()}\n{'='*55}")
+        print(f"\nProcessing {brand.upper()}...")
         url, token = cfg["url"], cfg["token"]
         all_rows = []
 
-        # ── 1. MTD ──────────────────────────────────────────
+        # 1. MTD
         s,e,pk = periods["mtd"]
-        print(f"\n  MTD ({s} → {e})")
-        ql_cur = fetch_sales(url, token, s, e)
-        s_cur  = fetch_sessions(url, token, s, e)
-        o_cur  = fetch_orders(url, token, s, e)
-        cur    = build(ql_cur, o_cur, s_cur)
+        cur = build(fetch_sales(url, token, s, e), fetch_orders(url, token, s, e), fetch_sessions(url, token, s, e))
+        prev = build(fetch_sales(url, token, periods["mtd_mom"][0], periods["mtd_mom"][1]), [])
+        yoy = build(fetch_sales(url, token, periods["mtd_yoy"][0], periods["mtd_yoy"][1]), [])
+        all_rows.append(make_row(now_str, pk, s, e, cur, prev, yoy, calc_rs(fetch_orders(url, token, s, e))))
 
-        s2,e2,_ = periods["mtd_mom"]
-        ql_p = fetch_sales(url, token, s2, e2)
-        prev = build(ql_p, [])
+        # 2. WEEK (Fixed and clearly identified)
+        s,e,pk = periods["week"]
+        print(f"  -> Adding WEEK: {pk}")
+        o_cur = fetch_orders(url, token, s, e)
+        cur = build(fetch_sales(url, token, s, e), o_cur, fetch_sessions(url, token, s, e))
+        prev = build(fetch_sales(url, token, periods["week_prev"][0], periods["week_prev"][1]), fetch_orders(url, token, periods["week_prev"][0], periods["week_prev"][1]))
+        all_rows.append(make_row(now_str, pk, s, e, cur, prev, {}, calc_rs(o_cur)))
 
-        s3,e3,_ = periods["mtd_yoy"]
-        ql_y = fetch_sales(url, token, s3, e3)
-        yoy  = build(ql_y, [])
-
-        all_rows.append(make_row(now_str, "mtd", s, e, cur, prev, yoy, calc_rs(o_cur)))
-
-        # ── 2. WEEK — saved with period_start as key ────────
-        s,e,_ = periods["week"]
-        print(f"\n  WEEK ({s} → {e})")
-        # Period key for week = "week_YYYY-MM-DD" so dashboard can find by start date
-        week_pk = f"week_{s}"
-        ql_cur = fetch_sales(url, token, s, e)
-        s_cur  = fetch_sessions(url, token, s, e)
-        o_cur  = fetch_orders(url, token, s, e)
-        cur    = build(ql_cur, o_cur, s_cur)
-
-        s2,e2,_ = periods["week_prev"]
-        ql_p = fetch_sales(url, token, s2, e2)
-        o_p  = fetch_orders(url, token, s2, e2)
-        prev = build(ql_p, o_p)
-        all_rows.append(make_row(now_str, week_pk, s, e, cur, prev, {}, calc_rs(o_cur)))
-
-        # ── 3. MONTH ─────────────────────────────────────────
+        # 3. MONTH
         s,e,pk = periods["month"]
-        print(f"\n  MONTH ({s} → {e}) [period={pk}]")
-        ql_cur = fetch_sales(url, token, s, e)
-        s_cur  = fetch_sessions(url, token, s, e)
-        o_cur  = fetch_orders(url, token, s, e)
-        cur    = build(ql_cur, o_cur, s_cur)
+        cur = build(fetch_sales(url, token, s, e), fetch_orders(url, token, s, e), fetch_sessions(url, token, s, e))
+        prev = build(fetch_sales(url, token, periods["month_prev"][0], periods["month_prev"][1]), [])
+        yoy = build(fetch_sales(url, token, periods["month_yoy"][0], periods["month_yoy"][1]), [])
+        all_rows.append(make_row(now_str, pk, s, e, cur, prev, yoy, calc_rs(fetch_orders(url, token, s, e))))
 
-        s2,e2,pk2 = periods["month_prev"]
-        ql_p = fetch_sales(url, token, s2, e2)
-        prev = build(ql_p, [])
-
-        s3,e3,_ = periods["month_yoy"]
-        ql_y = fetch_sales(url, token, s3, e3)
-        yoy  = build(ql_y, [])
-
-        all_rows.append(make_row(now_str, pk, s, e, cur, prev, yoy, calc_rs(o_cur)))
-
-        # ── 4. QUARTER ───────────────────────────────────────
+        # 4. QUARTER
         s,e,pk = periods["quarter"]
-        print(f"\n  QUARTER ({s} → {e}) [period={pk}]")
-        ql_cur = fetch_sales(url, token, s, e)
-        s_cur  = fetch_sessions(url, token, s, e)
-        o_cur  = fetch_orders(url, token, s, e)
-        cur    = build(ql_cur, o_cur, s_cur)
+        cur = build(fetch_sales(url, token, s, e), fetch_orders(url, token, s, e), fetch_sessions(url, token, s, e))
+        prev = build(fetch_sales(url, token, periods["quarter_prev"][0], periods["quarter_prev"][1]), [])
+        yoy = build(fetch_sales(url, token, periods["quarter_yoy"][0], periods["quarter_yoy"][1]), [])
+        all_rows.append(make_row(now_str, pk, s, e, cur, prev, yoy, calc_rs(fetch_orders(url, token, s, e))))
 
-        s2,e2,pk2 = periods["quarter_prev"]
-        ql_p = fetch_sales(url, token, s2, e2)
-        prev = build(ql_p, [])
-
-        s3,e3,pk3 = periods["quarter_yoy"]
-        ql_y = fetch_sales(url, token, s3, e3)
-        yoy  = build(ql_y, [])
-
-        all_rows.append(make_row(now_str, pk, s, e, cur, prev, yoy, calc_rs(o_cur)))
-
-        write_kpis(gc, cfg["sheet_id"], all_rows)
-        print(f"\n  ✓ {brand.upper()} done — {len(all_rows)} periods saved")
-        for r in all_rows:
-            pk_saved = r["kpi"][1]
-            ps = r["kpi"][2]; pe = r["kpi"][3]
-            gs = r["kpi"][4]; ns = r["kpi"][5]
-            print(f"    {pk_saved:<20} {ps} → {pe}  gross:${gs:>12,.2f}  net:${ns:>12,.2f}")
+        write_to_sheets(gc, cfg["sheet_id"], all_rows)
+        print(f"Done {brand.upper()}. Saved periods: {[r['kpi'][1] for r in all_rows]}")
 
 if __name__ == "__main__":
     main()
