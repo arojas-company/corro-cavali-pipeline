@@ -88,6 +88,11 @@ def fetch_sessions(store_url, token, start, end):
     if not row: return 0
     return int(abs(money(row.get("sessions",0))))
 
+def fetch_orders_fulfilled(store_url, token, start, end):
+    row = run_ql(store_url, token, f"FROM fulfillments SHOW orders_fulfilled SINCE {start} UNTIL {end}")
+    if not row: return None
+    return int(abs(money(row.get("orders_fulfilled",0))))
+
 def rest_get(store_url, token, endpoint, params):
     url = f"https://{store_url}/admin/api/2024-01/{endpoint}"
     headers = {"X-Shopify-Access-Token":token}
@@ -125,15 +130,17 @@ def calc_rs(orders):
         else: ch["Others"]+=amt
     return {k:{"amount":round(v,2),"pct":round(v/total*100,2) if total else 0} for k,v in ch.items()}
 
-def build(ql, orders, sessions=0):
+def build(ql, orders, sessions=0, orders_fulfilled=None):
     if ql.get("gross_sales") is not None:
         g=ql["gross_sales"]; d=ql["discounts"]; r=ql["returns"]
-        n=ql["net_sales"]; c=ql["cogs"]or 0; gm=ql["pct_gm"]or 0; nb=ql["orders"]or len(orders)
+        n=ql["net_sales"]; c=ql["cogs"]or 0; gm=ql["pct_gm"]or 0
+        nb=int(orders_fulfilled) if orders_fulfilled is not None else (ql["orders"]or len(orders))
     else:
-        nb=len(orders); g=sum(float(o.get("subtotal_price",0)or 0) for o in orders)
+        nb=int(orders_fulfilled) if orders_fulfilled is not None else len(orders)
+        g=sum(float(o.get("subtotal_price",0)or 0) for o in orders)
         d=r=c=gm=0.0; n=g
     units=calc_units(orders)
-    aov=round((g-d)/nb,2) if nb else 0
+    aov=round(n/nb,2) if nb else 0
     upo=round(units/nb,2) if nb else 0
     pdisc=round(d/g*100,2) if g else 0; pret=round(r/g*100,2) if g else 0
     s=int(sessions or 0)
@@ -212,22 +219,25 @@ def main():
                 # Current month
                 ql_cur  = fetch_sales(url, token, mo_start, mo_end)
                 s_cur   = fetch_sessions(url, token, mo_start, mo_end)
+                of_cur  = fetch_orders_fulfilled(url, token, mo_start, mo_end)
                 o_cur   = fetch_orders(url, token, mo_start, mo_end)
-                cur     = build(ql_cur, o_cur, s_cur)
+                cur     = build(ql_cur, o_cur, s_cur, of_cur)
 
                 # Prev month
                 pm = m-1 if m>1 else 12; py = y if m>1 else y-1
                 prev_start = date(py,pm,1); prev_end = last_day(py,pm)
                 ql_prev = fetch_sales(url, token, prev_start, prev_end)
+                of_prev = fetch_orders_fulfilled(url, token, prev_start, prev_end)
                 o_prev  = fetch_orders(url, token, prev_start, prev_end)
-                prev    = build(ql_prev, o_prev)
+                prev    = build(ql_prev, o_prev, 0, of_prev)
 
                 # YOY (same month last year)
                 if y > 2024:
                     yoy_start = date(y-1,m,1); yoy_end = last_day(y-1,m)
                     ql_yoy  = fetch_sales(url, token, yoy_start, yoy_end)
+                    of_yoy  = fetch_orders_fulfilled(url, token, yoy_start, yoy_end)
                     o_yoy   = fetch_orders(url, token, yoy_start, yoy_end)
-                    yoy     = build(ql_yoy, o_yoy)
+                    yoy     = build(ql_yoy, o_yoy, 0, of_yoy)
                 else:
                     yoy = {}
 
@@ -283,18 +293,21 @@ def main():
 
             ql_cur = fetch_sales(url, token, wk_start, wk_end)
             s_cur  = fetch_sessions(url, token, wk_start, wk_end)
+            of_cur = fetch_orders_fulfilled(url, token, wk_start, wk_end)
             o_cur  = fetch_orders(url, token, wk_start, wk_end)
-            cur    = build(ql_cur, o_cur, s_cur)
+            cur    = build(ql_cur, o_cur, s_cur, of_cur)
 
             pws = wk_start - timedelta(days=7)
             pwe = pws + timedelta(days=(wk_end - wk_start).days)
             ql_prev = fetch_sales(url, token, pws, pwe)
-            prev = build(ql_prev, [])
+            of_prev = fetch_orders_fulfilled(url, token, pws, pwe)
+            prev = build(ql_prev, [], 0, of_prev)
 
             yws = wk_start - timedelta(days=364)
             ywe = wk_end - timedelta(days=364)
             ql_yoy = fetch_sales(url, token, yws, ywe)
-            yoy = build(ql_yoy, [])
+            of_yoy = fetch_orders_fulfilled(url, token, yws, ywe)
+            yoy = build(ql_yoy, [], 0, of_yoy)
 
             rs = calc_rs(o_cur)
             for ch, v in rs.items():
@@ -331,20 +344,23 @@ def main():
                 print(f"\n  Quarter {q_label} ({q_start} → {q_end})")
                 ql_q  = fetch_sales(url, token, q_start, q_end)
                 s_q   = fetch_sessions(url, token, q_start, q_end)
+                of_q  = fetch_orders_fulfilled(url, token, q_start, q_end)
                 o_q   = fetch_orders(url, token, q_start, q_end)
-                cur_q = build(ql_q, o_q, s_q)
+                cur_q = build(ql_q, o_q, s_q, of_q)
 
                 # Prev quarter
                 pq = q-1 if q>1 else 4; py = y if q>1 else y-1
                 pq_start = date(py,(pq-1)*3+1,1); pq_end = last_day(py,pq*3)
                 ql_pq = fetch_sales(url, token, pq_start, pq_end)
-                prev_q = build(ql_pq, [])
+                of_pq = fetch_orders_fulfilled(url, token, pq_start, pq_end)
+                prev_q = build(ql_pq, [], 0, of_pq)
 
                 # YOY quarter
                 if y > 2024:
                     yq_start = date(y-1,(q-1)*3+1,1); yq_end = last_day(y-1,q*3)
                     ql_yq = fetch_sales(url, token, yq_start, yq_end)
-                    yoy_q = build(ql_yq, [])
+                    of_yq = fetch_orders_fulfilled(url, token, yq_start, yq_end)
+                    yoy_q = build(ql_yq, [], 0, of_yq)
                 else:
                     yoy_q = {}
 
