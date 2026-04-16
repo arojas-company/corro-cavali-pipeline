@@ -150,6 +150,9 @@ def pct(c,p):
 def last_day(y,m):
     return (date(y,m+1,1)-timedelta(days=1)) if m<12 else date(y,12,31)
 
+def monday_of(d):
+    return d - timedelta(days=d.weekday())
+
 def write_rows(gc, sheet_id, rows_to_append, rs_rows_to_append):
     sh = gc.open_by_key(sheet_id)
     now_str = datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M")
@@ -201,8 +204,8 @@ def main():
             for m in range(m_start, m_end+1):
                 mo_start = date(y,m,1)
                 mo_end   = last_day(y,m) if (y<today.year or m<today.month) else today
-                period_label = f"{y}-{str(m).padStart if False else str(m).zfill(2)}"
                 period_label = f"{y}-{str(m).zfill(2)}"
+                mtd_label = f"mtd_{period_label}"
 
                 print(f"\n  Month {period_label} ({mo_start} → {mo_end})")
 
@@ -232,6 +235,7 @@ def main():
                 rs = calc_rs(o_cur)
                 for ch, v in rs.items():
                     rs_rows.append([now_str, period_label, ch, v["amount"], v["pct"]])
+                    rs_rows.append([now_str, mtd_label, ch, v["amount"], v["pct"]])
 
                 kpi_rows.append([
                     now_str, period_label, str(mo_start), str(mo_end),
@@ -250,6 +254,70 @@ def main():
                     pct(cur.get("aov",0),          prev.get("aov")),
                     pct(cur.get("aov",0),          yoy.get("aov")),
                 ])
+
+                kpi_rows.append([
+                    now_str, mtd_label, str(mo_start), str(mo_end),
+                    cur.get("gross_sales",0), cur.get("net_sales",0),
+                    cur.get("total_discounts",0), cur.get("total_returns",0), cur.get("cogs",0),
+                    cur.get("pct_discount",0), cur.get("pct_returns",0), cur.get("pct_gm",0),
+                    cur.get("nb_orders",0), cur.get("nb_units",0),
+                    cur.get("aov",0), cur.get("units_per_order",0),
+                    cur.get("sessions",0), cur.get("unique_visitors",0), cur.get("conversion_rate",0),
+                    pct(cur.get("gross_sales",0), prev.get("gross_sales")),
+                    pct(cur.get("gross_sales",0), yoy.get("gross_sales")),
+                    pct(cur.get("net_sales",0),   prev.get("net_sales")),
+                    pct(cur.get("net_sales",0),   yoy.get("net_sales")),
+                    pct(cur.get("nb_orders",0),   prev.get("nb_orders")),
+                    pct(cur.get("nb_orders",0),   yoy.get("nb_orders")),
+                    pct(cur.get("aov",0),          prev.get("aov")),
+                    pct(cur.get("aov",0),          yoy.get("aov")),
+                ])
+
+        # Weekly data: Monday-start weeks from 2024 to today
+        wk_start = monday_of(date(y_start, 1, 1))
+        while wk_start <= today:
+            wk_end = min(wk_start + timedelta(days=6), today)
+            wk_label = f"week_{wk_start}"
+
+            print(f"\n  Week {wk_label} ({wk_start} -> {wk_end})")
+
+            ql_cur = fetch_sales(url, token, wk_start, wk_end)
+            s_cur  = fetch_sessions(url, token, wk_start, wk_end)
+            o_cur  = fetch_orders(url, token, wk_start, wk_end)
+            cur    = build(ql_cur, o_cur, s_cur)
+
+            pws = wk_start - timedelta(days=7)
+            pwe = pws + timedelta(days=(wk_end - wk_start).days)
+            ql_prev = fetch_sales(url, token, pws, pwe)
+            prev = build(ql_prev, [])
+
+            yws = wk_start - timedelta(days=364)
+            ywe = wk_end - timedelta(days=364)
+            ql_yoy = fetch_sales(url, token, yws, ywe)
+            yoy = build(ql_yoy, [])
+
+            rs = calc_rs(o_cur)
+            for ch, v in rs.items():
+                rs_rows.append([now_str, wk_label, ch, v["amount"], v["pct"]])
+
+            kpi_rows.append([
+                now_str, wk_label, str(wk_start), str(wk_end),
+                cur.get("gross_sales",0), cur.get("net_sales",0),
+                cur.get("total_discounts",0), cur.get("total_returns",0), cur.get("cogs",0),
+                cur.get("pct_discount",0), cur.get("pct_returns",0), cur.get("pct_gm",0),
+                cur.get("nb_orders",0), cur.get("nb_units",0),
+                cur.get("aov",0), cur.get("units_per_order",0),
+                cur.get("sessions",0), cur.get("unique_visitors",0), cur.get("conversion_rate",0),
+                pct(cur.get("gross_sales",0), prev.get("gross_sales")),
+                pct(cur.get("gross_sales",0), yoy.get("gross_sales")),
+                pct(cur.get("net_sales",0),   prev.get("net_sales")),
+                pct(cur.get("net_sales",0),   yoy.get("net_sales")),
+                pct(cur.get("nb_orders",0),   prev.get("nb_orders")),
+                pct(cur.get("nb_orders",0),   yoy.get("nb_orders")),
+                pct(cur.get("aov",0),          prev.get("aov")),
+                pct(cur.get("aov",0),          yoy.get("aov")),
+            ])
+            wk_start += timedelta(days=7)
 
         # ── QUARTERLY DATA: Q1 2024 → current Q ─────────────
         for y in range(y_start, today.year+1):
