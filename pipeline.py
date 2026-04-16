@@ -219,6 +219,21 @@ def make_kpi_row(now_str, period_key, s, e, cur, prev, yoy):
         pct_chg(cur.get("aov",0),          yoy.get("aov")),
     ]
 
+def _safe_date(v):
+    try:
+        return datetime.strptime(str(v), "%Y-%m-%d").date()
+    except:
+        return date(1900, 1, 1)
+
+def _row_to_map(headers, row):
+    m = {}
+    for i, h in enumerate(headers):
+        m[h] = row[i] if i < len(row) else ""
+    return m
+
+def _map_to_row(headers, m):
+    return [m.get(h, "") for h in headers]
+
 # ── PERIODS ───────────────────────────────────────────────────────
 def get_periods():
     today = datetime.now(TIMEZONE).date()
@@ -306,16 +321,50 @@ def write_all(gc, sheet_id, kpi_rows, rs_rows):
 
     try:    ws = sh.worksheet("kpis_daily")
     except: ws = sh.add_worksheet("kpis_daily", rows=500, cols=35)
-    ws.clear(); ws.append_row(HEADERS)
-    for row in kpi_rows:
-        ws.append_row(row)
+
+    existing_vals = ws.get_all_values()
+    existing = {}
+    if len(existing_vals) >= 2:
+        ex_headers = existing_vals[0]
+        for r in existing_vals[1:]:
+            m = _row_to_map(ex_headers, r)
+            pk = str(m.get("period", "")).strip()
+            if pk:
+                existing[pk] = _map_to_row(HEADERS, m)
+    for r in kpi_rows:
+        existing[str(r[1]).strip()] = r
+
+    merged_kpis = list(existing.values())
+    merged_kpis.sort(key=lambda r: (_safe_date(r[2]), str(r[1])))
+
+    ws.clear()
+    ws.append_row(HEADERS)
+    if merged_kpis:
+        ws.append_rows(merged_kpis, value_input_option="USER_ENTERED")
 
     try:    ws_rs = sh.worksheet("revenue_share")
     except: ws_rs = sh.add_worksheet("revenue_share", rows=500, cols=10)
+    rs_headers = ["updated_at","period","channel","amount","pct"]
+    rs_vals = ws_rs.get_all_values()
+    existing_rs = {}
+    if len(rs_vals) >= 2:
+        ex_headers = rs_vals[0]
+        for r in rs_vals[1:]:
+            m = _row_to_map(ex_headers, r)
+            p = str(m.get("period", "")).strip()
+            ch = str(m.get("channel", "")).strip()
+            if p and ch:
+                existing_rs[(p, ch)] = _map_to_row(rs_headers, m)
+    for r in rs_rows:
+        existing_rs[(str(r[1]).strip(), str(r[2]).strip())] = r
+
+    merged_rs = list(existing_rs.values())
+    merged_rs.sort(key=lambda r: (str(r[1]), str(r[2])))
+
     ws_rs.clear()
-    ws_rs.append_row(["updated_at","period","channel","amount","pct"])
-    for row in rs_rows:
-        ws_rs.append_row(row)
+    ws_rs.append_row(rs_headers)
+    if merged_rs:
+        ws_rs.append_rows(merged_rs, value_input_option="USER_ENTERED")
 
 # ── MAIN ─────────────────────────────────────────────────────────
 def main():
@@ -329,28 +378,38 @@ def main():
         kpi_rows, rs_rows = [], []
 
         periods_to_run = [
-            ("MTD",     "mtd",     "mtd_prev",    "mtd_yoy"),
-            ("WEEK",    "week",    "week_prev",   "week_yoy"),
-            ("MONTH",   "month",   "month_prev",  "month_yoy"),
-            ("QUARTER", "quarter", "quarter_prev","quarter_yoy"),
+            {"label":"MTD",                   "cur":"mtd",         "prev":"mtd_prev",     "yoy":"mtd_yoy"},
+            {"label":"WEEK",                  "cur":"week",        "prev":"week_prev",    "yoy":"week_yoy"},
+            {"label":"WEEK_PREV_SNAPSHOT",    "cur":"week_prev"},
+            {"label":"MONTH",                 "cur":"month",       "prev":"month_prev",   "yoy":"month_yoy"},
+            {"label":"MONTH_PREV_SNAPSHOT",   "cur":"month_prev"},
+            {"label":"QUARTER",               "cur":"quarter",     "prev":"quarter_prev", "yoy":"quarter_yoy"},
+            {"label":"QUARTER_PREV_SNAPSHOT", "cur":"quarter_prev"},
         ]
 
-        for label, cur_k, prev_k, yoy_k in periods_to_run:
+        for it in periods_to_run:
+            label = it["label"]
+            cur_k = it["cur"]
+            prev_k = it.get("prev")
+            yoy_k = it.get("yoy")
             s, e, pk = P[cur_k]
-            sp, ep, _ = P[prev_k]
-            sy, ey, _ = P[yoy_k]
+            sp = ep = sy = ey = None
+            if prev_k:
+                sp, ep, _ = P[prev_k]
+            if yoy_k:
+                sy, ey, _ = P[yoy_k]
 
             print(f"\n  [{label}] {s} → {e}  (period='{pk}')")
 
             sal_cur  = fetch_sales(url, token, s, e)
             ses_cur  = fetch_sessions(url, token, s, e)
             ord_cur  = fetch_orders(url, token, s, e)
-            sal_prev = fetch_sales(url, token, sp, ep)
-            sal_yoy  = fetch_sales(url, token, sy, ey)
+            sal_prev = fetch_sales(url, token, sp, ep) if prev_k else {}
+            sal_yoy  = fetch_sales(url, token, sy, ey) if yoy_k else {}
 
             cur  = build(sal_cur,  ord_cur, ses_cur)
-            prev = build(sal_prev, [])
-            yoy  = build(sal_yoy,  [])
+            prev = build(sal_prev, []) if prev_k else {}
+            yoy  = build(sal_yoy,  []) if yoy_k else {}
 
             kpi_rows.append(make_kpi_row(now_str, pk, s, e, cur, prev, yoy))
 
