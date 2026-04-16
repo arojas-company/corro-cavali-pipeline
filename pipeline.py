@@ -130,6 +130,13 @@ def fetch_sessions(url, token, s, e):
     print(f"    sessions: {v:,}")
     return v
 
+def fetch_orders_fulfilled(url, token, s, e):
+    row = ql_row(url, token, f"FROM fulfillments SHOW orders_fulfilled SINCE {s} UNTIL {e}")
+    if not row: return None
+    v = int(abs(_m(row.get("orders_fulfilled",0))))
+    print(f"    orders_fulfilled: {v:,}")
+    return v
+
 def fetch_orders(url, token, s, e):
     """REST orders — for units + revenue share only."""
     return rest(url, token, "orders.json", {
@@ -164,7 +171,7 @@ def calc_rs(orders):
     return {k:{"amount":round(v,2),"pct":round(v/total*100,2) if total else 0}
             for k,v in ch.items()}
 
-def build(sales, orders, sessions=0):
+def build(sales, orders, sessions=0, orders_fulfilled=None):
     """Combine ShopifyQL sales + REST orders into full KPI dict."""
     g  = sales.get("gross_sales",0)
     d  = sales.get("discounts",0)
@@ -172,7 +179,7 @@ def build(sales, orders, sessions=0):
     n  = sales.get("net_sales",0)
     c  = sales.get("cogs",0)
     gm = sales.get("pct_gm",0)
-    nb = sales.get("orders",0) or len(orders)
+    nb = int(orders_fulfilled) if orders_fulfilled is not None else (sales.get("orders",0) or len(orders))
 
     units = calc_units(orders)
     # AOV = net_sales / orders (matching Shopify Analytics definition)
@@ -403,13 +410,16 @@ def main():
 
             sal_cur  = fetch_sales(url, token, s, e)
             ses_cur  = fetch_sessions(url, token, s, e)
+            of_cur   = fetch_orders_fulfilled(url, token, s, e)
             ord_cur  = fetch_orders(url, token, s, e)
             sal_prev = fetch_sales(url, token, sp, ep) if prev_k else {}
             sal_yoy  = fetch_sales(url, token, sy, ey) if yoy_k else {}
+            of_prev  = fetch_orders_fulfilled(url, token, sp, ep) if prev_k else None
+            of_yoy   = fetch_orders_fulfilled(url, token, sy, ey) if yoy_k else None
 
-            cur  = build(sal_cur,  ord_cur, ses_cur)
-            prev = build(sal_prev, []) if prev_k else {}
-            yoy  = build(sal_yoy,  []) if yoy_k else {}
+            cur  = build(sal_cur,  ord_cur, ses_cur, of_cur)
+            prev = build(sal_prev, [], 0, of_prev) if prev_k else {}
+            yoy  = build(sal_yoy,  [], 0, of_yoy) if yoy_k else {}
 
             kpi_rows.append(make_kpi_row(now_str, pk, s, e, cur, prev, yoy))
 
