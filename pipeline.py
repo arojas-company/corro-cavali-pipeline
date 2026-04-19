@@ -11,6 +11,11 @@ Cambios clave vs v2:
 - Revenue share usa subtotal_price (net per order, sin shipping/tax)
 - Sessions reales de ShopifyQL, sin estimaciones
 - GM% viene directo de ShopifyQL (misma fuente que Analytics)
+
+Cambios v3.1:
+- Revenue share guarda pct_prev y pct_chg para mostrar variación vs período anterior
+- Tab ad_spend se escribe automáticamente desde variable AD_SPEND_DATA (alimentar con Stats.xlsx)
+- Bug week fix: period_end se guarda como fecha real del último día con datos
 """
 import os, json, requests, gspread, calendar
 from google.oauth2.service_account import Credentials
@@ -42,6 +47,44 @@ HEADERS = [
     "nb_orders_prev","nb_orders_yoy",
     "aov_prev","aov_yoy",
 ]
+
+# ── AD SPEND DATA (del Stats.xlsx — Total Shopify sheet) ──────────
+# Formato: {"YYYY-MM": {"spend": 0, "roas": 0, "cos": 0}}
+# Llenar desde Stats.xlsx antes de correr el pipeline.
+# Corro = equestrian-labs, Cavali = cavali-club (separar si tienes ambos)
+AD_SPEND_DATA = {
+    "corro": {
+        "2024-01": {"spend": 82069,    "roas": 2.12, "cos": 0.472},
+        "2024-02": {"spend": 38738,    "roas": 2.94, "cos": 0.341},
+        "2024-03": {"spend": 39391,    "roas": 3.24, "cos": 0.309},
+        "2024-04": {"spend": 16371,    "roas": 6.22, "cos": 0.161},
+        "2024-05": {"spend": 7909,     "roas": 13.78,"cos": 0.073},
+        "2024-06": {"spend": 19752,    "roas": 4.98, "cos": 0.201},
+        "2024-07": {"spend": 10491,    "roas": 6.21, "cos": 0.161},
+        "2024-08": {"spend": 16110,    "roas": 5.34, "cos": 0.187},
+        "2024-09": {"spend": 18786,    "roas": 4.54, "cos": 0.220},
+        "2024-10": {"spend": 22284,    "roas": 3.95, "cos": 0.253},
+        "2024-11": {"spend": 30959,    "roas": 3.77, "cos": 0.265},
+        "2024-12": {"spend": 22994,    "roas": 4.84, "cos": 0.207},
+        "2025-01": {"spend": 32136,    "roas": 2.77, "cos": 0.362},
+        "2025-02": {"spend": 26531,    "roas": 4.16, "cos": 0.240},
+        "2025-03": {"spend": 32810,    "roas": 3.64, "cos": 0.275},
+        "2025-04": {"spend": 40677,    "roas": 3.19, "cos": 0.313},
+        "2025-05": {"spend": 59424,    "roas": 2.88, "cos": 0.348},
+        "2025-06": {"spend": 45524,    "roas": 3.23, "cos": 0.310},
+        "2025-07": {"spend": 51788,    "roas": 3.10, "cos": 0.322},
+        "2025-08": {"spend": 27828,    "roas": 3.72, "cos": 0.269},
+        "2025-09": {"spend": 36960,    "roas": 3.34, "cos": 0.300},
+        "2025-10": {"spend": 45790,    "roas": 2.95, "cos": 0.339},
+        "2025-11": {"spend": 41051,    "roas": 4.08, "cos": 0.245},
+        "2025-12": {"spend": 36657,    "roas": 3.55, "cos": 0.282},
+        "2026-01": {"spend": 33133,    "roas": 3.77, "cos": 0.265},
+        "2026-02": {"spend": 16470,    "roas": 4.56, "cos": 0.219},
+        "2026-03": {"spend": 0,        "roas": 0,    "cos": 0},
+        "2026-04": {"spend": 7883,     "roas": 3.85, "cos": 0.260},
+    },
+    "cavali": {},  # Llenar cuando tengas los datos de Cavali
+}
 
 # ── GOOGLE SHEETS ─────────────────────────────────────────────────
 def get_gc():
@@ -323,9 +366,10 @@ def get_periods():
     }
 
 # ── WRITE ─────────────────────────────────────────────────────────
-def write_all(gc, sheet_id, kpi_rows, rs_rows):
+def write_all(gc, sheet_id, kpi_rows, rs_rows, brand=""):
     sh = gc.open_by_key(sheet_id)
 
+    # ── kpis_daily ────────────────────────────────────────────────
     try:    ws = sh.worksheet("kpis_daily")
     except: ws = sh.add_worksheet("kpis_daily", rows=500, cols=35)
 
@@ -349,9 +393,10 @@ def write_all(gc, sheet_id, kpi_rows, rs_rows):
     if merged_kpis:
         ws.append_rows(merged_kpis, value_input_option="USER_ENTERED")
 
+    # ── revenue_share (con pct_prev y pct_chg) ────────────────────
     try:    ws_rs = sh.worksheet("revenue_share")
     except: ws_rs = sh.add_worksheet("revenue_share", rows=500, cols=10)
-    rs_headers = ["updated_at","period","channel","amount","pct"]
+    rs_headers = ["updated_at","period","channel","amount","pct","pct_prev","pct_chg"]
     rs_vals = ws_rs.get_all_values()
     existing_rs = {}
     if len(rs_vals) >= 2:
@@ -365,13 +410,76 @@ def write_all(gc, sheet_id, kpi_rows, rs_rows):
     for r in rs_rows:
         existing_rs[(str(r[1]).strip(), str(r[2]).strip())] = r
 
-    merged_rs = list(existing_rs.values())
+    # Calcular pct_prev y pct_chg comparando vs período anterior guardado
+    sorted_rs = list(existing_rs.values())
+    sorted_rs.sort(key=lambda r: (str(r[2]), str(r[1])))  # canal, luego período
+    # Indexar por (canal, período) para lookups rápidos
+    rs_idx = {(str(r[2]).strip(), str(r[1]).strip()): r for r in sorted_rs}
+    for r in sorted_rs:
+        ch = str(r[2]).strip()
+        pk = str(r[1]).strip()
+        # Buscar pct_prev: período anterior del mismo canal
+        prev_pk = None
+        if pk.startswith("mtd_"):
+            yr,mo = int(pk[4:7+3].split("-")[0]), int(pk[4:7+3].split("-")[1])
+            pmo = mo-1 if mo>1 else 12; py = yr if mo>1 else yr-1
+            prev_pk = f"mtd_{py}-{str(pmo).padStart(2,'0') if hasattr(str(pmo),'padStart') else str(pmo).zfill(2)}"
+        elif pk.startswith("week_"):
+            from datetime import datetime as _dt
+            try:
+                d = _dt.strptime(pk[5:], "%Y-%m-%d").date()
+                prev_pk = f"week_{d - timedelta(days=7)}"
+            except: pass
+        elif len(pk)==7 and "-" in pk:  # "2026-03"
+            yr,mo = int(pk[:4]),int(pk[5:])
+            pmo = mo-1 if mo>1 else 12; py = yr if mo>1 else yr-1
+            prev_pk = f"{py}-{str(pmo).zfill(2)}"
+        elif pk.startswith("q") and "_" in pk:
+            parts = pk[1:].split("_"); q,yr = int(parts[0]),int(parts[1])
+            pq = q-1 if q>1 else 4; py = yr if q>1 else yr-1
+            prev_pk = f"q{pq}_{py}"
+        prev_row = rs_idx.get((ch, prev_pk)) if prev_pk else None
+        pct_now  = float(r[4]) if r[4] not in ("","None") else None
+        pct_prev = float(prev_row[4]) if prev_row and prev_row[4] not in ("","None") else None
+        pct_chg  = round(pct_now - pct_prev, 2) if pct_now is not None and pct_prev is not None else None
+        while len(r) < 7: r.append("")
+        r[5] = pct_prev if pct_prev is not None else ""
+        r[6] = pct_chg  if pct_chg  is not None else ""
+
+    merged_rs = sorted_rs
     merged_rs.sort(key=lambda r: (str(r[1]), str(r[2])))
 
     ws_rs.clear()
     ws_rs.append_row(rs_headers)
     if merged_rs:
         ws_rs.append_rows(merged_rs, value_input_option="USER_ENTERED")
+
+    # ── ad_spend (desde AD_SPEND_DATA) ────────────────────────────
+    try:    ws_ad = sh.worksheet("ad_spend")
+    except: ws_ad = sh.add_worksheet("ad_spend", rows=200, cols=8)
+
+    ad_headers = ["updated_at","brand","period","period_start","period_end","ad_spend","roas","cos"]
+    now_str = datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M")
+    brand_data = AD_SPEND_DATA.get(brand, {})
+    ad_rows = []
+    for mo, vals in sorted(brand_data.items()):
+        if not vals.get("spend"): continue
+        yr, mn = int(mo[:4]), int(mo[5:])
+        import calendar as _cal
+        ps = f"{mo}-01"
+        pe = f"{mo}-{_cal.monthrange(yr, mn)[1]:02d}"
+        ad_rows.append([
+            now_str, brand, mo, ps, pe,
+            vals.get("spend", 0),
+            vals.get("roas", 0),
+            vals.get("cos", 0),
+        ])
+
+    ws_ad.clear()
+    ws_ad.append_row(ad_headers)
+    if ad_rows:
+        ws_ad.append_rows(ad_rows, value_input_option="USER_ENTERED")
+    print(f"    ad_spend: {len(ad_rows)} months written")
 
 # ── MAIN ─────────────────────────────────────────────────────────
 def main():
@@ -427,7 +535,7 @@ def main():
             for ch, v in rs.items():
                 rs_rows.append([now_str, pk, ch, v["amount"], v["pct"]])
 
-        write_all(gc, cfg["sheet_id"], kpi_rows, rs_rows)
+        write_all(gc, cfg["sheet_id"], kpi_rows, rs_rows, brand=brand)
 
         print(f"\n  ✓ {brand.upper()} — {len(kpi_rows)} periods written:")
         for row in kpi_rows:
