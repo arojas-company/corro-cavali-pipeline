@@ -6,7 +6,10 @@
 <title>Equestrian Labs, Inc.</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500&display=swap" rel="stylesheet">
 <style>
+/* ── RESET & ROOT ──────────────────────────────────────────────────────────── */
 *{box-sizing:border-box;margin:0;padding:0}
+
+/* ── LIGHT THEME TOKENS ────────────────────────────────────────────────────── */
 [data-theme="light"]{
   --bg:#ECEAE5;--sf:#FFFFFF;--sf2:#F3F2EE;--sf3:#E8E6E1;
   --bd:#DEDAD3;--bd2:#C8C5BC;--tx:#0F0E0C;--tx2:#58564F;--tx3:#8E8C85;
@@ -15,6 +18,8 @@
   --gd:#7D5E0E;--pu:#4840B0;--bl:#1450A8;--ac:#1450A8;
   --am:#c47a00;--am-bg:rgba(196,122,0,.09);--am-bd:rgba(196,122,0,.25);
 }
+
+/* ── DARK THEME TOKENS ─────────────────────────────────────────────────────── */
 [data-theme="dark"]{
   --bg:#0A0A09;--sf:#161614;--sf2:#1E1E1C;--sf3:#282826;
   --bd:#2C2C2A;--bd2:#3E3E3C;--tx:#F4F3EC;--tx2:#C8C6BF;--tx3:#7A7870;
@@ -23,10 +28,12 @@
   --gd:#D8B054;--pu:#A090FF;--bl:#72AEFF;--ac:#72AEFF;
   --am:#D8B054;--am-bg:rgba(216,176,84,.10);--am-bd:rgba(216,176,84,.25);
 }
+
+/* ── BASE ───────────────────────────────────────────────────────────────────── */
 html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx)}
 .app{display:flex;min-height:100vh}
 
-/* ── SIDEBAR ── */
+/* ── SIDEBAR ────────────────────────────────────────────────────────────────── */
 .sb{width:196px;background:var(--sf);border-right:1px solid var(--bd);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;flex-shrink:0}
 .sb-top{padding:16px 14px 13px;border-bottom:1px solid var(--bd)}
 .sb-dots{display:flex;gap:3px;margin-bottom:5px}
@@ -38,16 +45,21 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 .sb-item{display:flex;align-items:center;gap:7px;padding:6px 14px;font-size:12px;color:var(--tx2);cursor:pointer;border-left:2px solid transparent;text-decoration:none;transition:all .1s}
 .sb-item:hover{background:var(--sf2);color:var(--tx)}
 .sb-item.on{color:var(--tx);background:var(--sf2);border-left-color:var(--gr);font-weight:500}
-/* Analytics suite nav items */
+
+/* ── ANALYTICS SUITE — sidebar links with visible category badges ───────────── */
+/* Each link shows a colored pill (GP, RET, $) so users know the tool type at a glance */
 .sb-suite{display:flex;align-items:center;gap:7px;padding:5px 14px;font-size:11px;color:var(--tx3);cursor:pointer;border-left:2px solid transparent;text-decoration:none;transition:all .1s;border-radius:0}
 .sb-suite:hover{background:var(--sf2);color:var(--tx)}
 .sb-suite .sb-badge{display:inline-flex;align-items:center;padding:1px 6px;border-radius:20px;font-size:9px;font-weight:600;margin-left:auto;font-family:'DM Sans',monospace}
+
+/* ── SIDEBAR FOOTER ─────────────────────────────────────────────────────────── */
 .sb-foot{padding:10px 14px;border-top:1px solid var(--bd)}
 .sync-r{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--tx3)}
+/* Animated pulse dot indicating live sync status */
 .sync-d{width:5px;height:5px;border-radius:50%;background:var(--gr);animation:pu 2.5s infinite}
 @keyframes pu{0%,100%{opacity:1}50%{opacity:.15}}
 
-/* ── MAIN ── */
+/* ── MAIN CONTENT AREA ──────────────────────────────────────────────────────── */
 .main{flex:1;padding:20px 22px;min-width:0;overflow-x:hidden}
 .ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px}
 .ph h1{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:var(--tx);letter-spacing:-.025em}
@@ -58,6 +70,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 .rfbtn{display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:5px;border:1px solid var(--bd2);background:var(--sf2);color:var(--tx2);cursor:pointer;font-size:10px;font-weight:500;font-family:'DM Sans',sans-serif;transition:all .12s}
 .rfbtn:hover{border-color:var(--gr);color:var(--gr)}
 
+/* ── PERIOD / BRAND CONTROLS ────────────────────────────────────────────────── */
 .ctrl{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px}
 .grp{display:flex;gap:2px;background:var(--sf2);border:1px solid var(--bd);border-radius:7px;padding:2px}
 .bb{display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:5px;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;color:var(--tx2);cursor:pointer;transition:all .12s}
@@ -65,6 +78,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 .pb{padding:4px 10px;border-radius:5px;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;color:var(--tx2);cursor:pointer;transition:all .12s}
 .pb.on{background:var(--sf);color:var(--tx);border:1px solid var(--bd2)}
 
+/* ── SELECTOR BAR (period/comparison dropdowns) ─────────────────────────────── */
 .selbar{background:var(--sf);border:1px solid var(--bd);border-radius:8px;padding:9px 13px;margin-bottom:11px;display:flex;align-items:center;flex-wrap:wrap;gap:12px}
 .sg{display:flex;align-items:center;gap:7px}
 .sl{font-size:10px;color:var(--tx3);font-weight:500;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
@@ -72,13 +86,17 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 .ss:focus{border-color:var(--gr)}
 .sdiv{width:1px;height:16px;background:var(--bd2)}
 
+/* ── INFO BAR (current period + comparison label) ───────────────────────────── */
 .ibar{font-size:11px;color:var(--tx3);background:var(--sf2);border-radius:6px;padding:6px 12px;margin-bottom:13px;line-height:1.7}
 .ibar span{color:var(--tx);font-weight:500}
-/* ROAS warning banner */
+
+/* ── ROAS WARNING BANNER ────────────────────────────────────────────────────── */
+/* Shown when ROAS is sourced from Shopify (last-click attribution, likely inflated).
+   Hidden once Google+Meta spend is entered in Manual Inputs. */
 .roas-warn{display:none;font-size:10px;color:var(--am);background:var(--am-bg);border:1px solid var(--am-bd);border-radius:6px;padding:5px 11px;margin-bottom:10px;line-height:1.6}
 .roas-warn.show{display:block}
 
-/* ── KPI CARDS ── */
+/* ── KPI CARDS ──────────────────────────────────────────────────────────────── */
 .sec{display:flex;align-items:center;gap:8px;margin:15px 0 9px}
 .sn{font-size:9px;font-weight:700;color:var(--tx3);letter-spacing:.1em;text-transform:uppercase;font-family:'Syne',sans-serif;white-space:nowrap}
 .sl2{flex:1;height:1px;background:var(--bd)}
@@ -86,6 +104,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 .kg{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:7px}
 .kc{background:var(--sf);border:1px solid var(--bd);border-radius:9px;padding:13px 14px;position:relative;overflow:hidden;transition:border-color .12s,transform .1s}
 .kc:hover{border-color:var(--bd2);transform:translateY(-1px)}
+/* Top accent color bar: green = good, red = bad, amber = data-quality warning */
 .kca{position:absolute;top:0;left:0;right:0;height:3px}
 .kcl{font-size:10px;color:var(--tx2);font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px}
 .kcv{font-family:'Syne',sans-serif;font-size:26px;font-weight:700;color:var(--tx);letter-spacing:-.04em;line-height:1;margin-bottom:9px}
@@ -95,12 +114,14 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 .bup{background:var(--gr-bg);color:var(--gr);border:1px solid var(--gr-bd)}
 .bdn{background:var(--rd-bg);color:var(--rd);border:1px solid var(--rd-bd)}
 .bneu{background:var(--sf2);color:var(--tx3);border:1px solid var(--bd)}
+/* Amber badge: data-quality warning (Shopify-attributed ROAS/CAC) */
 .bam{background:var(--am-bg);color:var(--am);border:1px solid var(--am-bd)}
 .kcn{font-size:9px;color:var(--tx3);margin-top:4px;font-style:italic}
+/* Skeleton loading state */
 .sk .kcl,.sk .kcv{background:var(--sf2);border-radius:3px;color:transparent;animation:sh 1.4s ease-in-out infinite}
 @keyframes sh{0%,100%{opacity:.3}50%{opacity:.8}}
 
-/* ── REVENUE SHARE ── */
+/* ── REVENUE SHARE PANEL ────────────────────────────────────────────────────── */
 .rs-w{background:var(--sf);border:1px solid var(--bd);border-radius:9px;overflow:hidden;margin-top:5px}
 .rs-h{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;user-select:none;transition:background .1s}
 .rs-h:hover,.rs-op .rs-h{background:var(--sf2)}
@@ -119,7 +140,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 .rscbar{height:2px;background:var(--bd2);border-radius:1px;margin-top:8px;overflow:hidden}
 .rscf{height:100%;border-radius:1px}
 
-/* ── Q1 SNAPSHOT PANEL ── */
+/* ── Q1 2026 SNAPSHOT PANEL ─────────────────────────────────────────────────── */
 .q1-panel{background:var(--sf);border:1px solid var(--bd);border-radius:9px;margin-top:8px;overflow:hidden}
 .q1-h{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;user-select:none;transition:background .1s;border-bottom:1px solid var(--bd)}
 .q1-h:hover{background:var(--sf2)}
@@ -129,7 +150,9 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 .q1-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:7px}
 .q1-note{font-size:9px;color:var(--tx3);margin-top:10px;padding-top:8px;border-top:1px solid var(--bd);font-style:italic}
 
-/* ── MANUAL INPUT PANEL ── */
+/* ── MANUAL INPUT PANEL ─────────────────────────────────────────────────────── */
+/* Users enter Google+Meta ad spend here. This drives accurate ROAS and CAC calculations,
+   replacing the Shopify-attributed spend which inflates both metrics. */
 .mi-panel{background:var(--sf);border:1px solid var(--bd);border-radius:9px;margin-top:8px;overflow:hidden}
 .mi-h{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;user-select:none}
 .mi-ht{display:flex;align-items:center;gap:7px;font-size:10px;font-weight:600;color:var(--tx2);letter-spacing:.07em;text-transform:uppercase}
@@ -153,14 +176,19 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 .mi-cbtn{padding:6px 14px;border-radius:6px;border:1px solid var(--bd2);background:transparent;color:var(--tx3);font-family:'DM Sans',sans-serif;font-size:11px;cursor:pointer}
 .mi-msg{font-size:10px;color:var(--tx3);font-style:italic}
 .mi-saved-tag{display:inline-flex;align-items:center;gap:4px;font-size:9px;color:var(--gr);background:var(--gr-bg);border:1px solid var(--gr-bd);border-radius:20px;padding:2px 7px}
-/* CAC pending note */
+
+/* ── CAC PENDING NOTE ───────────────────────────────────────────────────────── */
+/* Shown until manager confirms: CAC = Google+Meta only, or all channels combined.
+   Currently defaults to Google+Meta spend for accuracy. Remove once confirmed. */
 .cac-note{font-size:9px;color:var(--am);background:var(--am-bg);border:1px solid var(--am-bd);border-radius:5px;padding:4px 9px;margin-bottom:10px;line-height:1.6}
 
-/* ── FOOTER ── */
+/* ── FOOTER ─────────────────────────────────────────────────────────────────── */
 .foot{margin-top:20px;padding-top:12px;border-top:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px}
 .fn{font-size:10px;color:var(--tx3)}
 .fps{display:flex;gap:5px;flex-wrap:wrap}
 .fp{background:var(--sf2);border:1px solid var(--bd);border-radius:20px;padding:2px 8px;font-size:10px;color:var(--tx3)}
+
+/* ── LOADING OVERLAY ────────────────────────────────────────────────────────── */
 .ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;align-items:center;justify-content:center;flex-direction:column;gap:10px;backdrop-filter:blur(3px)}
 .ov.show{display:flex}
 .spi{width:24px;height:24px;border:2px solid var(--bd2);border-top-color:var(--gr);border-radius:50%;animation:sp .65s linear infinite}
@@ -172,6 +200,9 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 <div class="ov" id="ov"><div class="spi"></div><div class="ovt" id="ovt">Loading...</div></div>
 <div class="app">
 
+<!-- ══════════════════════════════════════════════════════════
+     SIDEBAR
+     ══════════════════════════════════════════════════════════ -->
 <div class="sb">
   <div class="sb-top">
     <div class="sb-dots">
@@ -181,15 +212,17 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
     <div class="sb-name">Equestrian Labs, Inc.</div>
     <div class="sb-sub">Analytics Suite</div>
   </div>
+
   <div class="sb-nav">
-    <!-- ── Main Dashboard ── -->
+
+    <!-- Main Dashboard link -->
     <div class="sb-sec">Performance</div>
     <a class="sb-item on" href="#">
       <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="1" width="4" height="4" rx="1" fill="currentColor"/><rect x="7" y="1" width="4" height="4" rx="1" fill="currentColor" opacity=".4"/><rect x="1" y="7" width="4" height="4" rx="1" fill="currentColor" opacity=".4"/><rect x="7" y="7" width="4" height="4" rx="1" fill="currentColor" opacity=".4"/></svg>
       Dashboard
     </a>
 
-    <!-- ── Brands ── -->
+    <!-- Brand switchers -->
     <div class="sb-sec" style="margin-top:4px">Brands</div>
     <a class="sb-item" href="#" onclick="setBrand('corro',document.querySelectorAll('.bb')[0]);return false">
       <div style="width:5px;height:5px;border-radius:50%;background:#2EE896"></div>Corro
@@ -198,40 +231,61 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
       <div style="width:5px;height:5px;border-radius:50%;background:#A090FF"></div>Cavali
     </a>
 
-    <!-- ── Analytics Suite — external dashboards ── -->
+    <!-- ── Analytics Suite external dashboards ──────────────────────────────
+         Each item shows a colored badge pill so users immediately understand
+         the tool type (GP = Gross Profit, RET = Retention, $ = Revenue).
+         Domain migration to Corro domain pending — managed by David / web team. -->
     <div class="sb-sec" style="margin-top:6px">Analytics Suite</div>
 
+    <!-- Pareto Analysis — gross-profit ranked SKUs -->
     <a class="sb-suite" href="https://arojas-company.github.io/corro-pareto/" target="_blank">
-      <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x=".5" y="6" width="2" height="4.5" rx=".5" fill="#D8B054"/><rect x="3.5" y="3.5" width="2" height="7" rx=".5" fill="#D8B054" opacity=".7"/><rect x="6.5" y="1" width="2" height="9.5" rx=".5" fill="#D8B054" opacity=".4"/><rect x="9.5" y="4" width="1" height="6.5" rx=".5" fill="#D8B054" opacity=".25"/></svg>
+      <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+        <rect x=".5" y="6" width="2" height="4.5" rx=".5" fill="#D8B054"/>
+        <rect x="3.5" y="3.5" width="2" height="7" rx=".5" fill="#D8B054" opacity=".7"/>
+        <rect x="6.5" y="1" width="2" height="9.5" rx=".5" fill="#D8B054" opacity=".4"/>
+        <rect x="9.5" y="4" width="1" height="6.5" rx=".5" fill="#D8B054" opacity=".25"/>
+      </svg>
       <span>Pareto Analysis</span>
-      <span class="sb-badge" style="background:rgba(216,176,84,.12);color:#D8B054;border:1px solid rgba(216,176,84,.25)">GP</span>
+      <span class="sb-badge" style="background:rgba(216,176,84,.12);color:#D8B054;border:1px solid rgba(216,176,84,.25)" title="Gross Profit analysis">GP</span>
     </a>
 
+    <!-- Purchase Frequency — retention & repeat-buyer analysis -->
     <a class="sb-suite" href="https://arojas-company.github.io/corro-frequency/" target="_blank">
-      <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><circle cx="2" cy="5.5" r="1.5" fill="#72AEFF"/><circle cx="5.5" cy="3" r="1.5" fill="#72AEFF" opacity=".7"/><circle cx="9" cy="6.5" r="1.5" fill="#72AEFF" opacity=".4"/><path d="M2 5.5 L5.5 3 L9 6.5" stroke="#72AEFF" stroke-width="1" stroke-opacity=".4"/></svg>
+      <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+        <circle cx="2" cy="5.5" r="1.5" fill="#72AEFF"/>
+        <circle cx="5.5" cy="3" r="1.5" fill="#72AEFF" opacity=".7"/>
+        <circle cx="9" cy="6.5" r="1.5" fill="#72AEFF" opacity=".4"/>
+        <path d="M2 5.5 L5.5 3 L9 6.5" stroke="#72AEFF" stroke-width="1" stroke-opacity=".4"/>
+      </svg>
       <span>Frequency</span>
-      <span class="sb-badge" style="background:rgba(114,174,255,.12);color:#72AEFF;border:1px solid rgba(114,174,255,.25)">RET</span>
+      <span class="sb-badge" style="background:rgba(114,174,255,.12);color:#72AEFF;border:1px solid rgba(114,174,255,.25)" title="Retention & repeat purchase frequency">RET</span>
     </a>
 
+    <!-- Concierge Commissions — revenue-sharing tracker for concierge channel -->
     <a class="sb-suite" href="https://script.google.com/macros/s/AKfycbyHoPqRtOd-vM08dVFzeF3ppBCq1LNZGQFpnBQXo4Jv0OwKMZg1-mxDa87HtRJ5OTt68g/exec" target="_blank">
-      <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 1C4.7 1 2 2.5 2 4.5 2 7 3.5 9 5.5 10 7.5 9 9 7 9 4.5 9 2.5 6.3 1 5.5 1Z" fill="#A090FF" opacity=".35"/><path d="M3.5 5L5 6.5 7.5 4" stroke="#A090FF" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+        <path d="M5.5 1C4.7 1 2 2.5 2 4.5 2 7 3.5 9 5.5 10 7.5 9 9 7 9 4.5 9 2.5 6.3 1 5.5 1Z" fill="#A090FF" opacity=".35"/>
+        <path d="M3.5 5L5 6.5 7.5 4" stroke="#A090FF" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
       <span>Concierge Comm.</span>
-      <span class="sb-badge" style="background:rgba(160,144,255,.12);color:#A090FF;border:1px solid rgba(160,144,255,.25)">$</span>
+      <span class="sb-badge" style="background:rgba(160,144,255,.12);color:#A090FF;border:1px solid rgba(160,144,255,.25)" title="Concierge channel commissions & revenue">$</span>
     </a>
 
-    <div style="height:1px;background:var(--bd);margin:7px 14px"></div>
-    <div style="padding:5px 14px;font-size:9px;color:var(--tx3);line-height:1.6">
-      Domain setup pending<br>
-      <span style="color:var(--bl)">→ David / web team</span>
-    </div>
+
   </div>
+
   <div class="sb-foot">
     <div class="sync-r"><div class="sync-d"></div>Auto-sync daily 8AM</div>
     <div style="font-size:10px;color:var(--tx3);margin-top:2px" id="sb-upd">Shopify → Sheets</div>
   </div>
-</div>
+</div><!-- /sidebar -->
 
+<!-- ══════════════════════════════════════════════════════════
+     MAIN CONTENT
+     ══════════════════════════════════════════════════════════ -->
 <div class="main">
+
+  <!-- Page header -->
   <div class="ph">
     <div>
       <h1 id="ph-t">Corro — Performance</h1>
@@ -247,6 +301,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
     </div>
   </div>
 
+  <!-- Brand + period toggles -->
   <div class="ctrl">
     <div class="grp">
       <button class="bb on" onclick="setBrand('corro',this)"><div style="width:5px;height:5px;border-radius:50%;background:#2EE896"></div>Corro</button>
@@ -260,22 +315,31 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
     </div>
   </div>
 
+  <!-- Period selector & comparison dropdown -->
   <div class="selbar" id="selbar"></div>
+
+  <!-- Active period info bar (dates + comparison label + ROAS source) -->
   <div class="ibar" id="ibar"></div>
 
-  <!-- ROAS warning: shows when ROAS is Shopify-attributed, not Google+Meta -->
+  <!-- ── ROAS & CAC warning banner ─────────────────────────────────────────────
+       Displayed when no Google+Meta spend has been entered in Manual Inputs.
+       ROAS and CAC are then sourced from Shopify Analytics (last-click attribution),
+       which typically over-counts attributed revenue. Hidden once G+M spend is saved. -->
   <div class="roas-warn" id="roas-warn">
-    ⚠ <strong>ROAS y CAC</strong> — usando datos de Shopify Analytics (atribución last-click, puede estar inflado).
-    Para ROAS y CAC reales, ingresa el <strong>Ad Spend Google+Meta</strong> en la sección Manual Inputs debajo.
-    Pendiente confirmación de manager para separar Google+Meta del total.
+    ⚠ <strong>ROAS &amp; CAC</strong> — using Shopify Analytics data (last-click attribution, may be inflated).
+    For accurate ROAS and CAC, enter <strong>Google + Meta Ad Spend</strong> in Manual Inputs below.
+    Pending manager confirmation to separate Google+Meta from the Shopify total.
   </div>
 
+  <!-- ── Section 01: Website KPIs ─────────────────────────────────────────── -->
   <div class="sec"><div class="sn">01</div><div class="sl2"></div><div class="st">Website KPIs</div><div class="sl2"></div></div>
   <div class="kg" id="web"></div>
 
+  <!-- ── Section 02: Financial KPIs ───────────────────────────────────────── -->
   <div class="sec"><div class="sn">02</div><div class="sl2"></div><div class="st">Financial KPIs</div><div class="sl2"></div></div>
   <div class="kg" id="fin"></div>
 
+  <!-- Revenue share breakdown (collapsible) -->
   <div class="rs-w rs-op" id="rs-w" style="margin-top:6px">
     <div class="rs-h" onclick="toggleRS()">
       <div class="rs-ht"><div class="rs-gd"></div>Revenue share by channel</div>
@@ -284,14 +348,18 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
     <div class="rs-b"><div class="rs-g" id="rsg"><div style="font-size:11px;color:var(--tx3)">Loading...</div></div></div>
   </div>
 
+  <!-- ── Section 03: Operational KPIs ─────────────────────────────────────── -->
   <div class="sec"><div class="sn">03</div><div class="sl2"></div><div class="st">Operational KPIs</div><div class="sl2"></div></div>
   <div class="kg" id="op"></div>
 
-  <!-- CHANGED: Marketing section header clarifies Google+Meta source -->
+  <!-- ── Section 04: Marketing KPIs ───────────────────────────────────────────
+       Header label updates dynamically:
+       - "Google+Meta spend" when G+M is entered manually (accurate)
+       - "Shopify ad spend (⚠ attributed)" when falling back to Sheets total -->
   <div class="sec"><div class="sn">04</div><div class="sl2"></div><div class="st" id="mkt-sec-lbl">Marketing KPIs — Ad Spend source</div><div class="sl2"></div></div>
   <div class="kg" id="mkt"></div>
 
-  <!-- ── Q1 2026 SNAPSHOT ── -->
+  <!-- ── Section 05: Q1 2026 Snapshot (fixed window) ──────────────────────── -->
   <div class="sec"><div class="sn">05</div><div class="sl2"></div><div class="st">Q1 2026 — Quarter Snapshot</div><div class="sl2"></div></div>
   <div class="q1-panel">
     <div class="q1-h" onclick="toggleQ1()">
@@ -304,7 +372,11 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
     </div>
   </div>
 
-  <!-- ── MANUAL INPUT: AD SPEND / ROAS / CAC ── -->
+  <!-- ── Section 06: Manual Inputs ────────────────────────────────────────────
+       ROAS fix: ROAS now uses Google+Meta spend instead of Shopify total.
+       CAC fix:  CAC = Google+Meta spend / new customers. Shopify total fallback
+                 shows amber warning until manager confirms the CAC scope.
+       All values are stored locally (localStorage) per brand + period key. -->
   <div class="sec"><div class="sn">06</div><div class="sl2"></div><div class="st">Manual Inputs — Ad Spend, ROAS, CAC, LTV</div><div class="sl2"></div></div>
   <div class="mi-panel mi-open" id="mi-panel">
     <div class="mi-h" onclick="toggleMI()">
@@ -314,31 +386,40 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
     <div class="mi-b" id="mi-b">
       <div style="font-size:10px;color:var(--tx3);margin-bottom:8px">
         Enter values for the selected period. Stored locally in this browser.
-        <strong style="color:var(--tx2)">CAC y ROAS usan Google+Meta spend</strong> (no Shopify total).
+        <strong style="color:var(--tx2)">CAC and ROAS use Google+Meta spend only</strong> (not Shopify total).
       </div>
-      <!-- CAC pending note -->
+
+      <!-- CAC scope pending — remove this note once manager confirms the definition -->
       <div class="cac-note">
-        ⏳ <strong>CAC pendiente de confirmación:</strong> Manager debe confirmar si CAC = solo Google+Meta o incluye todos los canales.
-        Por ahora el CAC calculado abajo usa <strong>Google+Meta Spend</strong> si se ingresa.
-        Si no, usa el Ad Spend de Sheets (Shopify total, puede estar inflado).
+        ⏳ <strong>CAC pending confirmation:</strong> Manager must confirm whether CAC = Google+Meta only, or includes all channels.
+        Currently, the calculated CAC below uses <strong>Google+Meta Spend</strong> if entered.
+        If not entered, it falls back to the Sheets total (Shopify — may be inflated, shown with ⚠).
       </div>
+
       <div class="mi-grid">
-        <!-- CHANGED: renamed to "Google + Meta Ad Spend" -->
+
+        <!-- Google + Meta Ad Spend — primary input for accurate ROAS & CAC -->
         <div class="mi-field">
           <div class="mi-label">
             Google + Meta Ad Spend ($)
-            <span class="mi-label-note">Solo G+M — se usa para ROAS y CAC reales</span>
+            <span class="mi-label-note">G+M only — used for accurate ROAS &amp; CAC</span>
           </div>
           <div class="mi-wrap"><span class="mi-pre">$</span><input class="mi-input" id="mi-spend" type="number" min="0" step="0.01" placeholder="0.00" oninput="calcDerived()"></div>
         </div>
+
+        <!-- New customers acquired in the period (used for CAC denominator) -->
         <div class="mi-field">
           <div class="mi-label">New Customers (period)</div>
           <div class="mi-wrap"><input class="mi-input no-pre" id="mi-newcust" type="number" min="0" step="1" placeholder="0" oninput="calcDerived()"></div>
         </div>
+
+        <!-- 12-month LTV per customer (used to compute LTV/CAC ratio) -->
         <div class="mi-field">
           <div class="mi-label">LTV-12M ($ per customer)</div>
           <div class="mi-wrap"><span class="mi-pre">$</span><input class="mi-input" id="mi-ltv" type="number" min="0" step="0.01" placeholder="135.69" oninput="calcDerived()"></div>
         </div>
+
+        <!-- Net Sales override — leave blank to pull automatically from Sheets -->
         <div class="mi-field">
           <div class="mi-label">
             Net Sales (override, optional)
@@ -348,6 +429,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
         </div>
       </div>
 
+      <!-- Derived metrics calculated live from the inputs above -->
       <div style="font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:7px">Calculated metrics (Google+Meta)</div>
       <div class="mi-derived" id="mi-derived"></div>
 
@@ -359,6 +441,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
     </div>
   </div>
 
+  <!-- Footer: data pipeline info + active data-source badges -->
   <div class="foot">
     <div class="fn" id="fn">Last updated: —</div>
     <div class="fps">
@@ -366,553 +449,705 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
       <div class="fp">Python Pipeline</div>
       <div class="fp">Google Sheets</div>
       <div class="fp">Auto-daily 8AM</div>
+      <!-- Shown when Google+Meta manual spend is active for the current period -->
       <div class="fp" id="fp-manual" style="display:none;color:var(--gd)">G+M Manual data active</div>
-      <div class="fp" id="fp-roas-src" style="color:var(--am)">ROAS: Shopify</div>
+      <!-- ROAS source badge: green when G+M spend entered, amber when Shopify fallback -->
+      <div class="fp" id="fp-roas-src" style="color:var(--am)">ROAS: Shopify ⚠</div>
     </div>
   </div>
-</div>
-</div>
+
+</div><!-- /main -->
+</div><!-- /app -->
 
 <script>
-const SIDS={corro:"1nq8xkDzowAvhD3wpMBlVK2M3FZSNS2DrAiPxz-Y2tdU",cavali:"1QUdJc2EIdElIX5nlLQxWxS98aAz-TgQnSg9glJpNtig"};
-const AKEY="AIzaSyD8oIf_TyxchEkU_MpKJXngrjrMVyV81oY";
-const RSC={"Wellington (POS)":"#D8B054","Concierge":"#A090FF","Online":"#72AEFF","Others":"#707070"};
+/* ══════════════════════════════════════════════════════════════════════════════
+   CONFIG — Google Sheets IDs and API key
+   ══════════════════════════════════════════════════════════════════════════════ */
+const SIDS = {
+  corro:  "1nq8xkDzowAvhD3wpMBlVK2M3FZSNS2DrAiPxz-Y2tdU",
+  cavali: "1QUdJc2EIdElIX5nlLQxWxS98aAz-TgQnSg9glJpNtig"
+};
+const AKEY = "AIzaSyD8oIf_TyxchEkU_MpKJXngrjrMVyV81oY";
 
-let brand="corro",ptype="mtd",rsOpen=true,q1Open=true,miOpen=true,cache={};
-let manualData={};
+/* Revenue share channel accent colors */
+const RSC = {
+  "Wellington (POS)": "#D8B054",
+  "Concierge":        "#A090FF",
+  "Online":           "#72AEFF",
+  "Others":           "#707070"
+};
 
-// ── DATE HELPERS ──────────────────────────────────
-const NOW=new Date(),CY=NOW.getFullYear(),CM=NOW.getMonth();
-const MNAMES=["January","February","March","April","May","June","July","August","September","October","November","December"];
-function iso(d){
-  if(!(d instanceof Date)) return String(d);
-  const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');
+let brand = "corro", ptype = "mtd", rsOpen = true, q1Open = true, miOpen = true;
+let cache = {};
+let manualData = {};
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   DATE HELPERS
+   ══════════════════════════════════════════════════════════════════════════════ */
+const NOW = new Date(), CY = NOW.getFullYear(), CM = NOW.getMonth();
+const MNAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+/** Format a Date as YYYY-MM-DD */
+function iso(d) {
+  if (!(d instanceof Date)) return String(d);
+  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
   return `${y}-${m}-${day}`;
 }
-function lastDay(y,m){return new Date(y,m+1,0)}
-function fmtD(s){return new Date(s+'T12:00').toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'})}
 
-function buildWeeks(){
-  const opts=[],tod=new Date(NOW),dow=tod.getDay(),dToMon=dow===0?6:dow-1;
-  const thisMon=new Date(tod); thisMon.setDate(tod.getDate()-dToMon);
-  for(let i=0;i<200;i++){
-    const mon=new Date(thisMon); mon.setDate(thisMon.getDate()-i*7);
-    if(mon.getFullYear()<2024) break;
-    const sun=new Date(mon); sun.setDate(mon.getDate()+6);
-    const sunC=sun>NOW?new Date(NOW):sun;
-    opts.push({val:iso(mon)+'__'+iso(sunC),label:`${mon.toLocaleDateString('en',{month:'short',day:'numeric'})} – ${sunC.toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'})}`,start:iso(mon),end:iso(sunC)});
+/** Return last day of a given year/month as a Date */
+function lastDay(y, m) { return new Date(y, m+1, 0); }
+
+/** Format an ISO date string as "Jan 1, 2026" */
+function fmtD(s) { return new Date(s+'T12:00').toLocaleDateString('en', {month:'short', day:'numeric', year:'numeric'}); }
+
+/** Build an array of the last ~200 calendar weeks */
+function buildWeeks() {
+  const opts = [], tod = new Date(NOW), dow = tod.getDay(), dToMon = dow === 0 ? 6 : dow - 1;
+  const thisMon = new Date(tod);
+  thisMon.setDate(tod.getDate() - dToMon);
+  for (let i = 0; i < 200; i++) {
+    const mon = new Date(thisMon);
+    mon.setDate(thisMon.getDate() - i * 7);
+    if (mon.getFullYear() < 2024) break;
+    const sun = new Date(mon);
+    sun.setDate(mon.getDate() + 6);
+    const sunC = sun > NOW ? new Date(NOW) : sun;
+    opts.push({ val: iso(mon)+'__'+iso(sunC), label: `${mon.toLocaleDateString('en',{month:'short',day:'numeric'})} – ${sunC.toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'})}`, start: iso(mon), end: iso(sunC) });
   }
   return opts;
 }
-function buildMTDs(){
-  const opts=[];
-  for(let y=CY;y>=2024;y--){const sm=y===CY?CM:11;for(let m=sm;m>=0;m--){const start=`${y}-${String(m+1).padStart(2,'0')}-01`,isCur=y===CY&&m===CM,end=isCur?iso(NOW):iso(lastDay(y,m));opts.push({val:start+'__'+end,label:`${MNAMES[m]} ${y}${isCur?' (MTD)':''}`,start,end,m,y});}}
-  return opts;
-}
-function buildMonths(){
-  const opts=[];
-  for(let y=CY;y>=2024;y--){const sm=y===CY?CM:11;for(let m=sm;m>=0;m--){const start=`${y}-${String(m+1).padStart(2,'0')}-01`,end=iso(lastDay(y,m)),isCur=y===CY&&m===CM;opts.push({val:start+'__'+end,label:`${MNAMES[m]} ${y}${isCur?' (current)':''}`,start,end,m,y});}}
-  return opts;
-}
-function buildQuarters(){
-  const opts=[];
-  for(let y=CY;y>=2024;y--){const maxQ=y===CY?Math.floor(CM/3)+1:4;for(let q=maxQ;q>=1;q--){const qs=new Date(y,(q-1)*3,1),qe=new Date(y,q*3,0),isCur=y===CY&&q===maxQ,end=isCur?iso(NOW):iso(qe),pk=`q${q}_${y}`;opts.push({val:pk,label:`Q${q} ${y}${isCur?' (current)':''}`,start:iso(qs),end,q,y,pk,isCur});}}
-  return opts;
-}
-const WEEKS=buildWeeks(),MTDS=buildMTDs(),MONTHS=buildMonths(),QUARTERS=buildQuarters();
-let selW=WEEKS[0].val,selMTD=MTDS[0].val,selMo=MONTHS[0].val,selQ=QUARTERS[0].val,selCmp="prev";
 
-function getCurOpt(){
-  if(ptype==="week")  return WEEKS.find(o=>o.val===selW)||WEEKS[0];
-  if(ptype==="mtd")   return MTDS.find(o=>o.val===selMTD)||MTDS[0];
-  if(ptype==="month") return MONTHS.find(o=>o.val===selMo)||MONTHS[0];
-  return QUARTERS.find(o=>o.val===selQ)||QUARTERS[0];
-}
-
-// ── SELECTOR BAR ──────────────────────────────────
-function renderSelbar(){
-  const bar=document.getElementById("selbar");
-  let opts,sv,oc;
-  if(ptype==="week")  {opts=WEEKS;   sv=selW;   oc="doSelW(this.value)"}
-  else if(ptype==="mtd")  {opts=MTDS;    sv=selMTD; oc="doSelMTD(this.value)"}
-  else if(ptype==="month"){opts=MONTHS;  sv=selMo;  oc="doSelMo(this.value)"}
-  else                    {opts=QUARTERS;sv=selQ;   oc="doSelQ(this.value)"}
-  const lbls={week:"Select week",mtd:"Select month (MTD)",month:"Select month",quarter:"Select quarter"};
-  bar.innerHTML=`<div class="sg"><span class="sl">${lbls[ptype]}</span><select class="ss" onchange="${oc}">${opts.map(o=>`<option value="${o.val}"${o.val===sv?' selected':''}>${o.label}</option>`).join('')}</select></div><div class="sdiv"></div><div class="sg"><span class="sl">Compare vs</span><select class="ss" onchange="doSetCmp(this.value)"><option value="prev"${selCmp==="prev"?' selected':''}>Previous period</option><option value="yoy"${selCmp==="yoy"?' selected':''}>Same period last year (YOY)</option><option value="none"${selCmp==="none"?' selected':''}>No comparison</option></select></div>`;
-}
-function doSelW(v){selW=v;cache={};renderSelbar();render()}
-function doSelMTD(v){selMTD=v;cache={};renderSelbar();render()}
-function doSelMo(v){selMo=v;cache={};renderSelbar();render()}
-function doSelQ(v){selQ=v;cache={};renderSelbar();render()}
-function doSetCmp(v){selCmp=v;render()}
-
-function renderIbar(opt,cmpLbl,roasSrc){
-  let html=`<span>${fmtD(opt.start)}</span> – <span>${fmtD(opt.end)}</span>`;
-  if(cmpLbl) html+=` &nbsp;·&nbsp; vs <span>${cmpLbl}</span>`;
-  if(roasSrc) html+=` &nbsp;·&nbsp; ROAS/CAC: <span style="color:var(--am)">${roasSrc}</span>`;
-  document.getElementById("ibar").innerHTML=html;
-}
-
-// ── SHEETS ────────────────────────────────────────
-async function fetchTab(sid,tab){
-  const k=`${sid}_${tab}`;
-  if(cache[k]) return cache[k];
-  const url=`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/${encodeURIComponent(tab)}?key=${AKEY}`;
-  try{
-    const r=await fetch(url); if(!r.ok) throw new Error(r.status);
-    const d=await r.json(); const rows=d.values||[];
-    if(rows.length<2) return [];
-    const h=rows[0];
-    const res=rows.slice(1).map(row=>{const o={};h.forEach((hh,i)=>o[hh]=row[i]||"");return o;});
-    cache[k]=res; setTimeout(()=>delete cache[k],5*60*1000); return res;
-  }catch(e){console.error(e);return [];}
-}
-
-function bestRow(arr){
-  const ts=v=>{if(!v) return 0;const t=Date.parse(v);return Number.isNaN(t)?0:t;};
-  return arr.sort((a,b)=>ts(b.updated_at)-ts(a.updated_at))[0]||null;
-}
-
-function findRow(rows,opt){
-  if(!rows||!rows.length) return null;
-  if(ptype==="quarter"&&opt.pk){
-    const m=rows.filter(r=>r.period===opt.pk);
-    if(m.length) return bestRow(m);
+/** Build month-to-date options from 2024 to today */
+function buildMTDs() {
+  const opts = [];
+  for (let y = CY; y >= 2024; y--) {
+    const sm = y === CY ? CM : 11;
+    for (let m = sm; m >= 0; m--) {
+      const start = `${y}-${String(m+1).padStart(2,'0')}-01`, isCur = y === CY && m === CM, end = isCur ? iso(NOW) : iso(lastDay(y,m));
+      opts.push({ val: start+'__'+end, label: `${MNAMES[m]} ${y}${isCur?' (MTD)':''}`, start, end, m, y });
+    }
   }
-  if(ptype==="week"){
-    const pk=`week_${opt.start}`;
-    const m=rows.filter(r=>r.period===pk);
-    if(m.length){
-      const exact=m.filter(r=>(r.period_end||"").trim()===opt.end);
-      if(exact.length) return bestRow(exact);
+  return opts;
+}
+
+/** Build full-month options from 2024 to current month */
+function buildMonths() {
+  const opts = [];
+  for (let y = CY; y >= 2024; y--) {
+    const sm = y === CY ? CM : 11;
+    for (let m = sm; m >= 0; m--) {
+      const start = `${y}-${String(m+1).padStart(2,'0')}-01`, end = iso(lastDay(y,m)), isCur = y === CY && m === CM;
+      opts.push({ val: start+'__'+end, label: `${MNAMES[m]} ${y}${isCur?' (current)':''}`, start, end, m, y });
+    }
+  }
+  return opts;
+}
+
+/** Build quarter options from 2024 to current quarter */
+function buildQuarters() {
+  const opts = [];
+  for (let y = CY; y >= 2024; y--) {
+    const maxQ = y === CY ? Math.floor(CM/3)+1 : 4;
+    for (let q = maxQ; q >= 1; q--) {
+      const qs = new Date(y,(q-1)*3,1), qe = new Date(y,q*3,0), isCur = y === CY && q === maxQ;
+      const end = isCur ? iso(NOW) : iso(qe), pk = `q${q}_${y}`;
+      opts.push({ val: pk, label: `Q${q} ${y}${isCur?' (current)':''}`, start: iso(qs), end, q, y, pk, isCur });
+    }
+  }
+  return opts;
+}
+
+const WEEKS = buildWeeks(), MTDS = buildMTDs(), MONTHS = buildMonths(), QUARTERS = buildQuarters();
+let selW = WEEKS[0].val, selMTD = MTDS[0].val, selMo = MONTHS[0].val, selQ = QUARTERS[0].val, selCmp = "prev";
+
+/** Return the currently selected period option object */
+function getCurOpt() {
+  if (ptype === "week")   return WEEKS.find(o => o.val === selW)    || WEEKS[0];
+  if (ptype === "mtd")    return MTDS.find(o => o.val === selMTD)   || MTDS[0];
+  if (ptype === "month")  return MONTHS.find(o => o.val === selMo)  || MONTHS[0];
+  return QUARTERS.find(o => o.val === selQ) || QUARTERS[0];
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   SELECTOR BAR — renders period/comparison dropdowns
+   ══════════════════════════════════════════════════════════════════════════════ */
+function renderSelbar() {
+  const bar = document.getElementById("selbar");
+  let opts, sv, oc;
+  if (ptype === "week")       { opts = WEEKS;    sv = selW;   oc = "doSelW(this.value)"; }
+  else if (ptype === "mtd")   { opts = MTDS;     sv = selMTD; oc = "doSelMTD(this.value)"; }
+  else if (ptype === "month") { opts = MONTHS;   sv = selMo;  oc = "doSelMo(this.value)"; }
+  else                        { opts = QUARTERS; sv = selQ;   oc = "doSelQ(this.value)"; }
+  const lbls = { week: "Select week", mtd: "Select month (MTD)", month: "Select month", quarter: "Select quarter" };
+  bar.innerHTML = `<div class="sg"><span class="sl">${lbls[ptype]}</span><select class="ss" onchange="${oc}">${opts.map(o=>`<option value="${o.val}"${o.val===sv?' selected':''}>${o.label}</option>`).join('')}</select></div><div class="sdiv"></div><div class="sg"><span class="sl">Compare vs</span><select class="ss" onchange="doSetCmp(this.value)"><option value="prev"${selCmp==="prev"?' selected':''}>Previous period</option><option value="yoy"${selCmp==="yoy"?' selected':''}>Same period last year (YOY)</option><option value="none"${selCmp==="none"?' selected':''}>No comparison</option></select></div>`;
+}
+
+function doSelW(v)   { selW   = v; cache = {}; renderSelbar(); render(); }
+function doSelMTD(v) { selMTD = v; cache = {}; renderSelbar(); render(); }
+function doSelMo(v)  { selMo  = v; cache = {}; renderSelbar(); render(); }
+function doSelQ(v)   { selQ   = v; cache = {}; renderSelbar(); render(); }
+function doSetCmp(v) { selCmp = v; render(); }
+
+/** Render the info bar showing the active date range, comparison label, and ROAS source */
+function renderIbar(opt, cmpLbl, roasSrc) {
+  let html = `<span>${fmtD(opt.start)}</span> – <span>${fmtD(opt.end)}</span>`;
+  if (cmpLbl)  html += ` &nbsp;·&nbsp; vs <span>${cmpLbl}</span>`;
+  if (roasSrc) html += ` &nbsp;·&nbsp; ROAS/CAC: <span style="color:var(--am)">${roasSrc}</span>`;
+  document.getElementById("ibar").innerHTML = html;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   GOOGLE SHEETS FETCH
+   Fetches a tab from the Sheets API and caches results for 5 minutes.
+   ══════════════════════════════════════════════════════════════════════════════ */
+async function fetchTab(sid, tab) {
+  const k = `${sid}_${tab}`;
+  if (cache[k]) return cache[k];
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/${encodeURIComponent(tab)}?key=${AKEY}`;
+  try {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(r.status);
+    const d = await r.json();
+    const rows = d.values || [];
+    if (rows.length < 2) return [];
+    const h = rows[0];
+    const res = rows.slice(1).map(row => { const o = {}; h.forEach((hh,i) => o[hh] = row[i]||""); return o; });
+    cache[k] = res;
+    setTimeout(() => delete cache[k], 5 * 60 * 1000); // Invalidate cache after 5 minutes
+    return res;
+  } catch(e) { console.error(e); return []; }
+}
+
+/** Return the most recently updated row from an array (by updated_at field) */
+function bestRow(arr) {
+  const ts = v => { if (!v) return 0; const t = Date.parse(v); return Number.isNaN(t) ? 0 : t; };
+  return arr.sort((a,b) => ts(b.updated_at) - ts(a.updated_at))[0] || null;
+}
+
+/** Find the Sheets row that matches the currently selected period */
+function findRow(rows, opt) {
+  if (!rows || !rows.length) return null;
+  if (ptype === "quarter" && opt.pk) {
+    const m = rows.filter(r => r.period === opt.pk);
+    if (m.length) return bestRow(m);
+  }
+  if (ptype === "week") {
+    const pk = `week_${opt.start}`;
+    const m = rows.filter(r => r.period === pk);
+    if (m.length) {
+      const exact = m.filter(r => (r.period_end||"").trim() === opt.end);
+      if (exact.length) return bestRow(exact);
       return bestRow(m);
     }
-    const m2=rows.filter(r=>r.period_start===opt.start&&r.period_end===opt.end&&(r.period||"").startsWith("week_"));
-    if(m2.length) return bestRow(m2);
+    const m2 = rows.filter(r => r.period_start === opt.start && r.period_end === opt.end && (r.period||"").startsWith("week_"));
+    if (m2.length) return bestRow(m2);
   }
-  if(ptype==="mtd"){
-    const pk=`mtd_${opt.start.slice(0,7)}`;
-    const m=rows.filter(r=>r.period===pk);
-    if(m.length) return bestRow(m);
-    const m2=rows.filter(r=>r.period==="mtd"&&r.period_start===opt.start);
-    if(m2.length) return bestRow(m2);
-    const m3=rows.filter(r=>r.period===opt.start.slice(0,7));
-    if(m3.length) return bestRow(m3);
+  if (ptype === "mtd") {
+    const pk = `mtd_${opt.start.slice(0,7)}`;
+    const m = rows.filter(r => r.period === pk);
+    if (m.length) return bestRow(m);
+    const m2 = rows.filter(r => r.period === "mtd" && r.period_start === opt.start);
+    if (m2.length) return bestRow(m2);
+    const m3 = rows.filter(r => r.period === opt.start.slice(0,7));
+    if (m3.length) return bestRow(m3);
   }
-  if(ptype==="month"){
-    const pk=opt.start.slice(0,7);
-    const m=rows.filter(r=>r.period===pk);
-    if(m.length) return bestRow(m);
-    const m2=rows.filter(r=>r.period_start===opt.start&&r.period_end===opt.end);
-    if(m2.length) return bestRow(m2);
+  if (ptype === "month") {
+    const pk = opt.start.slice(0,7);
+    const m = rows.filter(r => r.period === pk);
+    if (m.length) return bestRow(m);
+    const m2 = rows.filter(r => r.period_start === opt.start && r.period_end === opt.end);
+    if (m2.length) return bestRow(m2);
   }
   return null;
 }
 
-function findCmpRow(rows,opt){
-  if(!rows||!rows.length||selCmp==="none") return {row:null,lbl:""};
-  if(selCmp==="prev"){
-    if(ptype==="quarter"&&opt.pk){
-      const parts=opt.pk.match(/q(\d)_(\d{4})/);
-      if(parts){const q=parseInt(parts[1]),y=parseInt(parts[2]);const pq=q===1?4:q-1,py=q===1?y-1:y,pk=`q${pq}_${py}`;const m=rows.filter(r=>r.period===pk);return {row:bestRow(m),lbl:`Q${pq} ${py}`};}
+/** Find the comparison row (previous period or YOY) for delta badges */
+function findCmpRow(rows, opt) {
+  if (!rows || !rows.length || selCmp === "none") return { row: null, lbl: "" };
+
+  if (selCmp === "prev") {
+    if (ptype === "quarter" && opt.pk) {
+      const parts = opt.pk.match(/q(\d)_(\d{4})/);
+      if (parts) {
+        const q = parseInt(parts[1]), y = parseInt(parts[2]);
+        const pq = q === 1 ? 4 : q-1, py = q === 1 ? y-1 : y, pk = `q${pq}_${py}`;
+        const m = rows.filter(r => r.period === pk);
+        return { row: bestRow(m), lbl: `Q${pq} ${py}` };
+      }
     }
-    if(ptype==="mtd"){
-      const yr=parseInt(opt.start.slice(0,4)),mo=parseInt(opt.start.slice(5,7));
-      const pmo=mo===1?12:mo-1,py=mo===1?yr-1:yr;
-      const ppk=`mtd_${py}-${String(pmo).padStart(2,'0')}`;
-      const pm=rows.filter(r=>r.period===ppk);
-      const lbl=new Date(py,pmo-1,1).toLocaleDateString('en',{month:'long',year:'numeric'});
-      if(pm.length) return {row:bestRow(pm),lbl};
-      const mpk=`${py}-${String(pmo).padStart(2,'0')}`;
-      const mm=rows.filter(r=>r.period===mpk);
-      return {row:bestRow(mm)||null,lbl};
+    if (ptype === "mtd") {
+      const yr = parseInt(opt.start.slice(0,4)), mo = parseInt(opt.start.slice(5,7));
+      const pmo = mo === 1 ? 12 : mo-1, py = mo === 1 ? yr-1 : yr;
+      const ppk = `mtd_${py}-${String(pmo).padStart(2,'0')}`;
+      const pm = rows.filter(r => r.period === ppk);
+      const lbl = new Date(py, pmo-1, 1).toLocaleDateString('en', {month:'long', year:'numeric'});
+      if (pm.length) return { row: bestRow(pm), lbl };
+      const mpk = `${py}-${String(pmo).padStart(2,'0')}`;
+      const mm = rows.filter(r => r.period === mpk);
+      return { row: bestRow(mm) || null, lbl };
     }
-    if(ptype==="month"){
-      const yr=parseInt(opt.start.slice(0,4)),mo=parseInt(opt.start.slice(5,7));
-      const pmo=mo===1?12:mo-1,py=mo===1?yr-1:yr;
-      const pk=`${py}-${String(pmo).padStart(2,'0')}`;
-      const m=rows.filter(r=>r.period===pk);
-      const lbl=new Date(py,pmo-1,1).toLocaleDateString('en',{month:'long',year:'numeric'});
-      return {row:bestRow(m)||null,lbl};
+    if (ptype === "month") {
+      const yr = parseInt(opt.start.slice(0,4)), mo = parseInt(opt.start.slice(5,7));
+      const pmo = mo === 1 ? 12 : mo-1, py = mo === 1 ? yr-1 : yr;
+      const pk = `${py}-${String(pmo).padStart(2,'0')}`;
+      const m = rows.filter(r => r.period === pk);
+      const lbl = new Date(py, pmo-1, 1).toLocaleDateString('en', {month:'long', year:'numeric'});
+      return { row: bestRow(m) || null, lbl };
     }
-    if(ptype==="week"){
-      const ms=new Date(opt.start+'T12:00'); ms.setDate(ms.getDate()-7);
-      const me=new Date(opt.end+'T12:00');   me.setDate(me.getDate()-7);
-      const pk=`week_${iso(ms)}`;
-      const m=rows.filter(r=>r.period===pk);
-      if(m.length) return {row:bestRow(m)||null,lbl:`${fmtD(iso(ms))} - ${fmtD(iso(me))}`};
-      const m2=rows.filter(r=>r.period_start===iso(ms)&&r.period_end===iso(me));
-      return {row:bestRow(m2)||null,lbl:`${fmtD(iso(ms))} - ${fmtD(iso(me))}`};
-    }
-  }
-  if(selCmp==="yoy"){
-    if(ptype==="quarter"&&opt.pk){
-      const parts=opt.pk.match(/q(\d)_(\d{4})/);
-      if(parts){const q=parseInt(parts[1]),y=parseInt(parts[2]),pk=`q${q}_${y-1}`;const m=rows.filter(r=>r.period===pk);return {row:bestRow(m)||null,lbl:`Q${q} ${y-1}`};}
-    }
-    if(ptype==="mtd"){
-      const yr=parseInt(opt.start.slice(0,4)),mo=parseInt(opt.start.slice(5,7));
-      const pk=`mtd_${yr-1}-${String(mo).padStart(2,'0')}`;
-      const mpk=`${yr-1}-${String(mo).padStart(2,'0')}`;
-      const m=rows.filter(r=>r.period===pk||r.period===mpk);
-      const lbl=new Date(yr-1,mo-1,1).toLocaleDateString('en',{month:'long',year:'numeric'});
-      return {row:bestRow(m)||null,lbl:`${lbl} (YOY)`};
-    }
-    if(ptype==="month"){
-      const yr=parseInt(opt.start.slice(0,4)),mo=parseInt(opt.start.slice(5,7));
-      const pk=`${yr-1}-${String(mo).padStart(2,'0')}`;
-      const m=rows.filter(r=>r.period===pk);
-      const lbl=new Date(yr-1,mo-1,1).toLocaleDateString('en',{month:'long',year:'numeric'});
-      return {row:bestRow(m)||null,lbl:`${lbl} (YOY)`};
-    }
-    if(ptype==="week"){
-      const ms=new Date(opt.start+'T12:00'); ms.setDate(ms.getDate()-364);
-      const me=new Date(opt.end+'T12:00');   me.setDate(me.getDate()-364);
-      const pk=`week_${iso(ms)}`;
-      const m=rows.filter(r=>r.period===pk);
-      if(m.length) return {row:bestRow(m)||null,lbl:`${fmtD(iso(ms))} - ${fmtD(iso(me))} (YOY)`};
-      const m2=rows.filter(r=>r.period_start===iso(ms)&&r.period_end===iso(me));
-      return {row:bestRow(m2)||null,lbl:`${fmtD(iso(ms))} - ${fmtD(iso(me))} (YOY)`};
+    if (ptype === "week") {
+      const ms = new Date(opt.start+'T12:00'); ms.setDate(ms.getDate()-7);
+      const me = new Date(opt.end+'T12:00');   me.setDate(me.getDate()-7);
+      const pk = `week_${iso(ms)}`;
+      const m = rows.filter(r => r.period === pk);
+      if (m.length) return { row: bestRow(m) || null, lbl: `${fmtD(iso(ms))} - ${fmtD(iso(me))}` };
+      const m2 = rows.filter(r => r.period_start === iso(ms) && r.period_end === iso(me));
+      return { row: bestRow(m2) || null, lbl: `${fmtD(iso(ms))} - ${fmtD(iso(me))}` };
     }
   }
-  return {row:null,lbl:""};
+
+  if (selCmp === "yoy") {
+    if (ptype === "quarter" && opt.pk) {
+      const parts = opt.pk.match(/q(\d)_(\d{4})/);
+      if (parts) {
+        const q = parseInt(parts[1]), y = parseInt(parts[2]), pk = `q${q}_${y-1}`;
+        const m = rows.filter(r => r.period === pk);
+        return { row: bestRow(m) || null, lbl: `Q${q} ${y-1}` };
+      }
+    }
+    if (ptype === "mtd") {
+      const yr = parseInt(opt.start.slice(0,4)), mo = parseInt(opt.start.slice(5,7));
+      const pk = `mtd_${yr-1}-${String(mo).padStart(2,'0')}`, mpk = `${yr-1}-${String(mo).padStart(2,'0')}`;
+      const m = rows.filter(r => r.period === pk || r.period === mpk);
+      const lbl = new Date(yr-1, mo-1, 1).toLocaleDateString('en', {month:'long', year:'numeric'});
+      return { row: bestRow(m) || null, lbl: `${lbl} (YOY)` };
+    }
+    if (ptype === "month") {
+      const yr = parseInt(opt.start.slice(0,4)), mo = parseInt(opt.start.slice(5,7));
+      const pk = `${yr-1}-${String(mo).padStart(2,'0')}`;
+      const m = rows.filter(r => r.period === pk);
+      const lbl = new Date(yr-1, mo-1, 1).toLocaleDateString('en', {month:'long', year:'numeric'});
+      return { row: bestRow(m) || null, lbl: `${lbl} (YOY)` };
+    }
+    if (ptype === "week") {
+      const ms = new Date(opt.start+'T12:00'); ms.setDate(ms.getDate()-364);
+      const me = new Date(opt.end+'T12:00');   me.setDate(me.getDate()-364);
+      const pk = `week_${iso(ms)}`;
+      const m = rows.filter(r => r.period === pk);
+      if (m.length) return { row: bestRow(m) || null, lbl: `${fmtD(iso(ms))} - ${fmtD(iso(me))} (YOY)` };
+      const m2 = rows.filter(r => r.period_start === iso(ms) && r.period_end === iso(me));
+      return { row: bestRow(m2) || null, lbl: `${fmtD(iso(ms))} - ${fmtD(iso(me))} (YOY)` };
+    }
+  }
+  return { row: null, lbl: "" };
 }
 
-// ── FORMAT ────────────────────────────────────────
-function fv(v,f){
-  if(v===null||v===undefined||v==="") return "—";
-  const n=parseFloat(v); if(isNaN(n)) return "—";
-  if(f==="$"){if(Math.abs(n)>=1e6)return "$"+(n/1e6).toFixed(2)+"M";if(Math.abs(n)>=1000)return "$"+(n/1000).toFixed(1)+"K";return "$"+n.toFixed(0);}
-  if(f==="%") return n.toFixed(1)+"%";
-  if(f==="x") return n.toFixed(2)+"x";
-  if(Math.abs(n)>=1e6) return (n/1e6).toFixed(1)+"M";
-  if(Math.abs(n)>=1000) return (n/1000).toFixed(1)+"K";
-  return n%1===0?n.toLocaleString():n.toFixed(2);
+/* ══════════════════════════════════════════════════════════════════════════════
+   FORMATTING HELPERS
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/** Format a numeric value given a format specifier: "$", "%", "x", or plain */
+function fv(v, f) {
+  if (v === null || v === undefined || v === "") return "—";
+  const n = parseFloat(v); if (isNaN(n)) return "—";
+  if (f === "$") { if (Math.abs(n) >= 1e6) return "$"+(n/1e6).toFixed(2)+"M"; if (Math.abs(n) >= 1000) return "$"+(n/1000).toFixed(1)+"K"; return "$"+n.toFixed(0); }
+  if (f === "%") return n.toFixed(1)+"%";
+  if (f === "x") return n.toFixed(2)+"x";
+  if (Math.abs(n) >= 1e6) return (n/1e6).toFixed(1)+"M";
+  if (Math.abs(n) >= 1000) return (n/1000).toFixed(1)+"K";
+  return n % 1 === 0 ? n.toLocaleString() : n.toFixed(2);
 }
-function cpct(c,p){
-  const cv=parseFloat(c),pv=parseFloat(p);
-  if(isNaN(cv)||isNaN(pv)||pv===0) return null;
-  return ((cv-pv)/Math.abs(pv)*100).toFixed(1);
+
+/** Compute percentage change from previous to current value */
+function cpct(c, p) {
+  const cv = parseFloat(c), pv = parseFloat(p);
+  if (isNaN(cv) || isNaN(pv) || pv === 0) return null;
+  return ((cv - pv) / Math.abs(pv) * 100).toFixed(1);
 }
-function bdg_inv(pct,lbl,inv){
-  if(pct===null||pct===undefined) return `<span class="bdg bneu"><span class="bll">${lbl}</span>—</span>`;
-  const n=parseFloat(pct);
-  const up=n>=0;
-  const good=inv?!up:up;
-  const arr=up?`<svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M4 6V2M2 4l2-2 2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`:`<svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M4 2v4M2 4l2 2 2-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+/** Render a delta badge. inv=true means lower is better (e.g. discounts, returns). */
+function bdg_inv(pct, lbl, inv) {
+  if (pct === null || pct === undefined) return `<span class="bdg bneu"><span class="bll">${lbl}</span>—</span>`;
+  const n = parseFloat(pct), up = n >= 0, good = inv ? !up : up;
+  const arr = up
+    ? `<svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M4 6V2M2 4l2-2 2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+    : `<svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M4 2v4M2 4l2 2 2-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   return `<span class="bdg ${good?'bup':'bdn'}">${arr}<span class="bll">${lbl}</span>${up?'+':''}${Math.abs(n).toFixed(1)}%</span>`;
 }
-function bdgAmber(lbl){
+
+/** Render an amber warning badge (used on ROAS/CAC cards with Shopify attribution source) */
+function bdgAmber(lbl) {
   return `<span class="bdg bam">⚠<span class="bll">${lbl}</span></span>`;
 }
-function kcard(l,v,pct,cmpL,note,acc,inv){
-  const n=pct!==null&&pct!==undefined?parseFloat(pct):null;
-  const good=inv?n<=0:n>=0;
-  const a=n!==null?(good?"var(--gr)":"var(--rd)"):(acc||"var(--bd)");
-  const bdgHtml=bdg_inv(pct,cmpL||"CMP",inv);
+
+/** Build a standard KPI card HTML string */
+function kcard(l, v, pct, cmpL, note, acc, inv) {
+  const n = pct !== null && pct !== undefined ? parseFloat(pct) : null;
+  const good = inv ? n <= 0 : n >= 0;
+  const a = n !== null ? (good ? "var(--gr)" : "var(--rd)") : (acc || "var(--bd)");
+  const bdgHtml = bdg_inv(pct, cmpL || "CMP", inv);
   return `<div class="kc"><div class="kca" style="background:${a}"></div><div class="kcl">${l}</div><div class="kcv">${v}</div><div class="kcb">${bdgHtml}</div>${note?`<div class="kcn">${note}</div>`:""}</div>`;
 }
-function kcardAmber(l,v,warnNote,bodyNote){
-  // Card with amber accent and warning badge — for ROAS/CAC when source is Shopify
+
+/** Build a KPI card with amber accent and warning badge.
+ *  Used for ROAS and CAC when sourced from Shopify (unreliable attribution). */
+function kcardAmber(l, v, warnNote, bodyNote) {
   return `<div class="kc"><div class="kca" style="background:var(--am)"></div><div class="kcl">${l}</div><div class="kcv">${v}</div><div class="kcb">${bdgAmber(warnNote)}</div>${bodyNote?`<div class="kcn" style="color:var(--am)">${bodyNote}</div>`:""}</div>`;
 }
-function skel(n){return Array(n).fill(`<div class="kc sk"><div class="kcl" style="width:55%;height:9px"> </div><div class="kcv" style="height:21px;margin-top:8px"> </div></div>`).join('')}
 
-const SECS={
-  web:[
-    {k:"sessions",l:"Sessions",f:"",n:"Via Shopify Analytics"},
-    {k:"unique_visitors",l:"Unique visitors",f:"",n:"85% of sessions estimate"},
-    {k:"conversion_rate",l:"Conversion rate",f:"%",n:"Orders / Sessions"}
+/** Render n skeleton loading cards */
+function skel(n) { return Array(n).fill(`<div class="kc sk"><div class="kcl" style="width:55%;height:9px"> </div><div class="kcv" style="height:21px;margin-top:8px"> </div></div>`).join(''); }
+
+/* ── KPI section definitions ────────────────────────────────────────────────── */
+const SECS = {
+  web: [
+    { k: "sessions",         l: "Sessions",         f: "",  n: "Via Shopify Analytics" },
+    { k: "unique_visitors",  l: "Unique visitors",  f: "",  n: "85% of sessions estimate" },
+    { k: "conversion_rate",  l: "Conversion rate",  f: "%", n: "Orders / Sessions" }
   ],
-  fin:[
-    {k:"gross_sales",l:"Gross sales",f:"$"},
-    {k:"net_sales",l:"Net sales",f:"$"},
-    {k:"pct_discount",l:"% Discount",f:"%",inv:true},
-    {k:"pct_returns",l:"% Returns",f:"%",inv:true},
-    {k:"pct_gm",l:"% Gross margin",f:"%"}
+  fin: [
+    { k: "gross_sales",  l: "Gross sales",     f: "$" },
+    { k: "net_sales",    l: "Net sales",        f: "$" },
+    { k: "pct_discount", l: "% Discount",      f: "%", inv: true },
+    { k: "pct_returns",  l: "% Returns",        f: "%", inv: true },
+    { k: "pct_gm",       l: "% Gross margin",  f: "%" }
   ],
-  op:[
-    {k:"nb_orders",l:"No. of orders",f:""},
-    {k:"nb_units",l:"No. of units",f:""},
-    {k:"units_per_order",l:"Units per order",f:""},
-    {k:"aov",l:"AOV",f:"$"}
+  op: [
+    { k: "nb_orders",      l: "No. of orders",    f: "" },
+    { k: "nb_units",       l: "No. of units",     f: "" },
+    { k: "units_per_order",l: "Units per order",  f: "" },
+    { k: "aov",            l: "AOV",              f: "$" }
   ],
 };
 
-// ── MANUAL DATA ───────────────────────────────────
-function manualKey(){return `${brand}_${getCurOpt().val}`}
+/* ══════════════════════════════════════════════════════════════════════════════
+   MANUAL DATA — localStorage persistence per brand+period key
+   ══════════════════════════════════════════════════════════════════════════════ */
 
-function loadManual(){
-  try{const d=localStorage.getItem('ccManual');if(d) manualData=JSON.parse(d);}catch(e){}
-  const k=manualKey(), m=manualData[k]||{};
-  document.getElementById('mi-spend').value=m.spend||'';
-  document.getElementById('mi-newcust').value=m.newcust||'';
-  document.getElementById('mi-ltv').value=m.ltv||'';
-  document.getElementById('mi-ns').value=m.ns||'';
+/** Returns the localStorage key for the current brand + period selection */
+function manualKey() { return `${brand}_${getCurOpt().val}`; }
+
+/** Load saved manual values for the current period into the input fields */
+function loadManual() {
+  try { const d = localStorage.getItem('ccManual'); if (d) manualData = JSON.parse(d); } catch(e) {}
+  const k = manualKey(), m = manualData[k] || {};
+  document.getElementById('mi-spend').value   = m.spend   || '';
+  document.getElementById('mi-newcust').value = m.newcust || '';
+  document.getElementById('mi-ltv').value     = m.ltv     || '';
+  document.getElementById('mi-ns').value      = m.ns      || '';
   calcDerived();
 }
 
-function saveManual(){
-  const k=manualKey();
-  manualData[k]={
-    spend:parseFloat(document.getElementById('mi-spend').value)||0,
-    newcust:parseInt(document.getElementById('mi-newcust').value)||0,
-    ltv:parseFloat(document.getElementById('mi-ltv').value)||0,
-    ns:parseFloat(document.getElementById('mi-ns').value)||0,
+/** Persist current manual inputs to localStorage and re-render the dashboard */
+function saveManual() {
+  const k = manualKey();
+  manualData[k] = {
+    spend:   parseFloat(document.getElementById('mi-spend').value)   || 0,
+    newcust: parseInt(document.getElementById('mi-newcust').value)   || 0,
+    ltv:     parseFloat(document.getElementById('mi-ltv').value)     || 0,
+    ns:      parseFloat(document.getElementById('mi-ns').value)      || 0,
   };
-  try{localStorage.setItem('ccManual',JSON.stringify(manualData));}catch(e){}
-  const msg=document.getElementById('mi-msg');
-  msg.innerHTML='<span class="mi-saved-tag">✓ Saved</span>';
-  setTimeout(()=>msg.innerHTML='',3000);
-  document.getElementById('fp-manual').style.display='';
+  try { localStorage.setItem('ccManual', JSON.stringify(manualData)); } catch(e) {}
+  const msg = document.getElementById('mi-msg');
+  msg.innerHTML = '<span class="mi-saved-tag">✓ Saved</span>';
+  setTimeout(() => msg.innerHTML = '', 3000);
+  document.getElementById('fp-manual').style.display = '';
   render();
 }
 
-function clearManual(){
-  const k=manualKey(); delete manualData[k];
-  try{localStorage.setItem('ccManual',JSON.stringify(manualData));}catch(e){}
-  ['mi-spend','mi-newcust','mi-ltv','mi-ns'].forEach(id=>document.getElementById(id).value='');
-  calcDerived(); render();
+/** Clear manual data for the current period from localStorage */
+function clearManual() {
+  const k = manualKey();
+  delete manualData[k];
+  try { localStorage.setItem('ccManual', JSON.stringify(manualData)); } catch(e) {}
+  ['mi-spend','mi-newcust','mi-ltv','mi-ns'].forEach(id => document.getElementById(id).value = '');
+  calcDerived();
+  render();
 }
 
-function calcDerived(){
-  const spend=parseFloat(document.getElementById('mi-spend').value)||0;
-  const nc=parseInt(document.getElementById('mi-newcust').value)||0;
-  const ltv=parseFloat(document.getElementById('mi-ltv').value)||0;
-  const nsOv=parseFloat(document.getElementById('mi-ns').value)||0;
-  const cac=nc>0&&spend>0?(spend/nc):null;
-  const roas_v=nsOv>0&&spend>0?(nsOv/spend):null;
-  const ltvcac=cac&&ltv>0?(ltv/cac):null;
-  const el=document.getElementById('mi-derived');
-  const dc=(v,l,f,c,note)=>`<div class="kc"><div class="kca" style="background:${c||'var(--gd)'}"></div><div class="kcl">${l}</div><div class="kcv">${v!==null&&v!==undefined?fv(v,f):"—"}</div><div class="kcb"></div>${note?`<div class="kcn">${note}</div>`:''}</div>`;
-  el.innerHTML=
-    dc(spend>0?spend:null,'G+M Ad Spend','$','var(--gd)')+
-    dc(roas_v,'G+M ROAS','x','var(--gr)','Net Sales / G+M spend')+
-    dc(cac,'CAC (G+M)','$','var(--gd)','G+M spend / New customers')+
-    dc(ltvcac,'LTV / CAC','x','var(--gd)','LTV-12M / CAC')+
-    dc(ltv>0?ltv:null,'LTV-12M','$','var(--pu)');
+/** Live-calculate and render derived metrics (ROAS, CAC, LTV/CAC) from manual inputs */
+function calcDerived() {
+  const spend  = parseFloat(document.getElementById('mi-spend').value)   || 0;
+  const nc     = parseInt(document.getElementById('mi-newcust').value)   || 0;
+  const ltv    = parseFloat(document.getElementById('mi-ltv').value)     || 0;
+  const nsOv   = parseFloat(document.getElementById('mi-ns').value)      || 0;
+
+  // ROAS = Net Sales / G+M spend (only valid when both are entered)
+  const roas_v  = nsOv > 0 && spend > 0 ? (nsOv / spend)  : null;
+  // CAC  = G+M spend / new customers acquired
+  const cac     = nc > 0 && spend > 0   ? (spend / nc)     : null;
+  // LTV/CAC ratio — payback health check
+  const ltvcac  = cac && ltv > 0        ? (ltv / cac)      : null;
+
+  const el = document.getElementById('mi-derived');
+  const dc = (v, l, f, c, note) =>
+    `<div class="kc"><div class="kca" style="background:${c||'var(--gd)'}"></div><div class="kcl">${l}</div><div class="kcv">${v !== null && v !== undefined ? fv(v,f) : "—"}</div><div class="kcb"></div>${note?`<div class="kcn">${note}</div>`:''}</div>`;
+
+  el.innerHTML =
+    dc(spend > 0 ? spend : null, 'G+M Ad Spend', '$', 'var(--gd)') +
+    dc(roas_v, 'G+M ROAS', 'x', 'var(--gr)', 'Net Sales / G+M spend') +
+    dc(cac, 'CAC (G+M)', '$', 'var(--gd)', 'G+M spend / New customers') +
+    dc(ltvcac, 'LTV / CAC', 'x', 'var(--gd)', 'LTV-12M / CAC') +
+    dc(ltv > 0 ? ltv : null, 'LTV-12M', '$', 'var(--pu)');
 }
 
-// ── Q1 2026 SNAPSHOT ──────────────────────────────
-function toggleQ1(){
-  q1Open=!q1Open;
-  document.getElementById('q1-b').style.display=q1Open?'block':'none';
-  document.getElementById('q1-cv').style.transform=q1Open?'':'rotate(-90deg)';
+/* ══════════════════════════════════════════════════════════════════════════════
+   Q1 2026 SNAPSHOT — fixed window (Jan 1 – Mar 31, 2026)
+   ══════════════════════════════════════════════════════════════════════════════ */
+function toggleQ1() {
+  q1Open = !q1Open;
+  document.getElementById('q1-b').style.display = q1Open ? 'block' : 'none';
+  document.getElementById('q1-cv').style.transform = q1Open ? '' : 'rotate(-90deg)';
 }
 
-async function renderQ1(kpiRows){
-  const el=document.getElementById('q1-g');
-  const Q1_PK='q1_2026', Q1_START='2026-01-01', Q1_END='2026-03-31';
-  let row=null;
-  if(kpiRows&&kpiRows.length){
-    const byPk=kpiRows.filter(r=>r.period===Q1_PK);
-    if(byPk.length) row=byPk.sort((a,b)=>b.updated_at>a.updated_at?1:-1)[0];
-    if(!row){
-      const byWindow=kpiRows.filter(r=>(r.period_start||"").trim()===Q1_START&&(r.period_end||"").trim()===Q1_END);
-      if(byWindow.length) row=byWindow.sort((a,b)=>b.updated_at>a.updated_at?1:-1)[0];
+async function renderQ1(kpiRows) {
+  const el = document.getElementById('q1-g');
+  const Q1_PK = 'q1_2026', Q1_START = '2026-01-01', Q1_END = '2026-03-31';
+  let row = null;
+
+  if (kpiRows && kpiRows.length) {
+    // Try period key first, then fall back to exact date window
+    const byPk = kpiRows.filter(r => r.period === Q1_PK);
+    if (byPk.length) row = byPk.sort((a,b) => b.updated_at > a.updated_at ? 1 : -1)[0];
+    if (!row) {
+      const byWindow = kpiRows.filter(r => (r.period_start||"").trim() === Q1_START && (r.period_end||"").trim() === Q1_END);
+      if (byWindow.length) row = byWindow.sort((a,b) => b.updated_at > a.updated_at ? 1 : -1)[0];
     }
   }
-  const Q4_PK='q4_2025';
-  let prevQ=null;
-  if(kpiRows&&kpiRows.length){const p=kpiRows.filter(r=>r.period===Q4_PK);if(p.length) prevQ=p.sort((a,b)=>b.updated_at>a.updated_at?1:-1)[0];}
-  if(!row){
-    el.innerHTML=`<div style="font-size:11px;color:var(--tx3);padding:8px 0">Q1 2026 data not yet in Google Sheets. Run the <strong style="color:var(--gd)">Backfill Historical Data</strong> GitHub Action to populate, then refresh.</div>`;
+
+  // Load Q4 2025 for comparison badges
+  let prevQ = null;
+  if (kpiRows && kpiRows.length) {
+    const p = kpiRows.filter(r => r.period === 'q4_2025');
+    if (p.length) prevQ = p.sort((a,b) => b.updated_at > a.updated_at ? 1 : -1)[0];
+  }
+
+  if (!row) {
+    el.innerHTML = `<div style="font-size:11px;color:var(--tx3);padding:8px 0">Q1 2026 data not yet in Google Sheets. Run the <strong style="color:var(--gd)">Backfill Historical Data</strong> GitHub Action to populate, then refresh.</div>`;
     return;
   }
-  const fields=[
-    {k:'gross_sales',l:'Gross Sales Q1',f:'$'},{k:'net_sales',l:'Net Sales Q1',f:'$'},
-    {k:'pct_gm',l:'Gross Margin',f:'%'},{k:'nb_orders',l:'Orders Q1',f:''},
-    {k:'nb_units',l:'Units Sold',f:''},{k:'aov',l:'AOV Q1',f:'$'}
+
+  const fields = [
+    { k:'gross_sales', l:'Gross Sales Q1', f:'$' }, { k:'net_sales',  l:'Net Sales Q1',  f:'$' },
+    { k:'pct_gm',      l:'Gross Margin',   f:'%' }, { k:'nb_orders',  l:'Orders Q1',     f:'' },
+    { k:'nb_units',    l:'Units Sold',     f:'' },  { k:'aov',        l:'AOV Q1',        f:'$' }
   ];
-  el.innerHTML=fields.map(s=>{
-    const val=fv(row[s.k],s.f);
-    const pct=prevQ?cpct(row[s.k],prevQ[s.k]):null;
-    return kcard(s.l,val,pct,'Q4 25',s.n||'','var(--gd)');
+
+  el.innerHTML = fields.map(s => {
+    const val = fv(row[s.k], s.f);
+    const pct = prevQ ? cpct(row[s.k], prevQ[s.k]) : null;
+    return kcard(s.l, val, pct, 'Q4 25', s.n || '', 'var(--gd)');
   }).join('');
-  document.getElementById('q1-note').innerHTML=`Q1 2026 = Jan 1 – Mar 31, 2026. Fixed window. Updated: <strong>${row.updated_at||'—'}</strong>. vs Q4 2025.`;
+
+  document.getElementById('q1-note').innerHTML = `Q1 2026 = Jan 1 – Mar 31, 2026. Fixed window. Updated: <strong>${row.updated_at||'—'}</strong>. vs Q4 2025.`;
 }
 
-// ── MAIN RENDER ───────────────────────────────────
-let lastKpiRows=null;
+/* ══════════════════════════════════════════════════════════════════════════════
+   MAIN RENDER — fetches all data and populates all KPI sections
+   ══════════════════════════════════════════════════════════════════════════════ */
+let lastKpiRows = null;
 
-async function render(){
-  const opt=getCurOpt();
+async function render() {
+  const opt = getCurOpt();
   renderSelbar();
-  ["web","fin","op","mkt"].forEach(s=>document.getElementById(s).innerHTML=skel(SECS[s]?SECS[s].length:4));
-  document.getElementById("ovt").textContent=`Loading ${brand==="corro"?"Corro":"Cavali"}...`;
+
+  // Show skeleton loaders while fetching
+  ["web","fin","op","mkt"].forEach(s => document.getElementById(s).innerHTML = skel(SECS[s] ? SECS[s].length : 4));
+  document.getElementById("ovt").textContent = `Loading ${brand === "corro" ? "Corro" : "Cavali"}...`;
   document.getElementById("ov").classList.add("show");
 
-  const sid=SIDS[brand];
-  const [kpiR,rsR,adR]=await Promise.all([fetchTab(sid,"kpis_daily"),fetchTab(sid,"revenue_share"),fetchTab(sid,"ad_spend")]);
-  lastKpiRows=kpiR;
+  const sid = SIDS[brand];
+  const [kpiR, rsR, adR] = await Promise.all([
+    fetchTab(sid, "kpis_daily"),
+    fetchTab(sid, "revenue_share"),
+    fetchTab(sid, "ad_spend")
+  ]);
+  lastKpiRows = kpiR;
 
-  const row=findRow(kpiR,opt);
-  const {row:cmpRow,lbl:cmpLbl}=findCmpRow(kpiR,opt);
-  const cmpLblShort=selCmp==="yoy"?"YOY":selCmp==="prev"?"PREV":"—";
+  const row    = findRow(kpiR, opt);
+  const { row: cmpRow, lbl: cmpLbl } = findCmpRow(kpiR, opt);
+  const cmpLblShort = selCmp === "yoy" ? "YOY" : selCmp === "prev" ? "PREV" : "—";
 
-  ["web","fin","op"].forEach(sec=>{
-    document.getElementById(sec).innerHTML=SECS[sec].map(s=>{
-      const val=row?fv(row[s.k],s.f):"—";
-      const pct=(row&&cmpRow)?cpct(row[s.k],cmpRow[s.k]):null;
-      return kcard(s.l,val,pct,cmpLblShort,s.n||"",undefined,s.inv||false);
+  // Render Website, Financial, and Operational KPI sections
+  ["web","fin","op"].forEach(sec => {
+    document.getElementById(sec).innerHTML = SECS[sec].map(s => {
+      const val = row ? fv(row[s.k], s.f) : "—";
+      const pct = (row && cmpRow) ? cpct(row[s.k], cmpRow[s.k]) : null;
+      return kcard(s.l, val, pct, cmpLblShort, s.n || "", undefined, s.inv || false);
     }).join('');
   });
 
-  // ── Marketing — ROAS/CAC logic ────────────────────────────────
-  // Priority: manual G+M spend > Sheets ad_spend
-  // ROAS: if manual spend entered → G+M ROAS; else Sheets ROAS (Shopify-attributed, flag it)
-  const k=manualKey(), m=manualData[k]||{};
-  const curMo=opt.start.slice(0,7);
-  const adF=adR.filter(r=>{
-    if(r.brand && r.brand!==brand) return false;
-    const p=(r.period||"").trim();
-    if(ptype==="mtd"||ptype==="month") return p===curMo;
-    if(ptype==="week") return p===opt.start.slice(0,7);
-    if(ptype==="quarter"){
-      const qe=new Date(opt.end+'T12:00');
-      if(!p||p.length!==7) return false;
-      const pm=new Date(p+'-01T12:00');
-      return pm>=new Date(opt.start.slice(0,7)+'-01T12:00') && pm<=qe;
+  /* ── Marketing KPIs: ROAS & CAC data-source logic ──────────────────────────
+     Priority chain:
+       1. Google+Meta manual spend (entered by user) → accurate ROAS & CAC
+       2. Sheets ad_spend tab single-month ROAS (Shopify-attributed, last-click) → ⚠
+       3. Sheets ad_spend tab summed spend → calculated ROAS, still ⚠
+
+     CAC fix: always uses G+M spend (not Shopify total).
+              Shows amber ⚠ if falling back to Shopify spend.
+              Pending manager sign-off to finalize scope (see cac-note banner). */
+  const k = manualKey(), m = manualData[k] || {};
+  const curMo = opt.start.slice(0, 7);
+
+  // Filter ad_spend rows to the current period
+  const adF = adR.filter(r => {
+    if (r.brand && r.brand !== brand) return false;
+    const p = (r.period || "").trim();
+    if (ptype === "mtd" || ptype === "month") return p === curMo;
+    if (ptype === "week") return p === opt.start.slice(0, 7);
+    if (ptype === "quarter") {
+      const qe = new Date(opt.end+'T12:00');
+      if (!p || p.length !== 7) return false;
+      const pm = new Date(p+'-01T12:00');
+      return pm >= new Date(opt.start.slice(0,7)+'-01T12:00') && pm <= qe;
     }
     return false;
   });
-  const sheetSpend=adF.reduce((a,r)=>a+parseFloat(r.ad_spend||0),0);
-  const sheetRoas=adF.length===1?parseFloat(adF[0].roas||0):0;
 
-  // Use G+M manual spend if provided, else fall back to Sheets total
-  const manualSpend=m.spend>0?m.spend:0;
-  const hasManualSpend=manualSpend>0;
-  const activeSpend=hasManualSpend?manualSpend:sheetSpend;
+  const sheetSpend = adF.reduce((a,r) => a + parseFloat(r.ad_spend||0), 0);
+  const sheetRoas  = adF.length === 1 ? parseFloat(adF[0].roas || 0) : 0;
 
-  const ns=m.ns>0?m.ns:(row?parseFloat(row.net_sales||0):0);
-  const nb=row?parseFloat(row.nb_orders||0):0;
-  const ltv=m.ltv>0?m.ltv:0;
+  // Prefer manually entered G+M spend; fall back to Sheets total with ⚠ warning
+  const manualSpend    = m.spend > 0 ? m.spend : 0;
+  const hasManualSpend = manualSpend > 0;
+  const activeSpend    = hasManualSpend ? manualSpend : sheetSpend;
 
-  // ROAS: G+M if manual spend, else Shopify sheet ROAS
-  // If quarter, we can't use single-month sheetRoas → calculate from summed spend
+  const ns = m.ns > 0 ? m.ns : (row ? parseFloat(row.net_sales || 0) : 0);
+  const nb = row ? parseFloat(row.nb_orders || 0) : 0;
+  const ltv = m.ltv > 0 ? m.ltv : 0;
+
+  // ROAS calculation — source determines the display label and warning state
   let roas_v, roasSrc, roasNote;
-  if(hasManualSpend&&ns){
-    roas_v=ns/manualSpend;
-    roasSrc="Google+Meta (manual)";
-    roasNote="G+M spend / Net Sales";
-  } else if(sheetRoas>0&&ptype!=="quarter"){
-    roas_v=sheetRoas;
-    roasSrc="Shopify (attributed)";
-    roasNote="⚠ Shopify last-click attribution";
-  } else if(activeSpend&&ns){
-    roas_v=ns/activeSpend;
-    roasSrc=hasManualSpend?"G+M":"Shopify (calculado)";
-    roasNote=hasManualSpend?"G+M spend":"⚠ Total Shopify ad spend";
+  if (hasManualSpend && ns) {
+    roas_v   = ns / manualSpend;
+    roasSrc  = "Google+Meta (manual)";
+    roasNote = "G+M spend / Net Sales";
+  } else if (sheetRoas > 0 && ptype !== "quarter") {
+    // Single-month Sheets ROAS — Shopify last-click, likely inflated
+    roas_v   = sheetRoas;
+    roasSrc  = "Shopify (attributed)";
+    roasNote = "⚠ Shopify last-click attribution";
+  } else if (activeSpend && ns) {
+    roas_v   = ns / activeSpend;
+    roasSrc  = hasManualSpend ? "G+M" : "Shopify (calculated)";
+    roasNote = hasManualSpend ? "G+M spend" : "⚠ Total Shopify ad spend";
   } else {
-    roas_v=null; roasSrc="—"; roasNote="Ingresa G+M spend arriba";
+    roas_v = null; roasSrc = "—"; roasNote = "Enter G+M spend above";
   }
 
-  // CAC: use G+M spend if available, else Sheets total; use manual new customers if set
-  const cacSpend=hasManualSpend?manualSpend:sheetSpend;
-  const newCust=m.newcust>0?m.newcust:0;
-  const cac_v=cacSpend&&newCust?(cacSpend/newCust):(cacSpend&&nb?(cacSpend/nb):null);
-  const cacNote=hasManualSpend?"G+M spend / new customers":"⚠ Total Shopify spend";
+  // CAC = G+M spend / new customers. Falls back to orders if new-customer count not entered.
+  const cacSpend = hasManualSpend ? manualSpend : sheetSpend;
+  const newCust  = m.newcust > 0 ? m.newcust : 0;
+  const cac_v    = cacSpend && newCust ? (cacSpend / newCust) : (cacSpend && nb ? (cacSpend / nb) : null);
+  const cacNote  = hasManualSpend ? "G+M spend / new customers" : "⚠ Total Shopify spend";
 
-  const ltvcac_v=ltv&&cac_v?(ltv/cac_v):null;
-  const hasManual=m.spend>0||m.ltv>0;
-  document.getElementById('fp-manual').style.display=hasManual?'':'none';
+  // LTV/CAC ratio (only when LTV is manually set)
+  const ltvcac_v = ltv && cac_v ? (ltv / cac_v) : null;
 
-  // ROAS source badge in footer
-  const roasSrcEl=document.getElementById('fp-roas-src');
-  if(hasManualSpend){roasSrcEl.textContent="ROAS: Google+Meta ✓";roasSrcEl.style.color="var(--gr)";}
-  else{roasSrcEl.textContent="ROAS: Shopify ⚠";roasSrcEl.style.color="var(--am)";}
+  const hasManual = m.spend > 0 || m.ltv > 0;
+  document.getElementById('fp-manual').style.display = hasManual ? '' : 'none';
 
-  // Show/hide ROAS warning banner
-  document.getElementById('roas-warn').classList.toggle('show',!hasManualSpend);
+  // Update ROAS source badge in footer
+  const roasSrcEl = document.getElementById('fp-roas-src');
+  if (hasManualSpend) {
+    roasSrcEl.textContent = "ROAS: Google+Meta ✓";
+    roasSrcEl.style.color = "var(--gr)";
+  } else {
+    roasSrcEl.textContent = "ROAS: Shopify ⚠";
+    roasSrcEl.style.color = "var(--am)";
+  }
 
-  // Update marketing section header label
-  document.getElementById('mkt-sec-lbl').textContent=hasManualSpend
-    ?'Marketing KPIs — Google+Meta spend'
-    :'Marketing KPIs — Shopify ad spend (⚠ atribuido)';
+  // Show/hide the ROAS warning banner at the top of the page
+  document.getElementById('roas-warn').classList.toggle('show', !hasManualSpend);
 
-  // Build marketing KPI cards
+  // Update marketing section header to reflect the active spend source
+  document.getElementById('mkt-sec-lbl').textContent = hasManualSpend
+    ? 'Marketing KPIs — Google+Meta spend'
+    : 'Marketing KPIs — Shopify ad spend (⚠ attributed)';
+
+  // Build marketing KPI card row
   const mktHtml = [
-    {
-      l:'Ad Spend',
-      v:activeSpend?fv(activeSpend,"$"):"—",
-      note:hasManualSpend?"Google+Meta (manual)":"Total sheets · enter G+M ↓",
-      warn:!hasManualSpend
-    },
-    {
-      l:hasManualSpend?'ROAS (G+M)':'ROAS (Shopify)',
-      v:roas_v?fv(roas_v,"x"):"—",
-      note:roasNote,
-      warn:!hasManualSpend&&roas_v!==null
-    },
-    {
-      l:hasManualSpend?'CAC (G+M)':'CAC (Shopify ⚠)',
-      v:cac_v?fv(cac_v,"$"):"—",
-      note:cacNote+' ·pending manager confirmation',
-      warn:!hasManualSpend
-    },
-    {
-      l:'LTV / CAC',
-      v:ltvcac_v?fv(ltvcac_v,"x"):"—",
-      note:ltv>0?'LTV-12M / CAC':'Ingresa LTV arriba',
-      warn:false
-    },
-  ].map(({l,v,note,warn})=>
-    warn?kcardAmber(l,v,"Shopify",note):kcard(l,v,null,null,note,"var(--gd)")
+    { l: 'Ad Spend',                           v: activeSpend ? fv(activeSpend,"$") : "—", note: hasManualSpend ? "Google+Meta (manual)"                  : "Total sheets · enter G+M ↓",                  warn: !hasManualSpend },
+    { l: hasManualSpend ? 'ROAS (G+M)' : 'ROAS (Shopify)', v: roas_v ? fv(roas_v,"x") : "—", note: roasNote, warn: !hasManualSpend && roas_v !== null },
+    { l: hasManualSpend ? 'CAC (G+M)' : 'CAC (Shopify ⚠)', v: cac_v  ? fv(cac_v,"$") : "—", note: cacNote + ' · pending manager confirmation', warn: !hasManualSpend },
+    { l: 'LTV / CAC',                           v: ltvcac_v ? fv(ltvcac_v,"x") : "—",          note: ltv > 0 ? 'LTV-12M / CAC' : 'Enter LTV above',        warn: false },
+  ].map(({ l, v, note, warn }) =>
+    warn ? kcardAmber(l, v, "Shopify", note) : kcard(l, v, null, null, note, "var(--gd)")
   ).join('');
-  document.getElementById("mkt").innerHTML=mktHtml;
+  document.getElementById("mkt").innerHTML = mktHtml;
 
-  // Revenue share
-  const rsPK=row?row.period:null;
-  const rsF=rsPK?rsR.filter(r=>r.period===rsPK):rsR.filter(r=>r.period_start&&r.period_start.slice(0,7)===opt.start.slice(0,7));
-  document.getElementById("rsg").innerHTML=rsF.length
-    ?rsF.map(r=>{
-        const pct=parseFloat(r.pct)||0,amt=parseFloat(r.amount)||0,c=RSC[r.channel]||"#707070";
-        const chg=r.pct_chg!==undefined&&r.pct_chg!==""?parseFloat(r.pct_chg):null;
-        const chgHtml=chg!==null
-          ?`<div style="font-size:9px;margin-top:3px;color:${chg>=0?'var(--gr)':'var(--rd)'}">${chg>=0?'▲':'▼'} ${Math.abs(chg).toFixed(1)}pp vs prev</div>`
-          :"";
+  /* ── Revenue share breakdown ────────────────────────────────────────────── */
+  const rsPK = row ? row.period : null;
+  const rsF  = rsPK
+    ? rsR.filter(r => r.period === rsPK)
+    : rsR.filter(r => r.period_start && r.period_start.slice(0,7) === opt.start.slice(0,7));
+
+  document.getElementById("rsg").innerHTML = rsF.length
+    ? rsF.map(r => {
+        const pct = parseFloat(r.pct) || 0, amt = parseFloat(r.amount) || 0, c = RSC[r.channel] || "#707070";
+        const chg = r.pct_chg !== undefined && r.pct_chg !== "" ? parseFloat(r.pct_chg) : null;
+        const chgHtml = chg !== null
+          ? `<div style="font-size:9px;margin-top:3px;color:${chg>=0?'var(--gr)':'var(--rd)'}">${chg>=0?'▲':'▼'} ${Math.abs(chg).toFixed(1)}pp vs prev</div>`
+          : "";
         return `<div class="rsc"><div class="rscn">${r.channel}</div><div class="rscp" style="color:${c}">${pct.toFixed(1)}%</div><div class="rsca">$${amt.toLocaleString('en',{maximumFractionDigits:0})}</div>${chgHtml}<div class="rscbar"><div class="rscf" style="width:${Math.min(pct,100)}%;background:${c}"></div></div></div>`;
       }).join('')
-    :`<div style="font-size:11px;color:var(--tx3)">No data for this period.</div>`;
+    : `<div style="font-size:11px;color:var(--tx3)">No data for this period.</div>`;
 
-  // Q1 2026 snapshot
+  // Q1 2026 snapshot (always rendered against fixed window)
   await renderQ1(kpiR);
 
-  // Info bar
-  renderIbar(opt,cmpLbl,roasSrc!=="—"?roasSrc:null);
+  // Info bar — dates, comparison label, ROAS source
+  renderIbar(opt, cmpLbl, roasSrc !== "—" ? roasSrc : null);
 
-  // Load manual fields
+  // Reload manual fields (in case period changed)
   loadManual();
 
-  if(row){
-    const upd=row.updated_at||"";
-    document.getElementById("fn").textContent=`Last updated: ${upd} · Shopify → Google Sheets → Dashboard`;
-    document.getElementById("sb-upd").textContent=upd.slice(0,10)||"Today";
+  // Update footer timestamp
+  if (row) {
+    const upd = row.updated_at || "";
+    document.getElementById("fn").textContent = `Last updated: ${upd} · Shopify → Google Sheets → Dashboard`;
+    document.getElementById("sb-upd").textContent = upd.slice(0,10) || "Today";
   }
+
   document.getElementById("ov").classList.remove("show");
 }
 
-setInterval(()=>{cache={};render();},5*60*1000);
+/* Auto-refresh every 5 minutes (cache cleared, full re-fetch) */
+setInterval(() => { cache = {}; render(); }, 5 * 60 * 1000);
 
-function forceRefresh(){
-  cache={};
-  const btn=document.querySelector('.rfbtn');
-  btn.style.opacity='.5';
-  render().then(()=>{btn.style.opacity='1';});
+/** Manual refresh button handler */
+function forceRefresh() {
+  cache = {};
+  const btn = document.querySelector('.rfbtn');
+  btn.style.opacity = '.5';
+  render().then(() => { btn.style.opacity = '1'; });
 }
-function setBrand(b,el){
-  brand=b;
-  document.querySelectorAll(".bb").forEach(x=>x.classList.remove("on"));
+
+/** Switch active brand and re-render */
+function setBrand(b, el) {
+  brand = b;
+  document.querySelectorAll(".bb").forEach(x => x.classList.remove("on"));
   el.classList.add("on");
-  document.getElementById("ph-t").textContent=(b==="corro"?"Corro":"Cavali")+" — Performance";
-  cache={}; render();
+  document.getElementById("ph-t").textContent = (b === "corro" ? "Corro" : "Cavali") + " — Performance";
+  cache = {};
+  render();
 }
-function setPT(p,el){ptype=p;document.querySelectorAll(".pb").forEach(x=>x.classList.remove("on"));el.classList.add("on");cache={};render()}
-function toggleRS(){rsOpen=!rsOpen;document.getElementById("rs-w").classList.toggle("rs-op",rsOpen)}
-function toggleMI(){miOpen=!miOpen;document.getElementById("mi-panel").classList.toggle("mi-open",miOpen);document.getElementById("mi-cv").style.transform=miOpen?'':'rotate(-90deg)';}
-function toggleTheme(){const h=document.documentElement,dk=h.getAttribute("data-theme")==="dark";h.setAttribute("data-theme",dk?"light":"dark");document.getElementById("tbtn").textContent=dk?"☀":"☾"}
 
-renderSelbar(); render();
+/** Switch active period type and re-render */
+function setPT(p, el) {
+  ptype = p;
+  document.querySelectorAll(".pb").forEach(x => x.classList.remove("on"));
+  el.classList.add("on");
+  cache = {};
+  render();
+}
+
+function toggleRS()    { rsOpen   = !rsOpen;   document.getElementById("rs-w").classList.toggle("rs-op", rsOpen); }
+function toggleMI()    { miOpen   = !miOpen;   document.getElementById("mi-panel").classList.toggle("mi-open", miOpen); document.getElementById("mi-cv").style.transform = miOpen ? '' : 'rotate(-90deg)'; }
+function toggleTheme() { const h  = document.documentElement, dk = h.getAttribute("data-theme") === "dark"; h.setAttribute("data-theme", dk?"light":"dark"); document.getElementById("tbtn").textContent = dk?"☀":"☾"; }
+
+/* ── Bootstrap ────────────────────────────────────────────────────────────── */
+renderSelbar();
+render();
 </script>
 </body>
 </html>
