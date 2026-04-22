@@ -797,7 +797,7 @@ async function render(){
     roasNote="G+M spend / Net Sales";
   } else if(sheetRoas>0&&ptype!=="quarter"){
     roas_v=sheetRoas;
-    roasSrc="Shopify (atribuido)";
+    roasSrc="Shopify (attributed)";
     roasNote="⚠ Shopify last-click attribution";
   } else if(activeSpend&&ns){
     roas_v=ns/activeSpend;
@@ -835,7 +835,7 @@ async function render(){
     {
       l:'Ad Spend',
       v:activeSpend?fv(activeSpend,"$"):"—",
-      note:hasManualSpend?"Google+Meta (manual)":"Sheets total · ingresa G+M ↓",
+      note:hasManualSpend?"Google+Meta (manual)":"Total sheets · enter G+M ↓",
       warn:!hasManualSpend
     },
     {
@@ -847,7 +847,7 @@ async function render(){
     {
       l:hasManualSpend?'CAC (G+M)':'CAC (Shopify ⚠)',
       v:cac_v?fv(cac_v,"$"):"—",
-      note:cacNote+' · pendiente confirmación manager',
+      note:cacNote+' ·pending manager confirmation',
       warn:!hasManualSpend
     },
     {
