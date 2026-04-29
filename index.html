@@ -231,10 +231,10 @@ select:focus{border-color:var(--gr)}
       Dashboard
     </a>
     <div class="sb-sec" style="margin-top:4px">Brands</div>
-    <a class="sb-item" href="#" onclick="setBrand('corro',0);return false">
+    <a class="sb-item" href="#" onclick="setBrand('corro');return false">
       <div style="width:5px;height:5px;border-radius:50%;background:#2EE896"></div>Corro
     </a>
-    <a class="sb-item" href="#" onclick="setBrand('cavali',1);return false">
+    <a class="sb-item" href="#" onclick="setBrand('cavali');return false">
       <div style="width:5px;height:5px;border-radius:50%;background:#A090FF"></div>Cavali
     </a>
     <div class="sb-sec" style="margin-top:6px">Analytics Suite</div>
@@ -282,8 +282,8 @@ select:focus{border-color:var(--gr)}
   <!-- Brand + Period controls -->
   <div class="ctrl">
     <div class="btn-grp" id="brand-grp">
-      <button class="brand-btn on" onclick="setBrand('corro',0)"><div style="width:5px;height:5px;border-radius:50%;background:#2EE896"></div>Corro</button>
-      <button class="brand-btn" onclick="setBrand('cavali',1)"><div style="width:5px;height:5px;border-radius:50%;background:#A090FF"></div>Cavali</button>
+      <button class="brand-btn on" onclick="setBrand('corro')"><div style="width:5px;height:5px;border-radius:50%;background:#2EE896"></div>Corro</button>
+      <button class="brand-btn" onclick="setBrand('cavali')"><div style="width:5px;height:5px;border-radius:50%;background:#A090FF"></div>Cavali</button>
     </div>
     <div class="btn-grp" id="period-grp">
       <button class="period-btn" onclick="setPT('week',this)">Week</button>
@@ -529,10 +529,10 @@ function getOpt() {
 function renderSelbar() {
   const bar = document.getElementById("selbar");
   let opts, sv, oc;
-  if (ptype==="week")       { opts=WEEKS;    sv=selW;   oc="selW(this.value)"; }
-  else if (ptype==="mtd")   { opts=MTDS;     sv=selMTD; oc="selMTD(this.value)"; }
-  else if (ptype==="month") { opts=MONTHS;   sv=selMo;  oc="selMo(this.value)"; }
-  else                      { opts=QUARTERS; sv=selQ;   oc="selQ(this.value)"; }
+  if (ptype==="week")       { opts=WEEKS;    sv=selW;   oc="onSelW(this.value)"; }
+  else if (ptype==="mtd")   { opts=MTDS;     sv=selMTD; oc="onSelMTD(this.value)"; }
+  else if (ptype==="month") { opts=MONTHS;   sv=selMo;  oc="onSelMo(this.value)"; }
+  else                      { opts=QUARTERS; sv=selQ;   oc="onSelQ(this.value)"; }
   const lbls = {week:"Select week",mtd:"Select month (MTD)",month:"Select month",quarter:"Select quarter"};
   bar.innerHTML =
     `<div class="sel-grp"><span class="sel-lbl">${lbls[ptype]}</span>` +
@@ -545,10 +545,10 @@ function renderSelbar() {
     `<option value="none"${selCmp==="none"?' selected':''}>No comparison</option>` +
     `</select></div>`;
 }
-function selW(v)     { selW   = v; cache={}; renderSelbar(); render(); }
-function selMTD(v)   { selMTD = v; cache={}; renderSelbar(); render(); }
-function selMo(v)    { selMo  = v; cache={}; renderSelbar(); render(); }
-function selQ(v)     { selQ   = v; cache={}; renderSelbar(); render(); }
+function onSelW(v)   { selW   = v; cache={}; renderSelbar(); render(); }
+function onSelMTD(v) { selMTD = v; cache={}; renderSelbar(); render(); }
+function onSelMo(v)  { selMo  = v; cache={}; renderSelbar(); render(); }
+function onSelQ(v)   { selQ   = v; cache={}; renderSelbar(); render(); }
 function selCmp2(v)  { selCmp = v; render(); }
 
 function renderIbar(opt, cmpLbl) {
@@ -1123,9 +1123,9 @@ function forceRefresh() {
   btn.style.opacity = ".5";
   render().then(()=>btn.style.opacity="1");
 }
-function setBrand(b, idx) {
+function setBrand(b) {
   brand = b;
-  document.querySelectorAll(".brand-btn").forEach((el,i)=>el.classList.toggle("on",i===idx));
+  document.querySelectorAll(".brand-btn").forEach(el=>el.classList.toggle("on",el.textContent.trim().toLowerCase()===b));
   document.getElementById("ph-title").textContent = (b==="corro"?"Corro":"Cavali")+" — Performance";
   cache = {}; render();
 }
