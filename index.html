@@ -29,7 +29,6 @@
 }
 html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx)}
 .app{display:flex;min-height:100vh}
-
 /* SIDEBAR */
 .sb{width:200px;background:var(--sf);border-right:1px solid var(--bd);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;flex-shrink:0;overflow:hidden}
 .sb-top{padding:16px 14px 13px;border-bottom:1px solid var(--bd)}
@@ -49,10 +48,8 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 .sync-r{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--tx3)}
 .sync-d{width:5px;height:5px;border-radius:50%;background:var(--gr);animation:pu 2.5s infinite}
 @keyframes pu{0%,100%{opacity:1}50%{opacity:.15}}
-
 /* MAIN */
 .main{flex:1;padding:20px 22px;min-width:0;overflow-x:hidden}
-
 /* PAGE HEADER */
 .ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px}
 .ph h1{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:var(--tx);letter-spacing:-.025em}
@@ -63,7 +60,6 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 .icon-btn:hover{border-color:var(--gr);color:var(--gr)}
 .rf-btn{display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:5px;border:1px solid var(--bd2);background:var(--sf2);color:var(--tx2);cursor:pointer;font-size:10px;font-weight:500;font-family:'DM Sans',sans-serif;transition:all .12s}
 .rf-btn:hover{border-color:var(--gr);color:var(--gr)}
-
 /* CONTROLS */
 .ctrl{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px}
 .btn-grp{display:flex;gap:2px;background:var(--sf2);border:1px solid var(--bd);border-radius:7px;padding:2px}
@@ -71,7 +67,6 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 .brand-btn.on{background:var(--sf);color:var(--tx);border-color:var(--bd2)}
 .period-btn{padding:4px 10px;border-radius:5px;border:1px solid transparent;background:transparent;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;color:var(--tx2);cursor:pointer;transition:all .12s}
 .period-btn.on{background:var(--sf);color:var(--tx);border-color:var(--bd2)}
-
 /* SELECTOR BAR */
 .selbar{background:var(--sf);border:1px solid var(--bd);border-radius:8px;padding:9px 13px;margin-bottom:11px;display:flex;align-items:center;flex-wrap:wrap;gap:12px}
 .sel-grp{display:flex;align-items:center;gap:7px}
@@ -79,24 +74,19 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 .sel-div{width:1px;height:16px;background:var(--bd2)}
 select{font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;color:var(--tx);background:var(--sf2);border:1px solid var(--bd2);border-radius:5px;padding:4px 10px;cursor:pointer;outline:none;transition:border-color .12s}
 select:focus{border-color:var(--gr)}
-
 /* INFO BAR */
 .ibar{font-size:11px;color:var(--tx3);background:var(--sf2);border-radius:6px;padding:6px 12px;margin-bottom:13px;line-height:1.7}
 .ibar span{color:var(--tx);font-weight:500}
-
 /* WARNINGS */
 .warn-bar{display:none;font-size:10px;color:var(--am);background:var(--am-bg);border:1px solid var(--am-bd);border-radius:6px;padding:5px 11px;margin-bottom:10px;line-height:1.6}
 .warn-bar.show{display:block}
-
 /* SECTION DIVIDERS */
 .sec{display:flex;align-items:center;gap:8px;margin:16px 0 9px}
 .sec-num{font-size:9px;font-weight:700;color:var(--tx3);letter-spacing:.1em;text-transform:uppercase;font-family:'Syne',sans-serif;white-space:nowrap}
 .sec-line{flex:1;height:1px;background:var(--bd)}
 .sec-lbl{font-size:9px;font-weight:600;color:var(--tx3);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
-
 /* KPI GRID */
 .kg{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:7px}
-
 /* KPI CARD */
 .kc{background:var(--sf);border:1px solid var(--bd);border-radius:9px;padding:13px 14px;position:relative;overflow:hidden;transition:border-color .12s,transform .1s}
 .kc:hover{border-color:var(--bd2);transform:translateY(-1px)}
@@ -105,13 +95,6 @@ select:focus{border-color:var(--gr)}
 .kc-val{font-family:'Syne',sans-serif;font-size:26px;font-weight:700;color:var(--tx);letter-spacing:-.04em;line-height:1;margin-bottom:9px}
 .kc-badges{display:flex;gap:4px;flex-wrap:wrap}
 .kc-note{font-size:9px;color:var(--tx3);margin-top:4px;font-style:italic}
-
-/* GP CARD — destacado en verde */
-.kc-gp{background:linear-gradient(135deg,var(--gr-bg) 0%,var(--sf) 100%);border:1px solid var(--gr-bd)}
-.kc-gp .kc-lbl{color:var(--gr)}
-.kc-gp .kc-val{color:var(--gr)}
-.kc-gp .kc-bar{background:var(--gr)}
-
 /* BADGES */
 .bdg{display:inline-flex;align-items:center;gap:2px;font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px}
 .bdg-lbl{font-size:9px;opacity:.55;margin-right:1px;font-weight:400}
@@ -119,21 +102,18 @@ select:focus{border-color:var(--gr)}
 .bdg-dn{background:var(--rd-bg);color:var(--rd);border:1px solid var(--rd-bd)}
 .bdg-neu{background:var(--sf2);color:var(--tx3);border:1px solid var(--bd)}
 .bdg-am{background:var(--am-bg);color:var(--am);border:1px solid var(--am-bd)}
-
 /* FCS CARD */
 .kc-fcs{background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 100%);border:1px solid var(--bd2);border-radius:9px;padding:13px 14px;position:relative;overflow:hidden;transition:transform .1s}
 .kc-fcs:hover{transform:translateY(-1px)}
 .kc-fcs .kc-lbl{color:#A8C8E8}
 .kc-fcs .kc-val{color:#FFFFFF;font-family:'Syne',sans-serif;font-size:26px;font-weight:700;letter-spacing:-.04em;line-height:1;margin-bottom:9px}
 .kc-fcs .kc-note{color:#7AA8C8}
-
 /* SUBSCRIBER CARD */
 .kc-sub{background:var(--sf);border:1px solid rgba(160,144,255,.3);border-radius:9px;padding:13px 14px;position:relative;overflow:hidden;transition:border-color .12s,transform .1s}
 .kc-sub:hover{border-color:rgba(160,144,255,.6);transform:translateY(-1px)}
 .kc-sub .kc-bar{background:var(--pu)}
 .kc-sub .kc-lbl{color:var(--pu)}
 .kc-sub .kc-val{font-family:'Syne',sans-serif;font-size:32px;font-weight:700;letter-spacing:-.04em;line-height:1;margin-bottom:9px}
-
 /* COLLAPSIBLE PANEL */
 .panel{background:var(--sf);border:1px solid var(--bd);border-radius:9px;overflow:hidden;margin-top:7px}
 .panel-hd{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;user-select:none;transition:background .1s}
@@ -145,9 +125,8 @@ select:focus{border-color:var(--gr)}
 .panel.open .panel-chev{transform:rotate(180deg)}
 .panel-body{display:none;padding:12px 14px}
 .panel.open .panel-body{display:block}
-
 /* REVENUE SHARE */
-.rs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:7px}
+.rs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:7px}
 .rs-card{background:var(--sf2);border:1px solid var(--bd);border-radius:7px;padding:11px 12px}
 .rs-name{font-size:10px;color:var(--tx3);font-weight:500;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}
 .rs-pct{font-family:'Syne',sans-serif;font-size:20px;font-weight:700}
@@ -156,7 +135,6 @@ select:focus{border-color:var(--gr)}
 .rs-gp span{font-weight:600}
 .rs-bar-wrap{height:2px;background:var(--bd2);border-radius:1px;margin-top:8px;overflow:hidden}
 .rs-bar-fill{height:100%;border-radius:1px}
-
 /* NEW vs RETURNING */
 .nvr-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .nvr-col{background:var(--sf2);border:1px solid var(--bd);border-radius:7px;padding:12px 13px}
@@ -164,13 +142,11 @@ select:focus{border-color:var(--gr)}
 .nvr-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
 .nvr-lbl{font-size:10px;color:var(--tx3)}
 .nvr-val{font-size:12px;font-weight:600;color:var(--tx);font-family:'Syne',sans-serif}
-.nvr-gp{color:var(--gr)!important}
+.nvr-gp{color:var(--gr) !important}
 .nvr-note{font-size:9px;color:var(--am);margin-top:6px;font-style:italic}
-
 /* CAC/LTV */
 .cac-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:7px}
 .cac-note-box{font-size:9px;color:var(--am);background:var(--am-bg);border:1px solid var(--am-bd);border-radius:5px;padding:5px 9px;margin-bottom:10px;line-height:1.6}
-
 /* MANUAL INPUTS */
 .mi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:10px;margin-bottom:12px}
 .mi-field{display:flex;flex-direction:column;gap:4px}
@@ -189,32 +165,25 @@ select:focus{border-color:var(--gr)}
 .btn-clear{padding:6px 14px;border-radius:6px;border:1px solid var(--bd2);background:transparent;color:var(--tx3);font-family:'DM Sans',sans-serif;font-size:11px;cursor:pointer}
 .saved-tag{display:inline-flex;align-items:center;gap:4px;font-size:9px;color:var(--gr);background:var(--gr-bg);border:1px solid var(--gr-bd);border-radius:20px;padding:2px 7px}
 .mi-derived{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:7px;margin-top:4px}
-
 /* VISIBILITY */
 .cavali-only{display:none}
 .is-cavali .cavali-only{display:block}
 .corro-only{display:block}
 .is-cavali .corro-only{display:none}
-
 /* FOOTER */
 .foot{margin-top:20px;padding-top:12px;border-top:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px}
 .foot-txt{font-size:10px;color:var(--tx3)}
 .foot-tags{display:flex;gap:5px;flex-wrap:wrap}
 .foot-tag{background:var(--sf2);border:1px solid var(--bd);border-radius:20px;padding:2px 8px;font-size:10px;color:var(--tx3)}
-
 /* LOADING */
 .ov{display:none;position:fixed;inset:0;background:rgba(10,25,45,.72);z-index:200;align-items:center;justify-content:center;flex-direction:column;gap:10px;backdrop-filter:blur(3px)}
 .ov.show{display:flex}
 .spinner{width:24px;height:24px;border:2px solid var(--bd2);border-top-color:var(--gr);border-radius:50%;animation:spin .65s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .ov-lbl{font-size:11px;color:var(--tx);background:var(--sf);padding:7px 14px;border-radius:20px;border:1px solid var(--bd2)}
-
 /* SKELETON */
 .sk .kc-lbl,.sk .kc-val{background:var(--sf2);border-radius:3px;color:transparent;animation:shimmer 1.4s ease-in-out infinite}
 @keyframes shimmer{0%,100%{opacity:.3}50%{opacity:.8}}
-
-/* GP HIGHLIGHT en la barra de sección */
-.sec-gp{color:var(--gr);font-weight:700}
 </style>
 </head>
 <body>
@@ -302,21 +271,14 @@ select:focus{border-color:var(--gr)}
 
   <div class="selbar" id="selbar"></div>
   <div class="ibar" id="ibar"></div>
-  <div class="warn-bar" id="roas-warn">⚠ <strong>ROAS & CAC</strong> — usando datos atribuidos de Shopify (last-click, puede estar inflado). Ingresa <strong>Google + Meta Ad Spend</strong> en Manual Inputs abajo para cifras exactas.</div>
+  <div class="warn-bar" id="roas-warn">⚠ <strong>ROAS & CAC</strong> — using Shopify attributed data (last-click, may be inflated). Enter <strong>Google + Meta Ad Spend</strong> in Manual Inputs below for exact figures.</div>
 
   <!-- 01 · Website KPIs -->
   <div class="sec"><div class="sec-num">01</div><div class="sec-line"></div><div class="sec-lbl">Website KPIs</div><div class="sec-line"></div></div>
   <div class="kg" id="s-web"></div>
 
-  <!-- 02 · Financial KPIs — GROSS PROFIT DESTACADO -->
-  <div class="sec">
-    <div class="sec-num">02</div>
-    <div class="sec-line"></div>
-    <div class="sec-lbl">Financial KPIs — <span class="sec-gp">Gross Profit real ✓</span></div>
-    <div class="sec-line"></div>
-  </div>
-  <!-- GP Hero card separada, luego el grid -->
-  <div id="s-gp-hero" style="margin-bottom:7px"></div>
+  <!-- 02 · Financial KPIs -->
+  <div class="sec"><div class="sec-num">02</div><div class="sec-line"></div><div class="sec-lbl">Financial KPIs — Net Sales confirmed</div><div class="sec-line"></div></div>
   <div class="kg" id="s-fin"></div>
 
   <!-- FCS Forecast — Corro only -->
@@ -350,7 +312,7 @@ select:focus{border-color:var(--gr)}
 
   <!-- 05 · CAC to LTV -->
   <div class="sec"><div class="sec-num">05</div><div class="sec-line"></div><div class="sec-lbl">CAC to LTV — Ratio & Health</div><div class="sec-line"></div></div>
-  <div class="cac-note-box" id="cac-note-box">⏳ <strong>CAC note:</strong> Con gasto G+M abajo, CAC = G+M ÷ nuevos clientes (pipeline v4). LTV ref: <strong>$178</strong> · CAC ref: <strong>$47</strong>.</div>
+  <div class="cac-note-box" id="cac-note-box">⏳ <strong>CAC note:</strong> When G+M spend is entered below, CAC is calculated automatically (G+M ÷ Shopify new customers). LTV reference: <strong>$178</strong> · CAC reference: <strong>$47</strong>.</div>
   <div class="cac-grid" id="s-cac"></div>
 
   <!-- 06 · Cavali Subscribers -->
@@ -382,14 +344,14 @@ select:focus{border-color:var(--gr)}
       <span class="panel-chev">▾</span>
     </div>
     <div class="panel-body">
-      <div style="font-size:10px;color:var(--tx3);margin-bottom:10px">Valores guardados localmente por brand + período. CAC se calcula automáticamente con G+M spend ÷ nuevos clientes (pipeline v4). LTV override opcional — default $178.</div>
+      <div style="font-size:10px;color:var(--tx3);margin-bottom:10px">Values are saved locally by brand + period. CAC is calculated automatically with G+M spend ÷ new customers (pipeline v4). Optional LTV override — default $178.</div>
       <div class="mi-grid">
         <div class="mi-field">
-          <div class="mi-lbl">Google + Meta Ad Spend ($)<span class="mi-note">Solo G+M — ROAS & CAC exactos</span></div>
+          <div class="mi-lbl">Google + Meta Ad Spend ($)<span class="mi-note">G+M only — exact ROAS & CAC</span></div>
           <div class="mi-wrap"><span class="mi-pre">$</span><input class="mi-inp" id="mi-spend" type="number" min="0" step="0.01" placeholder="0.00" oninput="calcDerived()"></div>
         </div>
         <div class="mi-field">
-          <div class="mi-lbl">New Customers (período)<span class="mi-note">Auto desde pipeline v4 si disponible</span></div>
+          <div class="mi-lbl">New Customers (period)<span class="mi-note">Auto from pipeline v4 if available</span></div>
           <div class="mi-wrap"><input class="mi-inp no-pre" id="mi-newcust" type="number" min="0" step="1" placeholder="0" oninput="calcDerived()"></div>
         </div>
         <div class="mi-field">
@@ -397,11 +359,11 @@ select:focus{border-color:var(--gr)}
           <div class="mi-wrap"><span class="mi-pre">$</span><input class="mi-inp" id="mi-ltv" type="number" min="0" step="0.01" placeholder="178.00" oninput="calcDerived()"></div>
         </div>
         <div class="mi-field">
-          <div class="mi-lbl">CAC Override ($)<span class="mi-note">Auto-calculado si se ingresa G+M spend</span></div>
+          <div class="mi-lbl">CAC Override ($)<span class="mi-note">Auto-calculated when G+M spend is entered</span></div>
           <div class="mi-wrap"><span class="mi-pre">$</span><input class="mi-inp" id="mi-cac-ov" type="number" min="0" step="0.01" placeholder="auto" oninput="calcDerived()"></div>
         </div>
         <div class="mi-field">
-          <div class="mi-lbl">Net Sales Override ($)<span class="mi-note">Auto desde Sheets si vacío</span></div>
+          <div class="mi-lbl">Net Sales Override ($)<span class="mi-note">Auto from Sheets if empty</span></div>
           <div class="mi-wrap"><span class="mi-pre">$</span><input class="mi-inp" id="mi-ns" type="number" min="0" step="0.01" placeholder="auto" oninput="calcDerived()"></div>
         </div>
         <!-- Cavali subscribers -->
@@ -414,7 +376,7 @@ select:focus{border-color:var(--gr)}
           </div>
         </div>
       </div>
-      <div style="font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:7px">Calculado (Google+Meta)</div>
+      <div style="font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:7px">Calculated (Google+Meta)</div>
       <div class="mi-derived" id="mi-derived"></div>
       <div class="mi-actions">
         <button class="btn-save" onclick="saveManual()">Save for this period</button>
@@ -476,359 +438,321 @@ const NOW = new Date(), CY = NOW.getFullYear(), CM = NOW.getMonth();
 const MN  = ["January","February","March","April","May","June",
               "July","August","September","October","November","December"];
 
-function iso(d){
-  if(!(d instanceof Date))return String(d);
-  return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+function iso(d) {
+  if (!(d instanceof Date)) return String(d);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
-function lastDay(y,m){return new Date(y,m+1,0);}
-function fmtD(s){try{return new Date(s+'T12:00').toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'});}catch(e){return s||"—";}}
+function lastDay(y, m) { return new Date(y, m+1, 0); }
+function fmtD(s) { try { return new Date(s+'T12:00').toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'}); } catch(e){ return s||"—"; } }
 
-function buildWeeks(){
-  const out=[],tod=new Date(NOW),dow=tod.getDay(),mon=new Date(tod);
-  mon.setDate(tod.getDate()-(dow===0?6:dow-1));
-  for(let i=0;i<200;i++){
-    const m=new Date(mon);m.setDate(mon.getDate()-i*7);
-    if(m.getFullYear()<2024)break;
-    const s=new Date(m);s.setDate(m.getDate()+6);
-    const e=s>NOW?new Date(NOW):s;
-    out.push({val:iso(m)+'__'+iso(e),label:`${m.toLocaleDateString('en',{month:'short',day:'numeric'})} – ${e.toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'})}`,start:iso(m),end:iso(e)});
+function buildWeeks() {
+  const out = [], tod = new Date(NOW), dow = tod.getDay(), mon = new Date(tod);
+  mon.setDate(tod.getDate() - (dow === 0 ? 6 : dow - 1));
+  for (let i = 0; i < 200; i++) {
+    const m = new Date(mon); m.setDate(mon.getDate() - i*7);
+    if (m.getFullYear() < 2024) break;
+    const s = new Date(m); s.setDate(m.getDate() + 6);
+    const e = s > NOW ? new Date(NOW) : s;
+    out.push({ val: iso(m)+'__'+iso(e), label: `${m.toLocaleDateString('en',{month:'short',day:'numeric'})} – ${e.toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'})}`, start: iso(m), end: iso(e) });
   }
   return out;
 }
-function buildMTDs(){
-  const out=[];
-  for(let y=CY;y>=2024;y--){
-    for(let m=(y===CY?CM:11);m>=0;m--){
-      const s=`${y}-${String(m+1).padStart(2,'0')}-01`,cur=y===CY&&m===CM;
-      out.push({val:s+'__'+(cur?iso(NOW):iso(lastDay(y,m))),label:`${MN[m]} ${y}${cur?' (MTD)':''}`,start:s,end:cur?iso(NOW):iso(lastDay(y,m)),m,y});
+function buildMTDs() {
+  const out = [];
+  for (let y = CY; y >= 2024; y--) {
+    for (let m = (y===CY?CM:11); m >= 0; m--) {
+      const s = `${y}-${String(m+1).padStart(2,'0')}-01`, cur = y===CY&&m===CM;
+      out.push({ val: s+'__'+(cur?iso(NOW):iso(lastDay(y,m))), label: `${MN[m]} ${y}${cur?' (MTD)':''}`, start: s, end: cur?iso(NOW):iso(lastDay(y,m)), m, y });
     }
   }
   return out;
 }
-function buildMonths(){
-  const out=[];
-  for(let y=CY;y>=2024;y--){
-    for(let m=(y===CY?CM:11);m>=0;m--){
-      const s=`${y}-${String(m+1).padStart(2,'0')}-01`,e=iso(lastDay(y,m)),cur=y===CY&&m===CM;
-      out.push({val:s+'__'+e,label:`${MN[m]} ${y}${cur?' (current)':''}`,start:s,end:e,m,y});
+function buildMonths() {
+  const out = [];
+  for (let y = CY; y >= 2024; y--) {
+    for (let m = (y===CY?CM:11); m >= 0; m--) {
+      const s = `${y}-${String(m+1).padStart(2,'0')}-01`, e = iso(lastDay(y,m)), cur = y===CY&&m===CM;
+      out.push({ val: s+'__'+e, label: `${MN[m]} ${y}${cur?' (current)':''}`, start: s, end: e, m, y });
     }
   }
   return out;
 }
-function buildQuarters(){
-  const out=[];
-  for(let y=CY;y>=2024;y--){
-    const maxQ=y===CY?Math.floor(CM/3)+1:4;
-    for(let q=maxQ;q>=1;q--){
-      const qs=new Date(y,(q-1)*3,1),qe=new Date(y,q*3,0),cur=y===CY&&q===maxQ;
-      const e=cur?iso(NOW):iso(qe),pk=`q${q}_${y}`;
-      out.push({val:pk,label:`Q${q} ${y}${cur?' (current)':''}`,start:iso(qs),end:e,q,y,pk,cur});
+function buildQuarters() {
+  const out = [];
+  for (let y = CY; y >= 2024; y--) {
+    const maxQ = y===CY ? Math.floor(CM/3)+1 : 4;
+    for (let q = maxQ; q >= 1; q--) {
+      const qs = new Date(y,(q-1)*3,1), qe = new Date(y,q*3,0), cur = y===CY&&q===maxQ;
+      const e = cur ? iso(NOW) : iso(qe), pk = `q${q}_${y}`;
+      out.push({ val: pk, label: `Q${q} ${y}${cur?' (current)':''}`, start: iso(qs), end: e, q, y, pk, cur });
     }
   }
   return out;
 }
 
-const WEEKS=buildWeeks(),MTDS=buildMTDs(),MONTHS=buildMonths(),QUARTERS=buildQuarters();
-let selW=WEEKS[0]?.val||"",selMTD=MTDS[0]?.val||"",selMo=MONTHS[0]?.val||"",selQ=QUARTERS[0]?.val||"",selCmp="prev";
+const WEEKS = buildWeeks(), MTDS = buildMTDs(), MONTHS = buildMonths(), QUARTERS = buildQuarters();
+let selW = WEEKS[0]?.val||"", selMTD = MTDS[0]?.val||"", selMo = MONTHS[0]?.val||"", selQ = QUARTERS[0]?.val||"", selCmp = "prev";
 
-function getOpt(){
-  if(ptype==="week")  return WEEKS.find(o=>o.val===selW)||WEEKS[0]||{};
-  if(ptype==="mtd")   return MTDS.find(o=>o.val===selMTD)||MTDS[0]||{};
-  if(ptype==="month") return MONTHS.find(o=>o.val===selMo)||MONTHS[0]||{};
+function getOpt() {
+  if (ptype==="week")   return WEEKS.find(o=>o.val===selW)||WEEKS[0]||{};
+  if (ptype==="mtd")    return MTDS.find(o=>o.val===selMTD)||MTDS[0]||{};
+  if (ptype==="month")  return MONTHS.find(o=>o.val===selMo)||MONTHS[0]||{};
   return QUARTERS.find(o=>o.val===selQ)||QUARTERS[0]||{};
 }
 
 /* ══════════════════════════════════════════════════════
    SELECTOR BAR
 ══════════════════════════════════════════════════════ */
-function renderSelbar(){
-  const bar=document.getElementById("selbar");
-  if(!bar)return;
-  let opts,sv,oc;
-  if(ptype==="week")      {opts=WEEKS;   sv=selW;   oc="onSelW(this.value)";}
-  else if(ptype==="mtd")  {opts=MTDS;    sv=selMTD; oc="onSelMTD(this.value)";}
-  else if(ptype==="month"){opts=MONTHS;  sv=selMo;  oc="onSelMo(this.value)";}
-  else                    {opts=QUARTERS;sv=selQ;   oc="onSelQ(this.value)";}
-  const lbls={week:"Select week",mtd:"Select month (MTD)",month:"Select month",quarter:"Select quarter"};
-  bar.innerHTML=
-    `<div class="sel-grp"><span class="sel-lbl">${lbls[ptype]}</span>`+
-    `<select onchange="${oc}">${(opts||[]).map(o=>`<option value="${o.val}"${o.val===sv?' selected':''}>${o.label}</option>`).join('')}</select></div>`+
-    `<div class="sel-div"></div>`+
-    `<div class="sel-grp"><span class="sel-lbl">Compare vs</span>`+
-    `<select onchange="selCmp2(this.value)">`+
-    `<option value="prev"${selCmp==="prev"?' selected':''}>Previous period</option>`+
-    `<option value="yoy"${selCmp==="yoy"?' selected':''}>Same period last year (YOY)</option>`+
-    `<option value="none"${selCmp==="none"?' selected':''}>No comparison</option>`+
+function renderSelbar() {
+  const bar = document.getElementById("selbar");
+  if (!bar) return;
+  let opts, sv, oc;
+  if (ptype==="week")       { opts=WEEKS;    sv=selW;   oc="onSelW(this.value)"; }
+  else if (ptype==="mtd")   { opts=MTDS;     sv=selMTD; oc="onSelMTD(this.value)"; }
+  else if (ptype==="month") { opts=MONTHS;   sv=selMo;  oc="onSelMo(this.value)"; }
+  else                      { opts=QUARTERS; sv=selQ;   oc="onSelQ(this.value)"; }
+  const lbls = {week:"Select week",mtd:"Select month (MTD)",month:"Select month",quarter:"Select quarter"};
+  bar.innerHTML =
+    `<div class="sel-grp"><span class="sel-lbl">${lbls[ptype]}</span>` +
+    `<select onchange="${oc}">${(opts||[]).map(o=>`<option value="${o.val}"${o.val===sv?' selected':''}>${o.label}</option>`).join('')}</select></div>` +
+    `<div class="sel-div"></div>` +
+    `<div class="sel-grp"><span class="sel-lbl">Compare vs</span>` +
+    `<select onchange="selCmp2(this.value)">` +
+    `<option value="prev"${selCmp==="prev"?' selected':''}>Previous period</option>` +
+    `<option value="yoy"${selCmp==="yoy"?' selected':''}>Same period last year (YOY)</option>` +
+    `<option value="none"${selCmp==="none"?' selected':''}>No comparison</option>` +
     `</select></div>`;
 }
-function onSelW(v){selW=v;cache={};renderSelbar();render();}
-function onSelMTD(v){selMTD=v;cache={};renderSelbar();render();}
-function onSelMo(v){selMo=v;cache={};renderSelbar();render();}
-function onSelQ(v){selQ=v;cache={};renderSelbar();render();}
-function selCmp2(v){selCmp=v;render();}
+function onSelW(v)   { selW   = v; cache={}; renderSelbar(); render(); }
+function onSelMTD(v) { selMTD = v; cache={}; renderSelbar(); render(); }
+function onSelMo(v)  { selMo  = v; cache={}; renderSelbar(); render(); }
+function onSelQ(v)   { selQ   = v; cache={}; renderSelbar(); render(); }
+function selCmp2(v)  { selCmp = v; render(); }
 
-function renderIbar(opt,cmpLbl){
-  const el=document.getElementById("ibar");
-  if(!el)return;
-  let h=`<span>${fmtD(opt.start)}</span> – <span>${fmtD(opt.end)}</span>`;
-  if(cmpLbl)h+=` &nbsp;·&nbsp; vs <span>${cmpLbl}</span>`;
-  h+=` &nbsp;·&nbsp; <span>Net Sales + Gross Profit confirmed ✓</span>`;
-  el.innerHTML=h;
+function renderIbar(opt, cmpLbl) {
+  const el = document.getElementById("ibar");
+  if (!el) return;
+  let h = `<span>${fmtD(opt.start)}</span> – <span>${fmtD(opt.end)}</span>`;
+  if (cmpLbl) h += ` &nbsp;·&nbsp; vs <span>${cmpLbl}</span>`;
+  h += ` &nbsp;·&nbsp; <span>Net Sales confirmed ✓</span>`;
+  el.innerHTML = h;
+}
+
+
+function toSheetKey(h) {
+  return String(h ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[%$]/g, "")
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function num(v) {
+  if (typeof v === "number") return Number.isFinite(v) ? v : NaN;
+  if (v === null || v === undefined) return NaN;
+  let s = String(v).trim();
+  if (!s || s === "—" || s === "-" || /^null$/i.test(s) || /^none$/i.test(s)) return NaN;
+  const isNegative = /^\(.*\)$/.test(s) || /^-/.test(s);
+  s = s.replace(/[,$%\s]/g, "").replace(/[()]/g, "").replace(/[^0-9.+-]/g, "");
+  const n = Number(s);
+  if (!Number.isFinite(n)) return NaN;
+  return isNegative ? -Math.abs(n) : n;
 }
 
 /* ══════════════════════════════════════════════════════
    SHEETS FETCH (5-min cache)
 ══════════════════════════════════════════════════════ */
-async function fetchTab(sid,tab){
-  const k=`${sid}__${tab}`;
-  if(cache[k])return cache[k];
-  try{
-    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/${encodeURIComponent(tab)}?key=${AKEY}`);
-    if(!r.ok){console.warn(`Tab ${tab} HTTP ${r.status}`);return[];}
-    const d=await r.json(),rows=d.values||[];
-    if(rows.length<2)return[];
-    const h=rows[0],res=rows.slice(1).map(row=>Object.fromEntries(h.map((hh,i)=>[hh,row[i]||""])));
-    cache[k]=res;
-    setTimeout(()=>delete cache[k],5*60*1000);
+async function fetchTab(sid, tab) {
+  const k = `${sid}__${tab}`;
+  if (cache[k]) return cache[k];
+  try {
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/${encodeURIComponent(tab)}?valueRenderOption=UNFORMATTED_VALUE&key=${AKEY}`;
+    const r = await fetch(url);
+    if (!r.ok) { console.warn(`Tab ${tab} HTTP ${r.status}`); return []; }
+    const d = await r.json(), rows = d.values || [];
+    if (rows.length < 2) return [];
+
+    const headers = rows[0].map(h => String(h ?? "").trim());
+    const res = rows.slice(1).map(row => {
+      const obj = {};
+      headers.forEach((h, i) => {
+        const val = row[i] ?? "";
+        if (h) obj[h] = val;
+        const key = toSheetKey(h);
+        if (key) obj[key] = val;
+      });
+      return obj;
+    });
+
+    cache[k] = res;
+    setTimeout(()=>delete cache[k], 5*60*1000);
     return res;
-  }catch(e){console.error(e);return[];}
+  } catch(e) { console.error(e); return []; }
 }
 
-function bestRow(arr){
-  if(!arr||!arr.length)return null;
-  return arr.sort((a,b)=>(Date.parse(b.updated_at)||0)-(Date.parse(a.updated_at)||0))[0]||null;
+function bestRow(arr) {
+  if (!arr || !arr.length) return null;
+  return arr.sort((a,b) => (Date.parse(b.updated_at)||0) - (Date.parse(a.updated_at)||0))[0] || null;
 }
 
-/* ══════════════════════════════════════════════════════
-   FIX: findRow — lógica robusta para todos los period types
-══════════════════════════════════════════════════════ */
-function findRow(rows,opt){
-  if(!rows?.length)return null;
+function findRow(rows, opt) {
+  if (!rows?.length) return null;
   let m;
-
-  // QUARTER
-  if(ptype==="quarter"&&opt.pk){
-    m=rows.filter(r=>r.period===opt.pk);
-    if(m.length)return bestRow(m);
-    // fallback por fechas
-    m=rows.filter(r=>r.period_start===opt.start&&(r.period||"").startsWith("q"));
-    if(m.length)return bestRow(m);
-  }
-
-  // WEEK
-  if(ptype==="week"){
+  if (ptype==="quarter" && opt.pk) { m=rows.filter(r=>r.period===opt.pk); if(m.length) return bestRow(m); }
+  if (ptype==="week") {
     const pk=`week_${opt.start}`;
-    m=rows.filter(r=>r.period===pk);
-    if(m.length){
-      const ex=m.filter(r=>(r.period_end||"").trim()===opt.end);
-      return bestRow(ex.length?ex:m);
-    }
-    m=rows.filter(r=>r.period_start===opt.start&&r.period_end===opt.end&&(r.period||"").startsWith("week_"));
-    if(m.length)return bestRow(m);
+    m = rows.filter(r=>r.period===pk);
+    if (m.length) { const ex=m.filter(r=>(r.period_end||"").trim()===opt.end); return bestRow(ex.length?ex:m); }
+    m = rows.filter(r=>r.period_start===opt.start&&r.period_end===opt.end&&(r.period||"").startsWith("week_"));
+    if (m.length) return bestRow(m);
   }
-
-  // MTD — FIX: intenta pk exacto, luego mes, luego fallback a full-month
-  if(ptype==="mtd"){
-    const moStr=(opt.start||"").slice(0,7);
-    const pk=`mtd_${moStr}`;
-    // 1. período exacto mtd_YYYY-MM
-    m=rows.filter(r=>r.period===pk);
-    if(m.length)return bestRow(m);
-    // 2. fallback: período YYYY-MM (mes completo publicado)
-    m=rows.filter(r=>r.period===moStr);
-    if(m.length)return bestRow(m);
-    // 3. fallback: period_start coincide y es mtd
-    m=rows.filter(r=>r.period==="mtd"&&r.period_start===opt.start);
-    if(m.length)return bestRow(m);
+  if (ptype==="mtd") {
+    const pk=`mtd_${(opt.start||"").slice(0,7)}`;
+    m=rows.filter(r=>r.period===pk); if(m.length) return bestRow(m);
+    m=rows.filter(r=>r.period==="mtd"&&r.period_start===opt.start); if(m.length) return bestRow(m);
+    m=rows.filter(r=>r.period===(opt.start||"").slice(0,7)); if(m.length) return bestRow(m);
   }
-
-  // MONTH
-  if(ptype==="month"){
+  if (ptype==="month") {
     const pk=(opt.start||"").slice(0,7);
-    m=rows.filter(r=>r.period===pk);
-    if(m.length)return bestRow(m);
-    m=rows.filter(r=>r.period_start===opt.start&&r.period_end===opt.end);
-    if(m.length)return bestRow(m);
+    m=rows.filter(r=>r.period===pk); if(m.length) return bestRow(m);
+    m=rows.filter(r=>r.period_start===opt.start&&r.period_end===opt.end); if(m.length) return bestRow(m);
   }
   return null;
 }
 
-/* ══════════════════════════════════════════════════════
-   FIX: findCmp — igual de robusto
-══════════════════════════════════════════════════════ */
-function findCmp(rows,opt){
-  if(!rows?.length||selCmp==="none")return{row:null,lbl:""};
-  const prev=selCmp==="prev";
+function findCmp(rows, opt) {
+  if (!rows?.length || selCmp==="none") return { row:null, lbl:"" };
+  const prev = selCmp==="prev";
 
-  if(ptype==="quarter"&&opt.pk){
-    const match=opt.pk.match(/q(\d)_(\d{4})/);
-    if(match){
-      const[,q,y]=match;
-      const pq=prev?(parseInt(q)===1?4:parseInt(q)-1):parseInt(q);
-      const py=prev?(parseInt(q)===1?parseInt(y)-1:parseInt(y)):parseInt(y)-1;
-      const pk=`q${pq}_${py}`;
-      return{row:bestRow(rows.filter(r=>r.period===pk)),lbl:prev?`Q${pq} ${py}`:`Q${q} ${py}`};
+  if (ptype==="quarter" && opt.pk) {
+    const match = opt.pk.match(/q(\d)_(\d{4})/);
+    if (match) {
+      const [,q,y] = match;
+      const pq = prev ? (parseInt(q)===1?4:parseInt(q)-1) : parseInt(q);
+      const py = prev ? (parseInt(q)===1?parseInt(y)-1:parseInt(y)) : parseInt(y)-1;
+      const pk = `q${pq}_${py}`;
+      return { row: bestRow(rows.filter(r=>r.period===pk)), lbl: prev?`Q${pq} ${py}`:`Q${q} ${py}` };
     }
   }
-  if(ptype==="mtd"){
-    const yr=parseInt((opt.start||"").slice(0,4)),mo=parseInt((opt.start||"").slice(5,7));
-    if(!isNaN(yr)&&!isNaN(mo)){
-      const[pmo,py]=prev?[mo===1?12:mo-1,mo===1?yr-1:yr]:[mo,yr-1];
-      const mtdPk=`mtd_${py}-${String(pmo).padStart(2,'0')}`;
-      const moPk=`${py}-${String(pmo).padStart(2,'0')}`;
+  if (ptype==="mtd") {
+    const yr=parseInt((opt.start||"").slice(0,4)), mo=parseInt((opt.start||"").slice(5,7));
+    if (!isNaN(yr) && !isNaN(mo)) {
+      const [pmo,py] = prev ? [mo===1?12:mo-1, mo===1?yr-1:yr] : [mo, yr-1];
+      const pk=`mtd_${py}-${String(pmo).padStart(2,'0')}`;
       const lbl=new Date(py,pmo-1,1).toLocaleDateString('en',{month:'long',year:'numeric'});
-      let m=rows.filter(r=>r.period===mtdPk);
-      if(!m.length)m=rows.filter(r=>r.period===moPk);
-      return{row:bestRow(m)||null,lbl:prev?lbl:`${lbl} (YOY)`};
+      let m=rows.filter(r=>r.period===pk);
+      if (!m.length) m=rows.filter(r=>r.period===`${py}-${String(pmo).padStart(2,'0')}`);
+      return { row:bestRow(m)||null, lbl:prev?lbl:`${lbl} (YOY)` };
     }
   }
-  if(ptype==="month"){
-    const yr=parseInt((opt.start||"").slice(0,4)),mo=parseInt((opt.start||"").slice(5,7));
-    if(!isNaN(yr)&&!isNaN(mo)){
-      const[pmo,py]=prev?[mo===1?12:mo-1,mo===1?yr-1:yr]:[mo,yr-1];
+  if (ptype==="month") {
+    const yr=parseInt((opt.start||"").slice(0,4)), mo=parseInt((opt.start||"").slice(5,7));
+    if (!isNaN(yr) && !isNaN(mo)) {
+      const [pmo,py] = prev ? [mo===1?12:mo-1, mo===1?yr-1:yr] : [mo, yr-1];
       const pk=`${py}-${String(pmo).padStart(2,'0')}`;
       const lbl=new Date(py,pmo-1,1).toLocaleDateString('en',{month:'long',year:'numeric'});
-      return{row:bestRow(rows.filter(r=>r.period===pk))||null,lbl:prev?lbl:`${lbl} (YOY)`};
+      return { row:bestRow(rows.filter(r=>r.period===pk))||null, lbl:prev?lbl:`${lbl} (YOY)` };
     }
   }
-  if(ptype==="week"){
-    const days=prev?7:364;
-    try{
-      const ms=new Date(opt.start+'T12:00');ms.setDate(ms.getDate()-days);
-      const me=new Date(opt.end+'T12:00');me.setDate(me.getDate()-days);
+  if (ptype==="week") {
+    const days = prev ? 7 : 364;
+    try {
+      const ms=new Date(opt.start+'T12:00'); ms.setDate(ms.getDate()-days);
+      const me=new Date(opt.end+'T12:00');   me.setDate(me.getDate()-days);
       const pk=`week_${iso(ms)}`;
       let m=rows.filter(r=>r.period===pk);
-      if(!m.length)m=rows.filter(r=>r.period_start===iso(ms)&&r.period_end===iso(me));
-      return{row:bestRow(m)||null,lbl:`${fmtD(iso(ms))} – ${fmtD(iso(me))}${prev?'':' (YOY)'}`};
-    }catch(e){}
+      if (!m.length) m=rows.filter(r=>r.period_start===iso(ms)&&r.period_end===iso(me));
+      return { row:bestRow(m)||null, lbl:`${fmtD(iso(ms))} – ${fmtD(iso(me))}${prev?'':' (YOY)'}` };
+    } catch(e) {}
   }
-  return{row:null,lbl:""};
+  return { row:null, lbl:"" };
 }
 
 /* ══════════════════════════════════════════════════════
    FORMAT HELPERS
 ══════════════════════════════════════════════════════ */
-function fv(v,f){
-  // FIX: considera 0 como valor válido solo si f!=="$" o si realmente hay dato
-  if(v===null||v===undefined||v==="")return"—";
-  const n=parseFloat(v);
-  if(isNaN(n))return"—";
-  // FIX: no mostrar — para 0 en campos que pueden ser genuinamente 0
-  if(f==="$"){
-    if(Math.abs(n)>=1e6)return"$"+(n/1e6).toFixed(2)+"M";
-    if(Math.abs(n)>=1000)return"$"+(n/1000).toFixed(1)+"K";
-    return"$"+n.toFixed(0);
+function fv(v, f) {
+  const n = num(v);
+  if (!Number.isFinite(n)) return "—";
+  if (f === "$") {
+    if (Math.abs(n) >= 1e6) return "$" + (n / 1e6).toFixed(2) + "M";
+    if (Math.abs(n) >= 1000) return "$" + (n / 1000).toFixed(1) + "K";
+    return "$" + n.toFixed(0);
   }
-  if(f==="%")return n.toFixed(1)+"%";
-  if(f==="x")return n.toFixed(2)+"x";
-  if(Math.abs(n)>=1e6)return(n/1e6).toFixed(1)+"M";
-  if(Math.abs(n)>=1000)return(n/1000).toFixed(1)+"K";
-  return n%1===0?n.toLocaleString():n.toFixed(2);
+  if (f === "%") return n.toFixed(1) + "%";
+  if (f === "x") return n.toFixed(2) + "x";
+  if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(1) + "M";
+  if (Math.abs(n) >= 1000) return (n / 1000).toFixed(1) + "K";
+  return n % 1 === 0 ? n.toLocaleString() : n.toFixed(2);
 }
 
-/* FIX: fvSafe — muestra "—" solo si valor está vacío o no parseado, NO si es 0 */
-function fvSafe(v,f){
-  if(v===null||v===undefined||v==="")return"—";
-  const n=parseFloat(v);
-  if(isNaN(n))return"—";
-  return fv(v,f);
+function pctChg(c, p) {
+  const cv = num(c), pv = num(p);
+  if (!Number.isFinite(cv) || !Number.isFinite(pv) || pv === 0) return null;
+  return ((cv - pv) / Math.abs(pv) * 100).toFixed(1);
 }
 
-function pctChg(c,p){
-  const cv=parseFloat(c),pv=parseFloat(p);
-  if(isNaN(cv)||isNaN(pv)||pv===0)return null;
-  return((cv-pv)/Math.abs(pv)*100).toFixed(1);
+function badge(pct, lbl, inv) {
+  if (pct===null||pct===undefined) return `<span class="bdg bdg-neu"><span class="bdg-lbl">${lbl||"vs"}</span>—</span>`;
+  const n=parseFloat(pct), up=n>=0, good=inv?!up:up;
+  const arr = up
+    ? `<svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M4 6V2M2 4l2-2 2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+    : `<svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M4 2v4M2 4l2 2 2-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  return `<span class="bdg ${good?'bdg-up':'bdg-dn'}">${arr}<span class="bdg-lbl">${lbl||"vs"}</span>${up?'+':''}${Math.abs(n).toFixed(1)}%</span>`;
 }
+function badgeAmber(txt) { return `<span class="bdg bdg-am">⚠ ${txt}</span>`; }
 
-function badge(pct,lbl,inv){
-  if(pct===null||pct===undefined)return`<span class="bdg bdg-neu"><span class="bdg-lbl">${lbl||"vs"}</span>—</span>`;
-  const n=parseFloat(pct),up=n>=0,good=inv?!up:up;
-  const arr=up
-    ?`<svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M4 6V2M2 4l2-2 2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`
-    :`<svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M4 2v4M2 4l2 2 2-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-  return`<span class="bdg ${good?'bdg-up':'bdg-dn'}">${arr}<span class="bdg-lbl">${lbl||"vs"}</span>${up?'+':''}${Math.abs(n).toFixed(1)}%</span>`;
+function kcard(lbl, val, pct, cmpL, note, acc, inv) {
+  const n = pct!==null&&pct!==undefined ? parseFloat(pct) : null;
+  const col = n!==null ? ((inv?n<=0:n>=0)?"var(--gr)":"var(--rd)") : (acc||"var(--bd)");
+  return `<div class="kc"><div class="kc-bar" style="background:${col}"></div><div class="kc-lbl">${lbl}</div><div class="kc-val">${val}</div><div class="kc-badges">${badge(pct,cmpL||"vs",inv)}</div>${note?`<div class="kc-note">${note}</div>`:""}</div>`;
 }
-function badgeAmber(txt){return`<span class="bdg bdg-am">⚠ ${txt}</span>`;}
-
-function kcard(lbl,val,pct,cmpL,note,acc,inv){
-  const n=pct!==null&&pct!==undefined?parseFloat(pct):null;
-  const col=n!==null?((inv?n<=0:n>=0)?"var(--gr)":"var(--rd)"):(acc||"var(--bd)");
-  return`<div class="kc"><div class="kc-bar" style="background:${col}"></div><div class="kc-lbl">${lbl}</div><div class="kc-val">${val}</div><div class="kc-badges">${badge(pct,cmpL||"vs",inv)}</div>${note?`<div class="kc-note">${note}</div>`:""}</div>`;
+function kcardAmber(lbl, val, warnTxt, note) {
+  return `<div class="kc"><div class="kc-bar" style="background:var(--am)"></div><div class="kc-lbl">${lbl}</div><div class="kc-val">${val}</div><div class="kc-badges">${badgeAmber(warnTxt)}</div>${note?`<div class="kc-note" style="color:var(--am)">${note}</div>`:""}</div>`;
 }
-function kcardAmber(lbl,val,warnTxt,note){
-  return`<div class="kc"><div class="kc-bar" style="background:var(--am)"></div><div class="kc-lbl">${lbl}</div><div class="kc-val">${val}</div><div class="kc-badges">${badgeAmber(warnTxt)}</div>${note?`<div class="kc-note" style="color:var(--am)">${note}</div>`:""}</div>`;
-}
+function skel(n) { return Array(n).fill(`<div class="kc sk"><div class="kc-lbl" style="width:55%;height:9px"> </div><div class="kc-val" style="height:21px;margin-top:8px"> </div></div>`).join(''); }
 
-/* ── GROSS PROFIT HERO CARD ── */
-function kcardGP(gpVal,gmVal,pctGP,gmPct,cmpL){
-  const pct=pctGP!==null&&pctGP!==undefined?parseFloat(pctGP):null;
-  const good=pct!==null?(pct>=0):true;
-  return`<div class="kc kc-gp" style="grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:center">
-    <div>
-      <div class="kc-bar" style="background:var(--gr)"></div>
-      <div class="kc-lbl">Gross Profit</div>
-      <div class="kc-val" style="font-size:32px">${fvSafe(gpVal,"$")}</div>
-      <div class="kc-badges">${badge(pctGP,cmpL||"vs",false)}</div>
-      <div class="kc-note">Real · FROM sales SHOW gross_profit</div>
-    </div>
-    <div>
-      <div class="kc-lbl">Gross Margin %</div>
-      <div class="kc-val" style="font-size:32px;color:var(--gr)">${fvSafe(gmVal,"%")}</div>
-      <div class="kc-badges">${badge(gmPct,cmpL||"vs",false)}</div>
-      <div class="kc-note">Net Sales confirmado</div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:6px">
-      <div style="font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em;font-weight:600">GP Data Source</div>
-      <div style="font-size:11px;color:var(--gr);display:flex;align-items:center;gap:5px">
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="#2EE896" stroke-width="1.2"/><path d="M3 5l1.5 1.5L7 3.5" stroke="#2EE896" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        ShopifyQL real field
-      </div>
-      <div style="font-size:10px;color:var(--tx3)">pipeline v4 · no estimation</div>
-    </div>
-  </div>`;
-}
-
-function skel(n){return Array(n).fill(`<div class="kc sk"><div class="kc-lbl" style="width:55%;height:9px"> </div><div class="kc-val" style="height:21px;margin-top:8px"> </div></div>`).join('');}
-
-/* ── KPI definitions (sin gross_profit — va en hero card separada) ── */
-const DEFS={
-  web:[
-    {k:"sessions",        l:"Sessions",       f:"",  n:"Via ShopifyQL"},
-    {k:"unique_visitors", l:"Unique Visitors", f:"",  n:"85% of sessions"},
-    {k:"conversion_rate", l:"Conv. Rate",      f:"%", n:"Orders ÷ Sessions"},
+const DEFS = {
+  web: [
+    { k:"sessions",         l:"Sessions",         f:"",  n:"Via ShopifyQL" },
+    { k:"unique_visitors",  l:"Unique Visitors",  f:"",  n:"85% of sessions" },
+    { k:"conversion_rate",  l:"Conv. Rate",        f:"%", n:"Orders ÷ Sessions" },
   ],
-  fin:[
-    /* FIX: gross_profit y pct_gm se renderizan en hero card separada */
-    {k:"gross_sales",    l:"Gross Sales",    f:"$"},
-    {k:"net_sales",      l:"Net Sales",      f:"$", n:"Confirmado ✓"},
-    {k:"total_discounts",l:"Discounts",      f:"$", inv:true},
-    {k:"total_returns",  l:"Returns",        f:"$", inv:true},
-    {k:"pct_discount",   l:"% Discount",     f:"%", inv:true},
-    {k:"pct_returns",    l:"% Returns",      f:"%", inv:true},
-    {k:"cogs",           l:"COGS",           f:"$", inv:true},
+  fin: [
+    { k:"gross_sales",    l:"Gross Sales",    f:"$" },
+    { k:"net_sales",      l:"Net Sales",      f:"$",  n:"Confirmed: all revenue figures are Net Sales" },
+    { k:"gross_profit",   l:"Gross Profit",   f:"$",  n:"Real — FROM sales SHOW gross_profit" },
+    { k:"pct_gm",         l:"Gross Margin",   f:"%" },
+    { k:"total_discounts",l:"Discounts",      f:"$",  inv:true },
+    { k:"total_returns",  l:"Returns",        f:"$",  inv:true },
+    { k:"pct_discount",   l:"% Discount",     f:"%",  inv:true },
+    { k:"pct_returns",    l:"% Returns",      f:"%",  inv:true },
+    { k:"cogs",           l:"COGS",           f:"$",  inv:true },
   ],
-  op:[
-    {k:"nb_orders",      l:"Orders",         f:""},
-    {k:"nb_units",       l:"Units Sold",     f:""},
-    {k:"units_per_order",l:"Units / Order",  f:""},
-    {k:"aov",            l:"AOV",            f:"$", n:"Net Sales ÷ Orders"},
+  op: [
+    { k:"nb_orders",       l:"Orders",          f:"" },
+    { k:"nb_units",        l:"Units Sold",       f:"" },
+    { k:"units_per_order", l:"Units / Order",    f:"" },
+    { k:"aov",             l:"AOV",              f:"$", n:"Net Sales ÷ Orders" },
   ],
 };
 
 /* ══════════════════════════════════════════════════════
    FCS FORECAST (Corro only)
 ══════════════════════════════════════════════════════ */
-function renderFCS(row){
-  const el=document.getElementById("s-fcs");
-  if(!el)return;
-  if(brand!=="corro"||!row){el.innerHTML="";return;}
-  const net=parseFloat(row.net_sales||0);
-  const today=new Date(),day=today.getDate();
-  const daysInMonth=new Date(today.getFullYear(),today.getMonth()+1,0).getDate();
-  const rate=net/Math.max(1,day);
-  const fcs=rate*daysInMonth;
-  const pct=Math.round(day/daysInMonth*100);
-  el.innerHTML=`
+function renderFCS(row) {
+  const el = document.getElementById("s-fcs");
+  if (!el) return;
+  if (brand !== "corro" || !row) { el.innerHTML = ""; return; }
+  const net = parseFloat(row.net_sales||0);
+  const today = new Date(), day = today.getDate();
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+  const rate = net / Math.max(1, day);
+  const fcs  = rate * daysInMonth;
+  const pct  = Math.round(day/daysInMonth*100);
+  el.innerHTML = `
     <div class="kc-fcs">
       <div class="kc-bar" style="background:#72AEFF;height:3px;position:absolute;top:0;left:0;right:0"></div>
       <div class="kc-lbl">FCS — Linear Month Forecast (Net Sales)</div>
@@ -841,48 +765,42 @@ function renderFCS(row){
 /* ══════════════════════════════════════════════════════
    REVENUE SHARE
 ══════════════════════════════════════════════════════ */
-function renderRS(rsRows,row){
-  const el=document.getElementById("rs-grid");
-  if(!el)return;
-  const opt=getOpt();
-  const pk=row?.period;
-  let ch=pk
-    ?(rsRows||[]).filter(r=>r.period===pk)
-    :(rsRows||[]).filter(r=>(r.period_start||"").slice(0,7)===(opt.start||"").slice(0,7));
+function renderRS(rsRows, row) {
+  const el  = document.getElementById("rs-grid");
+  if (!el) return;
+  const opt = getOpt();
+  const pk  = row?.period;
+  let ch = pk
+    ? (rsRows||[]).filter(r=>r.period===pk)
+    : (rsRows||[]).filter(r=>(r.period_start||"").slice(0,7)===(opt.start||"").slice(0,7));
 
-  // FIX: si no hay por pk, buscar por mes del start
-  if(!ch.length&&pk){
-    const moStr=(opt.start||"").slice(0,7);
-    ch=(rsRows||[]).filter(r=>(r.period||"").includes(moStr));
-  }
-
-  if(brand==="cavali"){
-    ch=ch.map(r=>{
-      const nm=CAVALI_RENAME[r.channel];
-      return nm===null?null:{...r,channel:nm||r.channel};
+  if (brand==="cavali") {
+    ch = ch.map(r => {
+      const nm = CAVALI_RENAME[r.channel];
+      return nm===null ? null : { ...r, channel: nm||r.channel };
     }).filter(Boolean);
   }
 
-  if(!ch.length){el.innerHTML=`<div style="font-size:11px;color:var(--tx3)">No data for this period — run pipeline v4.</div>`;return;}
+  if (!ch.length) { el.innerHTML=`<div style="font-size:11px;color:var(--tx3)">No data for this period.</div>`; return; }
 
-  el.innerHTML=ch.map(r=>{
-    const pct=parseFloat(r.pct)||0;
-    const amt=parseFloat(r.amount)||0;
-    const gp=parseFloat(r.gross_profit)||0;
-    const gm=parseFloat(r.gross_margin)||0;
-    const chg=r.pct_chg&&r.pct_chg!==""?parseFloat(r.pct_chg):null;
-    const isEst=(r.gp_is_estimate||"").toLowerCase()==="true";
-    const col=CH_COLORS[r.channel]||"#707070";
-    const chgH=chg!==null?`<div style="font-size:9px;margin-top:3px;color:${chg>=0?'var(--gr)':'var(--rd)'}">${chg>=0?'▲':'▼'} ${Math.abs(chg).toFixed(1)}pp vs prev</div>`:"";
-    // FIX: mostrar GP aunque sea 0 (puede ser canal sin GP configurado)
-    const gpDisplay=gp!==0?fvSafe(gp,"$"):(gm>0?`est. ${fvSafe(amt*gm/100,"$")}`:fvSafe(gp,"$"));
-    const gpH=`<div class="rs-gp">GP: <span style="color:var(--gr)">${gpDisplay}</span> · <span style="color:var(--gr)">${gm.toFixed(1)}%</span>${isEst?' <span style="color:var(--am)">(est)</span>':''}</div>`;
-    return`<div class="rs-card">
+  el.innerHTML = ch.map(r => {
+    const pct  = num(r.pct);
+    const amt  = num(r.amount);
+    const gp   = num(r.gross_profit);
+    const gm   = num(r.gross_margin);
+    const chgN = num(r.pct_chg);
+    const chg  = Number.isFinite(chgN) ? chgN : null;
+    const isEst= (r.gp_is_estimate||"").toLowerCase() === "true";
+    const col  = CH_COLORS[r.channel]||"#707070";
+    const pctSafe = Number.isFinite(pct) ? pct : 0;
+    const chgH = chg!==null ? `<div style="font-size:9px;margin-top:3px;color:${chg>=0?'var(--gr)':'var(--rd)'}">${chg>=0?'▲':'▼'} ${Math.abs(chg).toFixed(1)}pp vs prev</div>` : "";
+    const gpH  = `<div class="rs-gp">GP: <span style="color:var(--gr)">${fv(gp,"$")}</span> · <span style="color:var(--gr)">${Number.isFinite(gm)?gm.toFixed(1)+"%":"—"}</span>${isEst?' <span style="color:var(--am)">(est)</span>':''}</div>`;
+    return `<div class="rs-card">
       <div class="rs-name">${r.channel}</div>
-      <div class="rs-pct" style="color:${col}">${pct.toFixed(1)}%</div>
-      <div class="rs-amt">${fvSafe(amt,"$")}</div>
+      <div class="rs-pct" style="color:${col}">${Number.isFinite(pct)?pct.toFixed(1)+"%":"—"}</div>
+      <div class="rs-amt">${fv(amt,"$")}</div>
       ${chgH}${gpH}
-      <div class="rs-bar-wrap"><div class="rs-bar-fill" style="width:${Math.min(pct,100)}%;background:${col}"></div></div>
+      <div class="rs-bar-wrap"><div class="rs-bar-fill" style="width:${Math.min(pctSafe,100)}%;background:${col}"></div></div>
     </div>`;
   }).join('');
 }
@@ -890,48 +808,44 @@ function renderRS(rsRows,row){
 /* ══════════════════════════════════════════════════════
    NEW vs RETURNING
 ══════════════════════════════════════════════════════ */
-function renderNVR(nvrRows,kpiRow){
-  const el=document.getElementById("nvr-grid");
-  if(!el)return;
-  const opt=getOpt();
-  const pk=kpiRow?.period;
+function renderNVR(nvrRows, kpiRow) {
+  const el  = document.getElementById("nvr-grid");
+  if (!el) return;
+  const opt = getOpt();
+  const pk  = kpiRow?.period;
 
-  let nvrRow=null;
-  if(nvrRows?.length){
-    if(pk)nvrRow=nvrRows.find(r=>r.period===pk)||null;
-    // FIX: fallback por mes
-    if(!nvrRow){
-      const moStr=(opt.start||"").slice(0,7);
-      nvrRow=nvrRows.find(r=>(r.period||"").includes(moStr))||null;
-    }
-    if(!nvrRow)nvrRow=nvrRows.find(r=>(r.period_start||"").slice(0,7)===(opt.start||"").slice(0,7))||null;
+  let nvrRow = null;
+  if (nvrRows?.length) {
+    if (pk) nvrRow = nvrRows.find(r=>r.period===pk) || null;
+    if (!nvrRow) nvrRow = nvrRows.find(r=>(r.period_start||"").slice(0,7)===(opt.start||"").slice(0,7)) || null;
   }
 
-  const src=nvrRow||kpiRow;
-  if(!src){
-    el.innerHTML=`<div style="font-size:11px;color:var(--tx3);grid-column:1/-1">No new/returning data — run pipeline v4.</div>`;
+  const src = nvrRow || kpiRow;
+  if (!src) {
+    el.innerHTML=`<div style="font-size:11px;color:var(--tx3);grid-column:1/-1">No new/returning data for this period. Run pipeline v4.</div>`;
     return;
   }
 
-  const newRev =parseFloat(src.new_revenue||0);
-  const retRev =parseFloat(src.returning_revenue||0);
-  const newGP  =parseFloat(src.new_gross_profit||0);
-  const retGP  =parseFloat(src.returning_gross_profit||0);
-  const newNC  =parseInt(src.new_customers||0);
-  const retNC  =parseInt(src.returning_customers||0);
-  const total  =newRev+retRev;
-  const noDataNote=(!newRev&&!retRev)?`<div class="nvr-note">⚠ Valores en 0 — run pipeline v4</div>`:"";
+  const newRev = num(src.new_revenue);
+  const retRev = num(src.returning_revenue);
+  const newGP  = num(src.new_gross_profit);
+  const retGP  = num(src.returning_gross_profit);
+  const newNC  = num(src.new_customers);
+  const retNC  = num(src.returning_customers);
+  const total  = (Number.isFinite(newRev)?newRev:0) + (Number.isFinite(retRev)?retRev:0);
+  const isReal = [newRev, retRev, newGP, retGP].some(v => Number.isFinite(v) && v > 0);
+  const noDataNote = !isReal ? `<div class="nvr-note">⚠ No data — run pipeline v4</div>` : "";
 
-  el.innerHTML=`
+  el.innerHTML = `
     <div class="nvr-col">
       <div class="nvr-title" style="color:var(--bl)">
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="#72AEFF" stroke-width="1.5"/><path d="M5 3v4M3 5h4" stroke="#72AEFF" stroke-width="1.2" stroke-linecap="round"/></svg>
         New Customers
       </div>
-      <div class="nvr-row"><span class="nvr-lbl">Orders / Customers</span><span class="nvr-val">${newNC||"—"}</span></div>
-      <div class="nvr-row"><span class="nvr-lbl">Revenue</span><span class="nvr-val">${fvSafe(newRev,"$")}</span></div>
-      <div class="nvr-row"><span class="nvr-lbl">Gross Profit</span><span class="nvr-val nvr-gp">${fvSafe(newGP,"$")}</span></div>
-      <div class="nvr-row"><span class="nvr-lbl">% of Total</span><span class="nvr-val">${total?(newRev/total*100).toFixed(1)+"%":"—"}</span></div>
+      <div class="nvr-row"><span class="nvr-lbl">Orders / Customers</span><span class="nvr-val">${Number.isFinite(newNC)&&newNC>0?Math.round(newNC):"—"}</span></div>
+      <div class="nvr-row"><span class="nvr-lbl">Revenue</span><span class="nvr-val">${fv(newRev,"$")}</span></div>
+      <div class="nvr-row"><span class="nvr-lbl">Gross Profit</span><span class="nvr-val nvr-gp">${fv(newGP,"$")}</span></div>
+      <div class="nvr-row"><span class="nvr-lbl">% of Total</span><span class="nvr-val">${total&&Number.isFinite(newRev)?(newRev/total*100).toFixed(1)+"%":"—"}</span></div>
       ${noDataNote}
     </div>
     <div class="nvr-col">
@@ -939,10 +853,10 @@ function renderNVR(nvrRows,kpiRow){
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M7 3c0-1.1-.9-2-2-2S3 1.9 3 3s.9 2 2 2 2-.9 2-2z" stroke="#2EE896" stroke-width="1.2"/><path d="M1.5 9c0-1.9 1.6-3.5 3.5-3.5S8.5 7.1 8.5 9" stroke="#2EE896" stroke-width="1.2" stroke-linecap="round"/></svg>
         Returning Customers
       </div>
-      <div class="nvr-row"><span class="nvr-lbl">Orders / Customers</span><span class="nvr-val">${retNC||"—"}</span></div>
-      <div class="nvr-row"><span class="nvr-lbl">Revenue</span><span class="nvr-val">${fvSafe(retRev,"$")}</span></div>
-      <div class="nvr-row"><span class="nvr-lbl">Gross Profit</span><span class="nvr-val nvr-gp">${fvSafe(retGP,"$")}</span></div>
-      <div class="nvr-row"><span class="nvr-lbl">% of Total</span><span class="nvr-val">${total?(retRev/total*100).toFixed(1)+"%":"—"}</span></div>
+      <div class="nvr-row"><span class="nvr-lbl">Orders / Customers</span><span class="nvr-val">${Number.isFinite(retNC)&&retNC>0?Math.round(retNC):"—"}</span></div>
+      <div class="nvr-row"><span class="nvr-lbl">Revenue</span><span class="nvr-val">${fv(retRev,"$")}</span></div>
+      <div class="nvr-row"><span class="nvr-lbl">Gross Profit</span><span class="nvr-val nvr-gp">${fv(retGP,"$")}</span></div>
+      <div class="nvr-row"><span class="nvr-lbl">% of Total</span><span class="nvr-val">${total&&Number.isFinite(retRev)?(retRev/total*100).toFixed(1)+"%":"—"}</span></div>
       ${noDataNote}
     </div>`;
 }
@@ -950,24 +864,24 @@ function renderNVR(nvrRows,kpiRow){
 /* ══════════════════════════════════════════════════════
    CAC to LTV
 ══════════════════════════════════════════════════════ */
-function renderCAC(cacVal,ltvVal,source){
-  const el=document.getElementById("s-cac");
-  if(!el)return;
-  const ltv=ltvVal>0?ltvVal:178;
-  const cac=cacVal>0?cacVal:47;
-  const ratio=ltv/cac;
-  const health=ratio>=3?"✅ Healthy (≥3x)":ratio>=2?"⚠ Acceptable (2–3x)":"🔴 Low (<2x)";
-  const hcol=ratio>=3?"var(--gr)":ratio>=2?"var(--am)":"var(--rd)";
-  const hbg=ratio>=3?"var(--gr-bg)":ratio>=2?"var(--am-bg)":"var(--rd-bg)";
-  const hbd=ratio>=3?"var(--gr-bd)":ratio>=2?"var(--am-bd)":"var(--rd-bd)";
-  el.innerHTML=`
+function renderCAC(cacVal, ltvVal, source) {
+  const el = document.getElementById("s-cac");
+  if (!el) return;
+  const ltv = ltvVal > 0 ? ltvVal : 178;
+  const cac = cacVal > 0 ? cacVal : 47;
+  const ratio = ltv / cac;
+  const health = ratio >= 3 ? "✅ Healthy (≥3x)" : ratio >= 2 ? "⚠ Acceptable (2–3x)" : "🔴 Low (<2x)";
+  const hcol   = ratio >= 3 ? "var(--gr)" : ratio >= 2 ? "var(--am)" : "var(--rd)";
+  const hbg    = ratio >= 3 ? "var(--gr-bg)" : ratio >= 2 ? "var(--am-bg)" : "var(--rd-bg)";
+  const hbd    = ratio >= 3 ? "var(--gr-bd)" : ratio >= 2 ? "var(--am-bd)" : "var(--rd-bd)";
+  el.innerHTML = `
     <div class="kc"><div class="kc-bar" style="background:var(--bl)"></div>
       <div class="kc-lbl">LTV (12M)</div>
-      <div class="kc-val" style="color:var(--bl)">${fvSafe(ltv,"$")}</div>
+      <div class="kc-val" style="color:var(--bl)">${fv(ltv,"$")}</div>
       <div class="kc-note">${ltvVal>0?"Manual entry":"Ref: Shopify $178"}</div></div>
     <div class="kc"><div class="kc-bar" style="background:var(--gd)"></div>
       <div class="kc-lbl">CAC${source?" ("+source+")":""}</div>
-      <div class="kc-val" style="color:var(--gd)">${fvSafe(cac,"$")}</div>
+      <div class="kc-val" style="color:var(--gd)">${fv(cac,"$")}</div>
       <div class="kc-note">${source||"Ref: ~$47"}</div></div>
     <div class="kc"><div class="kc-bar" style="background:${hcol}"></div>
       <div class="kc-lbl">LTV / CAC Ratio</div>
@@ -979,19 +893,19 @@ function renderCAC(cacVal,ltvVal,source){
 /* ══════════════════════════════════════════════════════
    CAVALI SUBSCRIBERS
 ══════════════════════════════════════════════════════ */
-function renderSubs(){
-  if(brand!=="cavali")return;
-  const el=document.getElementById("s-subs");
-  if(!el)return;
-  const sea=parseInt(document.getElementById("mi-sea")?.value||0)||0;
-  const sig=parseInt(document.getElementById("mi-sig")?.value||0)||0;
-  const pre=parseInt(document.getElementById("mi-pre-sub")?.value||0)||0;
-  const tot=sea+sig+pre;
-  el.innerHTML=[
-    {l:"Seasonal",          v:sea,c:"#D8B054"},
-    {l:"Signature",         v:sig,c:"#A090FF"},
-    {l:"Premier",           v:pre,c:"#2EE896"},
-    {l:"Total Subscribers", v:tot,c:"#72AEFF"},
+function renderSubs() {
+  if (brand !== "cavali") return;
+  const el = document.getElementById("s-subs");
+  if (!el) return;
+  const sea = parseInt(document.getElementById("mi-sea")?.value||0)||0;
+  const sig = parseInt(document.getElementById("mi-sig")?.value||0)||0;
+  const pre = parseInt(document.getElementById("mi-pre-sub")?.value||0)||0;
+  const tot = sea + sig + pre;
+  el.innerHTML = [
+    { l:"Seasonal",          v:sea, c:"#D8B054" },
+    { l:"Signature",         v:sig, c:"#A090FF" },
+    { l:"Premier",           v:pre, c:"#2EE896" },
+    { l:"Total Subscribers", v:tot, c:"#72AEFF" },
   ].map(s=>`
     <div class="kc-sub">
       <div class="kc-bar"></div>
@@ -1004,24 +918,26 @@ function renderSubs(){
 /* ══════════════════════════════════════════════════════
    Q1 2026 SNAPSHOT
 ══════════════════════════════════════════════════════ */
-async function renderQ1(kpiRows){
-  const el=document.getElementById("q1-grid");
-  const note=document.getElementById("q1-note");
-  if(!el)return;
-  const Q1_PK="q1_2026",Q1_S="2026-01-01",Q1_E="2026-03-31";
-  let row=null;
-  if(kpiRows?.length){
-    let m=kpiRows.filter(r=>r.period===Q1_PK);
-    if(!m.length)m=kpiRows.filter(r=>(r.period_start||"").trim()===Q1_S&&(r.period_end||"").trim()===Q1_E);
-    row=bestRow(m);
+async function renderQ1(kpiRows) {
+  const el   = document.getElementById("q1-grid");
+  const note = document.getElementById("q1-note");
+  if (!el) return;
+
+  const Q1_PK = "q1_2026", Q1_S = "2026-01-01", Q1_E = "2026-03-31";
+  let row = null;
+  if (kpiRows?.length) {
+    let m = kpiRows.filter(r=>r.period===Q1_PK);
+    if (!m.length) m = kpiRows.filter(r=>(r.period_start||"").trim()===Q1_S&&(r.period_end||"").trim()===Q1_E);
+    row = bestRow(m);
   }
-  const prevQ=kpiRows?.length?bestRow(kpiRows.filter(r=>r.period==="q4_2025")):null;
-  if(!row){
-    el.innerHTML=`<div style="font-size:11px;color:var(--tx3);padding:6px 0">Q1 2026 data not in Sheets yet. Run <strong style="color:var(--gd)">Backfill Historical Data</strong> GitHub Action.</div>`;
-    if(note)note.innerHTML="";
+  const prevQ = kpiRows?.length ? bestRow(kpiRows.filter(r=>r.period==="q4_2025")) : null;
+
+  if (!row) {
+    el.innerHTML=`<div style="font-size:11px;color:var(--tx3);padding:6px 0">Q1 2026 data not in Sheets yet. Run <strong style="color:var(--gd)">Backfill Historical Data</strong> GitHub Action then refresh.</div>`;
+    if (note) note.innerHTML = "";
     return;
   }
-  const fields=[
+  const fields = [
     {k:"gross_sales",  l:"Gross Sales Q1",  f:"$"},
     {k:"net_sales",    l:"Net Sales Q1",    f:"$"},
     {k:"gross_profit", l:"Gross Profit Q1", f:"$"},
@@ -1029,33 +945,33 @@ async function renderQ1(kpiRows){
     {k:"nb_orders",    l:"Orders Q1",       f:""},
     {k:"aov",          l:"AOV Q1",          f:"$"},
   ];
-  el.innerHTML=fields.map(s=>kcard(s.l,fvSafe(row[s.k],s.f),prevQ?pctChg(row[s.k],prevQ[s.k]):null,"Q4 25","","var(--gd)")).join('');
-  if(note)note.innerHTML=`Q1 2026 = Jan 1 – Mar 31, 2026. Updated: <strong>${row.updated_at||"—"}</strong>. vs Q4 2025.`;
+  el.innerHTML = fields.map(s => kcard(s.l, fv(row[s.k],s.f), prevQ?pctChg(row[s.k],prevQ[s.k]):null, "Q4 25", "", "var(--gd)")).join('');
+  if (note) note.innerHTML = `Q1 2026 = Jan 1 – Mar 31, 2026. Updated: <strong>${row.updated_at||"—"}</strong>. Compared vs Q4 2025.`;
 }
 
 /* ══════════════════════════════════════════════════════
    MANUAL DATA (localStorage)
 ══════════════════════════════════════════════════════ */
-function mKey(){return`${brand}_${getOpt().val||"default"}`;}
+function mKey() { return `${brand}_${getOpt().val||"default"}`; }
 
-function loadManual(){
-  try{const d=localStorage.getItem("el_manual");if(d)manualData=JSON.parse(d);}catch(e){}
-  const m=manualData[mKey()]||{};
-  const setVal=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||"";};
-  setVal("mi-spend", m.spend||"");
+function loadManual() {
+  try { const d=localStorage.getItem("el_manual"); if(d) manualData=JSON.parse(d); } catch(e){}
+  const m = manualData[mKey()]||{};
+  const setVal = (id, v) => { const el=document.getElementById(id); if(el) el.value=v||""; };
+  setVal("mi-spend",  m.spend||"");
   setVal("mi-newcust",m.nc||"");
-  setVal("mi-ltv",   m.ltv||"");
-  setVal("mi-cac-ov",m.cacOv||"");
-  setVal("mi-ns",    m.ns||"");
-  setVal("mi-sea",   m.sea||"");
-  setVal("mi-sig",   m.sig||"");
+  setVal("mi-ltv",    m.ltv||"");
+  setVal("mi-cac-ov", m.cacOv||"");
+  setVal("mi-ns",     m.ns||"");
+  setVal("mi-sea",    m.sea||"");
+  setVal("mi-sig",    m.sig||"");
   setVal("mi-pre-sub",m.pre||"");
   calcDerived();
   renderSubs();
 }
 
-function saveManual(){
-  manualData[mKey()]={
+function saveManual() {
+  manualData[mKey()] = {
     spend: parseFloat(document.getElementById("mi-spend")?.value)||0,
     nc:    parseInt(document.getElementById("mi-newcust")?.value)||0,
     ltv:   parseFloat(document.getElementById("mi-ltv")?.value)||0,
@@ -1065,240 +981,232 @@ function saveManual(){
     sig:   parseInt(document.getElementById("mi-sig")?.value||0)||0,
     pre:   parseInt(document.getElementById("mi-pre-sub")?.value||0)||0,
   };
-  try{localStorage.setItem("el_manual",JSON.stringify(manualData));}catch(e){}
-  const msg=document.getElementById("mi-msg");
-  if(msg){msg.innerHTML='<span class="saved-tag">✓ Saved</span>';setTimeout(()=>msg.innerHTML="",3000);}
+  try { localStorage.setItem("el_manual", JSON.stringify(manualData)); } catch(e){}
+  const msg = document.getElementById("mi-msg");
+  if (msg) { msg.innerHTML = '<span class="saved-tag">✓ Saved</span>'; setTimeout(()=>msg.innerHTML="", 3000); }
   render();
 }
 
-function clearManual(){
+function clearManual() {
   delete manualData[mKey()];
-  try{localStorage.setItem("el_manual",JSON.stringify(manualData));}catch(e){}
+  try { localStorage.setItem("el_manual", JSON.stringify(manualData)); } catch(e){}
   ["mi-spend","mi-newcust","mi-ltv","mi-cac-ov","mi-ns","mi-sea","mi-sig","mi-pre-sub"].forEach(id=>{
-    const el=document.getElementById(id);if(el)el.value="";
+    const el=document.getElementById(id); if(el) el.value="";
   });
-  calcDerived();render();
+  calcDerived(); render();
 }
 
-function calcDerived(){
-  const spend=parseFloat(document.getElementById("mi-spend")?.value)||0;
-  const nc   =parseInt(document.getElementById("mi-newcust")?.value)||0;
-  const ltv  =parseFloat(document.getElementById("mi-ltv")?.value)||0;
-  const cacOv=parseFloat(document.getElementById("mi-cac-ov")?.value)||0;
-  const nsOv =parseFloat(document.getElementById("mi-ns")?.value)||0;
-  const roas =nsOv>0&&spend>0?nsOv/spend:null;
-  const cacC =nc>0&&spend>0?spend/nc:null;
-  const cac  =cacOv>0?cacOv:cacC;
-  const ltvCac=cac&&ltv>0?ltv/cac:null;
-  const dc=(l,v,f,c,n)=>`<div class="kc"><div class="kc-bar" style="background:${c||'var(--gd)'}"></div><div class="kc-lbl">${l}</div><div class="kc-val">${v!==null&&v!==undefined&&!isNaN(v)?fv(v,f):"—"}</div><div class="kc-badges"></div>${n?`<div class="kc-note">${n}</div>`:""}</div>`;
-  const der=document.getElementById("mi-derived");
-  if(der)der.innerHTML=
-    dc("G+M Ad Spend",spend>0?spend:null,"$","var(--gd)")+
-    dc("G+M ROAS",roas,"x","var(--gr)","Net Sales ÷ G+M spend")+
-    dc("CAC (G+M)",cac,"$","var(--gd)",nc>0?"G+M spend ÷ new customers":"Enter new customers")+
-    dc("LTV / CAC",ltvCac,"x","var(--gd)","LTV-12M ÷ CAC")+
-    dc("LTV-12M",ltv>0?ltv:null,"$","var(--pu)");
-  renderCAC(cac||0,ltv||0,spend>0?"G+M":"");
+function calcDerived() {
+  const spend = parseFloat(document.getElementById("mi-spend")?.value)||0;
+  const nc    = parseInt(document.getElementById("mi-newcust")?.value)||0;
+  const ltv   = parseFloat(document.getElementById("mi-ltv")?.value)||0;
+  const cacOv = parseFloat(document.getElementById("mi-cac-ov")?.value)||0;
+  const nsOv  = parseFloat(document.getElementById("mi-ns")?.value)||0;
+  const roas  = nsOv>0&&spend>0 ? nsOv/spend : null;
+  const cacC  = nc>0&&spend>0   ? spend/nc   : null;
+  const cac   = cacOv>0 ? cacOv : cacC;
+  const ltvCac= cac&&ltv>0      ? ltv/cac    : null;
+  const dc = (l,v,f,c,n) => `<div class="kc"><div class="kc-bar" style="background:${c||'var(--gd)'}"></div><div class="kc-lbl">${l}</div><div class="kc-val">${v!==null&&v!==undefined&&!isNaN(v)?fv(v,f):"—"}</div><div class="kc-badges"></div>${n?`<div class="kc-note">${n}</div>`:""}</div>`;
+  const der = document.getElementById("mi-derived");
+  if (der) der.innerHTML =
+    dc("G+M Ad Spend",  spend>0?spend:null, "$", "var(--gd)") +
+    dc("G+M ROAS",      roas,               "x", "var(--gr)", "Net Sales ÷ G+M spend") +
+    dc("CAC (G+M)",     cac,                "$", "var(--gd)", nc>0?"G+M spend ÷ new customers":"Enter new customers") +
+    dc("LTV / CAC",     ltvCac,             "x", "var(--gd)", "LTV-12M ÷ CAC") +
+    dc("LTV-12M",       ltv>0?ltv:null,     "$", "var(--pu)");
+  renderCAC(cac||0, ltv||0, spend>0?"G+M":"");
 }
 
 /* ══════════════════════════════════════════════════════
-   SAFE DOM HELPERS
+   HELPER: safe getElementById setter
 ══════════════════════════════════════════════════════ */
-function safeSet(id,val){const el=document.getElementById(id);if(el)el.textContent=val;}
-function safeHTML(id,val){const el=document.getElementById(id);if(el)el.innerHTML=val;}
+function safeSet(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+function safeStyle(id, prop, val) {
+  const el = document.getElementById(id);
+  if (el) el.style[prop] = val;
+}
+function safeHTML(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = val;
+}
 
 /* ══════════════════════════════════════════════════════
    MAIN RENDER
 ══════════════════════════════════════════════════════ */
-async function render(){
-  const opt=getOpt();
+async function render() {
+  const opt = getOpt();
   renderSelbar();
 
-  const root=document.getElementById("app-root");
-  if(root)root.classList.toggle("is-cavali",brand==="cavali");
+  const root = document.getElementById("app-root");
+  if (root) root.classList.toggle("is-cavali", brand==="cavali");
 
-  safeSet("q1-num",brand==="cavali"?"07":"06");
-  safeSet("mi-num",brand==="cavali"?"08":"07");
+  // Section numbers: if cavali (has subscribers section), Q1=07, MI=08; else Q1=06, MI=07
+  safeSet("q1-num", brand==="cavali" ? "07" : "06");
+  safeSet("mi-num", brand==="cavali" ? "08" : "07");
 
   // Skeletons
-  safeHTML("s-web",skel(3));
-  safeHTML("s-fin",skel(7));
-  safeHTML("s-op",skel(4));
-  safeHTML("s-mkt",skel(4));
-  safeHTML("s-gp-hero",`<div class="kc sk" style="padding:16px"><div class="kc-lbl" style="width:30%;height:9px"> </div><div class="kc-val" style="height:28px;margin-top:10px"> </div></div>`);
+  const skelIds = { "s-web": 3, "s-fin": 9, "s-op": 4, "s-mkt": 4 };
+  Object.entries(skelIds).forEach(([id, n]) => safeHTML(id, skel(n)));
 
-  const ovEl=document.getElementById("ov");
-  const ovLbl=document.getElementById("ov-lbl");
-  if(ovLbl)ovLbl.textContent=`Loading ${brand==="corro"?"Corro":"Cavali"}...`;
-  if(ovEl)ovEl.classList.add("show");
+  const ovEl = document.getElementById("ov");
+  const ovLbl = document.getElementById("ov-lbl");
+  if (ovLbl) ovLbl.textContent = `Loading ${brand==="corro"?"Corro":"Cavali"}...`;
+  if (ovEl) ovEl.classList.add("show");
 
-  const sid=SIDS[brand];
-  const[kpiR,rsR,nvrR,adR]=await Promise.all([
-    fetchTab(sid,"kpis_daily"),
-    fetchTab(sid,"revenue_share"),
-    fetchTab(sid,"new_vs_returning"),
-    fetchTab(sid,"ad_spend"),
+  const sid = SIDS[brand];
+  const [kpiR, rsR, nvrR, adR] = await Promise.all([
+    fetchTab(sid, "kpis_daily"),
+    fetchTab(sid, "revenue_share"),
+    fetchTab(sid, "new_vs_returning"),
+    fetchTab(sid, "ad_spend"),
   ]);
 
-  const row=findRow(kpiR,opt);
-  const{row:cmpRow,lbl:cmpLbl}=findCmp(kpiR,opt);
-  const cmpShort=selCmp==="yoy"?"YOY":selCmp==="prev"?"PREV":"—";
+  const row            = findRow(kpiR, opt);
+  const { row:cmpRow, lbl:cmpLbl } = findCmp(kpiR, opt);
+  const cmpShort       = selCmp==="yoy"?"YOY":selCmp==="prev"?"PREV":"—";
 
-  /* ── GROSS PROFIT HERO — la razón por la que no se veía ──
-     FIX: se renderiza en su propio contenedor destacado,
-     no mezclada en el grid normal donde podía perderse */
-  if(row){
-    const gpVal=row.gross_profit;
-    const gmVal=row.pct_gm;
-    const gpPct=cmpRow?pctChg(gpVal,cmpRow.gross_profit):null;
-    const gmPct=cmpRow?pctChg(gmVal,cmpRow.pct_gm):null;
-    safeHTML("s-gp-hero",kcardGP(gpVal,gmVal,gpPct,gmPct,cmpShort));
-  } else {
-    safeHTML("s-gp-hero","");
-  }
-
-  /* Website, Operational */
-  ["web","op"].forEach(sec=>{
-    safeHTML(`s-${sec}`,DEFS[sec].map(s=>{
-      const val=row?fvSafe(row[s.k],s.f):"—";
-      const pct=row&&cmpRow?pctChg(row[s.k],cmpRow[s.k]):null;
-      return kcard(s.l,val,pct,cmpShort,s.n||"",undefined,s.inv||false);
+  /* Website, Financial, Operational */
+  ["web","fin","op"].forEach(sec => {
+    safeHTML(`s-${sec}`, DEFS[sec].map(s => {
+      const val = row ? fv(row[s.k], s.f) : "—";
+      const pct = row&&cmpRow ? pctChg(row[s.k], cmpRow[s.k]) : null;
+      return kcard(s.l, val, pct, cmpShort, s.n||"", undefined, s.inv||false);
     }).join(''));
   });
-
-  /* Financial — sin gross_profit (está en hero) */
-  safeHTML("s-fin",DEFS.fin.map(s=>{
-    const val=row?fvSafe(row[s.k],s.f):"—";
-    const pct=row&&cmpRow?pctChg(row[s.k],cmpRow[s.k]):null;
-    return kcard(s.l,val,pct,cmpShort,s.n||"",undefined,s.inv||false);
-  }).join(''));
 
   /* FCS */
   renderFCS(row);
 
   /* Revenue Share */
-  renderRS(rsR,row);
+  renderRS(rsR, row);
 
   /* New vs Returning */
-  renderNVR(nvrR,row);
+  renderNVR(nvrR, row);
 
   /* Marketing KPIs */
-  const mo=(opt.start||"").slice(0,7);
-  const adF=(adR||[]).filter(r=>{
-    if(r.brand&&r.brand!==brand)return false;
-    const p=(r.period||"").trim();
-    if(ptype==="mtd"||ptype==="month"||ptype==="week")return p===mo;
-    if(ptype==="quarter"){
-      if(!p||p.length!==7)return false;
-      try{
-        const pm=new Date(p+"-01T12:00"),qs=new Date((opt.start||"")+"T12:00"),qe=new Date((opt.end||"")+"T12:00");
-        return pm>=qs&&pm<=qe;
-      }catch(e){return false;}
+  const mo    = (opt.start||"").slice(0,7);
+  const adF   = (adR||[]).filter(r => {
+    if (r.brand && r.brand!==brand) return false;
+    const p = (r.period||"").trim();
+    if (ptype==="mtd"||ptype==="month"||ptype==="week") return p===mo;
+    if (ptype==="quarter") {
+      if (!p||p.length!==7) return false;
+      try {
+        const pm=new Date(p+"-01T12:00"), qs=new Date((opt.start||"")+"T12:00"), qe=new Date((opt.end||"")+"T12:00");
+        return pm>=qs && pm<=qe;
+      } catch(e) { return false; }
     }
     return false;
   });
 
-  const sheetSpend=adF.reduce((a,r)=>a+parseFloat(r.ad_spend||0),0);
-  const sheetRoas=adF.length===1?parseFloat(adF[0].roas||0):0;
-  const cacAuto=adF.length===1&&adF[0].cac_auto&&adF[0].cac_auto!==""?parseFloat(adF[0].cac_auto):null;
+  const sheetSpend = adF.reduce((a,r)=>a+parseFloat(r.ad_spend||0),0);
+  const sheetRoas  = adF.length===1 ? parseFloat(adF[0].roas||0) : 0;
+  const cacAuto    = adF.length===1 && adF[0].cac_auto && adF[0].cac_auto!=="" ? parseFloat(adF[0].cac_auto) : null;
 
-  const m=manualData[mKey()]||{};
-  const hasManualSpend=(m.spend||0)>0;
-  const activeSpend=hasManualSpend?m.spend:sheetSpend;
-  const nsVal=(m.ns||0)>0?m.ns:(row?parseFloat(row.net_sales||0):0);
-  const nbVal=row?parseFloat(row.nb_orders||0):0;
-  const newCustRow=row?parseFloat(row.new_customers||0):0;
+  const m = manualData[mKey()]||{};
+  const hasManualSpend = (m.spend||0) > 0;
+  const activeSpend    = hasManualSpend ? m.spend : sheetSpend;
+  const nsVal          = (m.ns||0) > 0 ? m.ns : (row ? parseFloat(row.net_sales||0) : 0);
+  const nbVal          = row ? parseFloat(row.nb_orders||0) : 0;
+  const newCustRow     = row ? parseFloat(row.new_customers||0) : 0;
 
-  let roasV,roasSrc;
-  if(hasManualSpend&&nsVal)           {roasV=nsVal/m.spend;      roasSrc="Google+Meta";}
-  else if(sheetRoas>0&&ptype!=="quarter"){roasV=sheetRoas;          roasSrc="Shopify (attributed)";}
-  else if(activeSpend&&nsVal)         {roasV=nsVal/activeSpend;  roasSrc=hasManualSpend?"G+M":"Shopify (calc)";}
-  else                                {roasV=null;               roasSrc="—";}
+  let roasV, roasSrc;
+  if (hasManualSpend && nsVal)            { roasV=nsVal/m.spend;       roasSrc="Google+Meta"; }
+  else if (sheetRoas>0&&ptype!=="quarter") { roasV=sheetRoas;           roasSrc="Shopify (attributed)"; }
+  else if (activeSpend&&nsVal)            { roasV=nsVal/activeSpend;   roasSrc=hasManualSpend?"G+M":"Shopify (calc)"; }
+  else                                    { roasV=null;                 roasSrc="—"; }
 
-  const cacOv=(m.cacOv||0)>0?m.cacOv:null;
-  const ncManual=(m.nc||0)>0?m.nc:null;
-  const ncReal=ncManual||(newCustRow>0?newCustRow:null);
-  const cacCalc=hasManualSpend&&ncReal?m.spend/ncReal:null;
-  const cacV=cacOv||cacCalc||cacAuto||(activeSpend&&nbVal?activeSpend/nbVal:null);
-  const cacSrc=cacOv?"override":cacCalc?"G+M ÷ new_customers":cacAuto?"pipeline v4 auto":"Shopify (approx)";
-  const cacIsApprox=!cacOv&&!cacCalc&&!cacAuto;
-  const ltvV=(m.ltv||0)>0?m.ltv:178;
+  const cacOv   = (m.cacOv||0) > 0 ? m.cacOv : null;
+  const ncManual= (m.nc||0)    > 0 ? m.nc    : null;
+  const ncReal  = ncManual || (newCustRow>0 ? newCustRow : null);
+  const cacCalc = hasManualSpend && ncReal ? m.spend/ncReal : null;
+  const cacV    = cacOv || cacCalc || cacAuto || (activeSpend&&nbVal ? activeSpend/nbVal : null);
+  const cacSrc  = cacOv?"override" : cacCalc?"G+M ÷ new_customers" : cacAuto?"pipeline v4 auto" : "Shopify (approx)";
+  const cacIsApprox = !cacOv && !cacCalc && !cacAuto;
 
-  // Footer
-  const ftManual=document.getElementById("ft-manual");
-  if(ftManual)ftManual.style.display=hasManualSpend?"":"none";
-  const ftRoas=document.getElementById("ft-roas");
-  if(ftRoas){
-    if(hasManualSpend){ftRoas.textContent="ROAS: G+M ✓";ftRoas.style.color="var(--gr)";}
-    else              {ftRoas.textContent="ROAS: Shopify ⚠";ftRoas.style.color="var(--am)";}
+  const ltvV = (m.ltv||0) > 0 ? m.ltv : 178;
+
+  // Footer tags
+  const ftManual = document.getElementById("ft-manual");
+  if (ftManual) ftManual.style.display = hasManualSpend ? "" : "none";
+  const ftRoas = document.getElementById("ft-roas");
+  if (ftRoas) {
+    if (hasManualSpend) { ftRoas.textContent="ROAS: G+M ✓"; ftRoas.style.color="var(--gr)"; }
+    else               { ftRoas.textContent="ROAS: Shopify ⚠"; ftRoas.style.color="var(--am)"; }
   }
-  const roasWarn=document.getElementById("roas-warn");
-  if(roasWarn)roasWarn.classList.toggle("show",!hasManualSpend);
-  safeSet("mkt-lbl",hasManualSpend?"Marketing KPIs — Google+Meta spend":"Marketing KPIs — Shopify ad spend (⚠ attributed)");
+  const roasWarn = document.getElementById("roas-warn");
+  if (roasWarn) roasWarn.classList.toggle("show", !hasManualSpend);
+  safeSet("mkt-lbl", hasManualSpend ? "Marketing KPIs — Google+Meta spend" : "Marketing KPIs — Shopify ad spend (⚠ attributed)");
 
-  safeHTML("s-mkt",[
-    {l:"Ad Spend",                          v:activeSpend?fvSafe(activeSpend,"$"):"—",note:hasManualSpend?"Google+Meta (manual)":"Sheets total — enter G+M ↓",warn:!hasManualSpend},
-    {l:hasManualSpend?"ROAS (G+M)":"ROAS",  v:roasV?fvSafe(roasV,"x"):"—",           note:roasSrc,warn:!hasManualSpend&&roasV!==null},
-    {l:"CAC",                               v:cacV?fvSafe(cacV,"$"):"—",             note:cacSrc,warn:cacIsApprox},
-    {l:"LTV / CAC",                         v:(ltvV&&cacV)?fvSafe(ltvV/cacV,"x"):"—",note:`LTV $${ltvV} ÷ CAC`,warn:false},
-  ].map(({l,v,note,warn})=>warn?kcardAmber(l,v,"⚠",note):kcard(l,v,null,null,note,"var(--gd)")).join(''));
+  safeHTML("s-mkt", [
+    { l:"Ad Spend",                           v:activeSpend?fv(activeSpend,"$"):"—", note:hasManualSpend?"Google+Meta (manual)":"Sheets total — enter G+M ↓", warn:!hasManualSpend },
+    { l:hasManualSpend?"ROAS (G+M)":"ROAS",   v:roasV?fv(roasV,"x"):"—",            note:roasSrc, warn:!hasManualSpend&&roasV!==null },
+    { l:"CAC",                                v:cacV?fv(cacV,"$"):"—",              note:cacSrc, warn:cacIsApprox },
+    { l:"LTV / CAC",                          v:(ltvV&&cacV)?fv(ltvV/cacV,"x"):"—", note:`LTV $${ltvV} ÷ CAC`, warn:false },
+  ].map(({l,v,note,warn})=> warn?kcardAmber(l,v,"⚠",note):kcard(l,v,null,null,note,"var(--gd)")).join(''));
 
   /* CAC/LTV section */
-  renderCAC(cacV||0,ltvV,cacSrc);
+  renderCAC(cacV||0, ltvV, cacSrc);
 
   /* Cavali subscribers */
-  if(brand==="cavali")renderSubs();
+  if (brand==="cavali") renderSubs();
 
   /* Q1 snapshot */
   await renderQ1(kpiR);
 
   /* Info bar */
-  renderIbar(opt,cmpLbl);
+  renderIbar(opt, cmpLbl);
 
-  /* Manual reload */
+  /* Manual fields reload */
   loadManual();
 
-  /* Footer timestamp */
-  if(row){
-    const upd=row.updated_at||"";
-    safeSet("foot-txt",`Last updated: ${upd} · Shopify → Sheets → Dashboard`);
-    safeSet("sb-upd",upd.slice(0,10)||"Today");
+  /* Footer */
+  if (row) {
+    const upd = row.updated_at||"";
+    safeSet("foot-txt", `Last updated: ${upd} · Shopify → Sheets → Dashboard`);
+    safeSet("sb-upd", upd.slice(0,10)||"Today");
   }
 
-  if(ovEl)ovEl.classList.remove("show");
+  if (ovEl) ovEl.classList.remove("show");
 }
 
 /* ══════════════════════════════════════════════════════
    UI CONTROLS
 ══════════════════════════════════════════════════════ */
-function togglePanel(id){const el=document.getElementById(id);if(el)el.classList.toggle("open");}
-function forceRefresh(){
-  cache={};
-  const btn=document.querySelector(".rf-btn");
-  if(btn)btn.style.opacity=".5";
-  render().then(()=>{if(btn)btn.style.opacity="1";});
+function togglePanel(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle("open");
 }
-function setBrand(b){
-  brand=b;
+function forceRefresh() {
+  cache = {};
+  const btn = document.querySelector(".rf-btn");
+  if (btn) btn.style.opacity = ".5";
+  render().then(()=>{ if(btn) btn.style.opacity="1"; });
+}
+function setBrand(b) {
+  brand = b;
   document.querySelectorAll(".brand-btn").forEach(el=>el.classList.toggle("on",el.textContent.trim().toLowerCase()===b));
-  safeSet("ph-title",(b==="corro"?"Corro":"Cavali")+" — Performance");
-  cache={};render();
+  safeSet("ph-title", (b==="corro"?"Corro":"Cavali")+" — Performance");
+  cache = {}; render();
 }
-function setPT(p,el){
-  ptype=p;
+function setPT(p, el) {
+  ptype = p;
   document.querySelectorAll(".period-btn").forEach(x=>x.classList.remove("on"));
-  if(el)el.classList.add("on");
-  cache={};render();
+  if (el) el.classList.add("on");
+  cache = {}; render();
 }
-function toggleTheme(){
-  const h=document.documentElement,dk=h.getAttribute("data-theme")==="dark";
-  h.setAttribute("data-theme",dk?"light":"dark");
-  const btn=document.getElementById("theme-btn");
-  if(btn)btn.textContent=dk?"☀":"☾";
+function toggleTheme() {
+  const h=document.documentElement, dk=h.getAttribute("data-theme")==="dark";
+  h.setAttribute("data-theme", dk?"light":"dark");
+  const btn = document.getElementById("theme-btn");
+  if (btn) btn.textContent = dk?"☀":"☾";
 }
 
 /* Auto-refresh cada 5 min */
-setInterval(()=>{cache={};render();},5*60*1000);
+setInterval(()=>{ cache={}; render(); }, 5*60*1000);
 
 /* Boot */
 renderSelbar();
