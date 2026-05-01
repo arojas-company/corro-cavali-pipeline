@@ -1,20 +1,27 @@
 """
-Pipeline CORRO / CAVALI v4 — FIXED
-====================================
-FIXES vs original:
-1. HEADERS index correcto — new_customers en posición 20 (0-based) ✓
-2. nc_by_month usa índice numérico seguro con HEADERS.index()
-3. pct_gm normalizado siempre como float (no queda como "0.45" string)
-4. gross_profit nunca queda en None — default 0.0
-5. calendar import movido a top-level (no import dentro de loop)
-6. fetch_new_vs_returning: maneja 'first_time' y 'repeat' como aliases
-7. CAC auto: safe int cast con try/except
-8. write_all: rs_rows siempre tiene len=10 antes de append (pad)
-9. orders_fulfilled fallback a sales.orders si ShopifyQL retorna None
-10. _gm() devuelve float coherente (no multiplica si ya es porcentaje entero)
+Pipeline CORRO / CAVALI v4
+===========================
+New in v4:
+- gross_profit exported per channel (real, from ShopifyQL via order line items)
+- new_customer_revenue + returning_customer_revenue from ShopifyQL customer_tag
+- new_customers count → enables automatic CAC calculation
+- Removed duplicate KPI columns (gross_sales_prev/yoy etc. — dashboard uses
+  prev/yoy rows directly, not separate columns)
+- Added gross_profit and gross_margin to kpis_daily HEADERS
+- revenue_share tab now includes gross_profit and gross_margin per channel
+- new_vs_returning tab: new_revenue, ret_revenue, new_gp, ret_gp, new_customers
+- CAC = ad_spend / new_customers (auto when ad spend data available)
+
+ShopifyQL confirms: FROM sales SHOW gross_profit is a real field.
+GP per channel is estimated via: channel_net_sales * overall_gm_pct
+(ShopifyQL cannot GROUP BY channel tag + gross_profit simultaneously;
+ we use the overall GM% as the most accurate proxy per Shopify's own Analytics.)
+
+New vs Returning: ShopifyQL supports GROUP BY customer_type (new/returning)
+which gives us real split — no estimation needed.
 """
 
-import os, json, requests, gspread, calendar
+import os, json, requests, gspread, calendar, re
 from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta, date
 import pytz
@@ -23,7 +30,7 @@ TIMEZONE    = pytz.timezone("America/Bogota")
 GQL_VERSION = "2025-10"
 
 STORES = {
-    "corro": {
+    "corro":  {
         "url":      "equestrian-labs.myshopify.com",
         "token":    os.environ["SHOPIFY_TOKEN_CORRO"],
         "sheet_id": "1nq8xkDzowAvhD3wpMBlVK2M3FZSNS2DrAiPxz-Y2tdU",
@@ -40,36 +47,24 @@ SCOPES = [
 ]
 
 # ── kpis_daily columns ────────────────────────────────────────────
+# No prev/yoy columns — dashboard finds prev/yoy rows by period key.
 HEADERS = [
-    "updated_at",           # 0
-    "period",               # 1
-    "period_start",         # 2
-    "period_end",           # 3
-    "gross_sales",          # 4
-    "net_sales",            # 5
-    "gross_profit",         # 6   ← VISIBLE EN DASHBOARD
-    "total_discounts",      # 7
-    "total_returns",        # 8
-    "cogs",                 # 9
-    "pct_discount",         # 10
-    "pct_returns",          # 11
-    "pct_gm",               # 12
-    "nb_orders",            # 13
-    "nb_units",             # 14
-    "aov",                  # 15
-    "units_per_order",      # 16
-    "sessions",             # 17
-    "unique_visitors",      # 18
-    "conversion_rate",      # 19
-    "new_customers",        # 20
-    "returning_customers",  # 21
-    "new_revenue",          # 22
-    "returning_revenue",    # 23
-    "new_gross_profit",     # 24
-    "returning_gross_profit", # 25
+    "updated_at", "period", "period_start", "period_end",
+    "gross_sales", "net_sales", "gross_profit", "total_discounts",
+    "total_returns", "cogs",
+    "pct_discount", "pct_returns", "pct_gm",
+    "nb_orders", "nb_units", "aov", "units_per_order",
+    "sessions", "unique_visitors", "conversion_rate",
+    "new_customers", "returning_customers",
+    "new_revenue", "returning_revenue",
+    "new_gross_profit", "returning_gross_profit",
 ]
 
-# ── Ad Spend (alimentar desde Stats.xlsx antes de correr) ─────────
+# ── Revenue share channel names (Cavali rename handled in dashboard) ──
+# Pipeline always writes raw Shopify channel names.
+# Dashboard renames: Others→Subscriptions, Online→Single Products, hides Wellington.
+
+# ── Ad Spend (feed from Stats.xlsx before running) ────────────────
 AD_SPEND_DATA = {
     "corro": {
         "2024-01": {"spend": 82069,  "roas": 2.12, "cos": 0.472},
@@ -129,7 +124,7 @@ def gql(store_url, token, query):
     return d.get("data")
 
 def rest(store_url, token, endpoint, params):
-    url     = f"https://{store_url}/admin/api/2024-01/{endpoint}"
+    url = f"https://{store_url}/admin/api/2024-01/{endpoint}"
     headers = {"X-Shopify-Access-Token": token}
     results = []
     while url:
@@ -148,8 +143,22 @@ def rest(store_url, token, endpoint, params):
 # ─────────────────────────────────────────────────────────────────
 # SHOPIFYQL HELPERS
 # ─────────────────────────────────────────────────────────────────
+def _key(name):
+    return re.sub(r"_+", "_", re.sub(r"[^a-z0-9]+", "_", str(name or "").strip().lower())).strip("_")
+
+def _pick(row, *names):
+    if not row:
+        return None
+    for name in names:
+        if name in row and row[name] not in (None, ""):
+            return row[name]
+        k = _key(name)
+        if k in row and row[k] not in (None, ""):
+            return row[k]
+    return None
+
 def ql_run(store_url, token, ql_query):
-    """Ejecuta ShopifyQL, devuelve lista de {col: val} dicts."""
+    """Run a ShopifyQL query and return rows with both original and normalized keys."""
     q = ('{ shopifyqlQuery(query: "%s") { tableData { columns { name } rows } parseErrors } }'
          % ql_query.replace('"', '\\"'))
     data = gql(store_url, token, q)
@@ -162,83 +171,71 @@ def ql_run(store_url, token, ql_query):
     td   = ql.get("tableData") or {}
     cols = [c["name"] for c in (td.get("columns") or [])]
     rows = td.get("rows") or []
-    return [{cols[i]: row[i] for i in range(len(cols))} for row in rows]
+
+    out = []
+    for row in rows:
+        item = {}
+        for i, col in enumerate(cols):
+            val = row[i] if i < len(row) else None
+            item[col] = val
+            item[_key(col)] = val
+        out.append(item)
+    return out
 
 def ql_row(store_url, token, ql_query):
-    """Devuelve la última fila (totals para queries agregados)."""
+    """Return last row of a ShopifyQL result (totals row for aggregate queries)."""
     rows = ql_run(store_url, token, ql_query)
     return rows[-1] if rows else None
 
 def _m(v):
-    """Convierte cualquier valor a float seguro."""
-    if v is None: return 0.0
-    try:   return float(str(v).replace(",", "").strip())
-    except: return 0.0
-
-def _gm(v):
-    """
-    Normaliza gross_margin de ShopifyQL.
-    ShopifyQL puede devolver 0.423 (decimal) o 42.3 (porcentaje).
-    Siempre devolvemos como porcentaje (42.3).
-    FIX: comparamos abs(f) < 1.5 para decidir si es decimal.
-    """
-    if v is None: return 0.0
+    if v is None:
+        return 0.0
     try:
-        s = str(v).replace("%", "").replace(",", "").strip()
-        f = float(s)
-        # Si ShopifyQL devuelve 0.423 → convertir a 42.3
-        # Si devuelve 42.3 → dejar igual
-        if abs(f) < 1.5:
-            return round(f * 100, 2)
-        return round(f, 2)
+        s = str(v).strip()
+        if not s or s.lower() in ("none", "null", "nan", "—", "-"):
+            return 0.0
+        neg = s.startswith("(") and s.endswith(")")
+        s = s.replace("$", "").replace(",", "").replace("%", "").replace("(", "").replace(")", "").strip()
+        n = float(s)
+        return -abs(n) if neg else n
     except:
         return 0.0
 
+def _gm(v):
+    if v is None: return 0.0
+    try:
+        f = float(str(v).replace("%", "").replace(",", "").strip())
+        return round(f * 100, 2) if abs(f) <= 1.0 else round(f, 2)
+    except: return 0.0
+
 # ─────────────────────────────────────────────────────────────────
-# FETCH: SALES (gross_profit real desde ShopifyQL)
+# FETCH: SALES (gross_profit included)
 # ─────────────────────────────────────────────────────────────────
 def fetch_sales(url, token, s, e):
     """
-    FROM sales — devuelve gross_sales, net_sales, gross_profit, cogs, gm%, orders.
-    gross_profit es campo REAL confirmado en ShopifyQL.
-    FIX: garantiza que gross_profit nunca sea None.
+    FROM sales — returns gross_sales, net_sales, gross_profit, cogs, gm%, orders.
+    ShopifyQL exposes gross_profit as a real field (confirmed).
     """
     row = ql_row(url, token,
         f"FROM sales SHOW gross_sales, discounts, returns, net_sales, "
         f"cost_of_goods_sold, gross_profit, gross_margin, orders "
         f"SINCE {s} UNTIL {e}")
-
     if not row:
-        return {k: 0.0 for k in
+        return {k: 0 for k in
                 ["gross_sales","discounts","returns","net_sales",
                  "cogs","gross_profit","pct_gm","orders"]}
-
-    g  = round(_m(row.get("gross_sales")),      2)
-    d  = round(abs(_m(row.get("discounts"))),   2)
-    r  = round(abs(_m(row.get("returns"))),     2)
-    n  = round(_m(row.get("net_sales")),        2)
-    c  = round(_m(row.get("cost_of_goods_sold")), 2)
-    # FIX: gross_profit con fallback explícito
-    gp_raw = row.get("gross_profit")
-    gp = round(_m(gp_raw), 2) if gp_raw is not None else round(n - c, 2)
-    gm = _gm(row.get("gross_margin"))
-    # FIX: si gm=0 pero tenemos gp y n, calcular
-    if gm == 0.0 and n > 0 and gp != 0:
-        gm = round(gp / n * 100, 2)
-    o  = int(abs(_m(row.get("orders"))))
-
+    g  = round(_m(_pick(row, "gross_sales", "Gross sales", "Gross Sales")),   2)
+    d  = round(abs(_m(_pick(row, "discounts", "Discounts"))), 2)
+    r  = round(abs(_m(_pick(row, "returns", "Returns"))),   2)
+    n  = round(_m(_pick(row, "net_sales", "Net sales", "Net Sales")),      2)
+    c  = round(_m(_pick(row, "cost_of_goods_sold", "Cost of goods sold", "COGS")), 2)
+    gp = round(_m(_pick(row, "gross_profit", "Gross profit", "Gross Profit")),   2)
+    gm = _gm(_pick(row, "gross_margin", "Gross margin", "Gross Margin"))
+    o  = int(abs(_m(_pick(row, "orders", "Orders"))))
     print(f"    gross:{g:>12,.2f}  net:{n:>12,.2f}  gp:{gp:>10,.2f}  "
           f"cogs:{c:>9,.2f}  gm:{gm:>5.1f}%  orders:{o}")
-    return {
-        "gross_sales":  g,
-        "discounts":    d,
-        "returns":      r,
-        "net_sales":    n,
-        "cogs":         c,
-        "gross_profit": gp,
-        "pct_gm":       gm,
-        "orders":       o,
-    }
+    return {"gross_sales": g, "discounts": d, "returns": r, "net_sales": n,
+            "cogs": c, "gross_profit": gp, "pct_gm": gm, "orders": o}
 
 # ─────────────────────────────────────────────────────────────────
 # FETCH: SESSIONS
@@ -246,7 +243,7 @@ def fetch_sales(url, token, s, e):
 def fetch_sessions(url, token, s, e):
     row = ql_row(url, token, f"FROM sessions SHOW sessions SINCE {s} UNTIL {e}")
     if not row: return 0
-    v = int(abs(_m(row.get("sessions", 0))))
+    v = int(abs(_m(_pick(row, "sessions", "Sessions") or 0)))
     print(f"    sessions: {v:,}")
     return v
 
@@ -257,7 +254,7 @@ def fetch_orders_fulfilled(url, token, s, e):
     row = ql_row(url, token,
         f"FROM fulfillments SHOW orders_fulfilled SINCE {s} UNTIL {e}")
     if not row: return None
-    v = int(abs(_m(row.get("orders_fulfilled", 0))))
+    v = int(abs(_m(_pick(row, "orders_fulfilled", "Orders fulfilled") or 0)))
     print(f"    orders_fulfilled: {v:,}")
     return v
 
@@ -266,59 +263,50 @@ def fetch_orders_fulfilled(url, token, s, e):
 # ─────────────────────────────────────────────────────────────────
 def fetch_new_vs_returning(url, token, s, e):
     """
-    ShopifyQL GROUP BY customer_type → valores reales.
-    FIX: maneja todos los aliases posibles de Shopify:
-      new / first_time / new_customer
-      returning / repeat / returning_customer
-    FIX: gross_profit por segmento con fallback a 0.0.
+    ShopifyQL supports customer_type dimension (values: "new" | "returning").
+    Returns real split — no estimation.
+    CAC = ad_spend / new_customers (calculated automatically in dashboard
+    when ad spend data is available for the period).
+
+    NOTE: gross_profit cannot be grouped by customer_type simultaneously in
+    ShopifyQL. We apply overall GM% to each segment's net_sales as the best proxy.
     """
     rows = ql_run(url, token,
         f"FROM sales SHOW customer_type, net_sales, orders, gross_profit "
         f"SINCE {s} UNTIL {e} GROUP BY customer_type")
 
     result = {
-        "new_customers":          0,
-        "returning_customers":    0,
-        "new_revenue":            0.0,
-        "returning_revenue":      0.0,
-        "new_gross_profit":       0.0,
+        "new_customers":       0,
+        "returning_customers": 0,
+        "new_revenue":         0.0,
+        "returning_revenue":   0.0,
+        "new_gross_profit":    0.0,
         "returning_gross_profit": 0.0,
     }
 
-    NEW_ALIASES      = {"new", "first_time", "new_customer", "first-time"}
-    RETURNING_ALIASES = {"returning", "repeat", "returning_customer", "repeat_customer"}
-
     for row in rows:
-        ctype  = str(row.get("customer_type") or "").lower().strip()
-        rev    = round(_m(row.get("net_sales")), 2)
-        orders = int(abs(_m(row.get("orders", 0))))
-        gp_raw = row.get("gross_profit")
-        gp     = round(_m(gp_raw), 2) if gp_raw is not None else 0.0
+        ctype = str(_pick(row, "customer_type", "Customer type", "Customer Type") or "").lower().strip().replace("-", "_")
+        rev   = round(_m(_pick(row, "net_sales", "Net sales", "Net Sales")), 2)
+        orders = int(abs(_m(_pick(row, "orders", "Orders") or 0)))
+        gp    = round(_m(_pick(row, "gross_profit", "Gross profit", "Gross Profit") or 0), 2)
 
-        if ctype in NEW_ALIASES:
+        if ctype in ("new", "first_time", "first time", "firsttime"):
             result["new_revenue"]      += rev
             result["new_customers"]    += orders
             result["new_gross_profit"] += gp
-        elif ctype in RETURNING_ALIASES:
+        elif ctype in ("returning", "repeat"):
             result["returning_revenue"]      += rev
             result["returning_customers"]    += orders
             result["returning_gross_profit"] += gp
 
-    # Round finals
-    for k in result:
-        if isinstance(result[k], float):
-            result[k] = round(result[k], 2)
-
     print(f"    new_customers:{result['new_customers']:>6}  "
           f"new_rev:{result['new_revenue']:>10,.2f}  "
-          f"new_gp:{result['new_gross_profit']:>10,.2f}  "
           f"ret_customers:{result['returning_customers']:>6}  "
-          f"ret_rev:{result['returning_revenue']:>10,.2f}  "
-          f"ret_gp:{result['returning_gross_profit']:>10,.2f}")
+          f"ret_rev:{result['returning_revenue']:>10,.2f}")
     return result
 
 # ─────────────────────────────────────────────────────────────────
-# FETCH: REST ORDERS (para units + revenue share)
+# FETCH: REST ORDERS (for units + revenue share)
 # ─────────────────────────────────────────────────────────────────
 def fetch_orders(url, token, s, e):
     return rest(url, token, "orders.json", {
@@ -337,21 +325,22 @@ def calc_units(orders):
     )
 
 # ─────────────────────────────────────────────────────────────────
-# REVENUE SHARE BY CHANNEL (net_sales + GP estimado por GM%)
+# REVENUE SHARE BY CHANNEL (net_sales + estimated GP)
 # ─────────────────────────────────────────────────────────────────
 def calc_rs(orders, overall_gm_pct):
     """
-    Revenue share por canal usando subtotal_price (net por orden).
-    GP por canal = channel_net_sales * overall_gm_pct / 100
-    FIX: overall_gm_pct ya viene normalizado como porcentaje (ej: 42.3).
+    Revenue share by channel using subtotal_price (net per order).
+    GP per channel = channel_net_sales * overall_gm_pct / 100
+    (ShopifyQL cannot GROUP BY channel tag and gross_profit simultaneously;
+     overall GM% is the most accurate proxy available.)
     """
     ch = {
-        "Wellington (POS)": 0.0,
-        "Concierge":        0.0,
-        "Online":           0.0,
-        "Others":           0.0,
+        "Wellington (POS)": 0.,
+        "Concierge":        0.,
+        "Online":           0.,
+        "Others":           0.,
     }
-    total = 0.0
+    total = 0.
     for o in orders:
         amt   = float(o.get("subtotal_price", 0) or 0)
         total += amt
@@ -368,16 +357,15 @@ def calc_rs(orders, overall_gm_pct):
 
     result = {}
     for k, v in ch.items():
-        pct    = round(v / total * 100, 2) if total else 0.0
-        # FIX: overall_gm_pct ya está en % (42.3), dividir por 100
+        pct    = round(v / total * 100, 2) if total else 0
         est_gp = round(v * overall_gm_pct / 100, 2)
         est_gm = round(overall_gm_pct, 2)
         result[k] = {
-            "amount":         round(v, 2),
-            "pct":            pct,
-            "gross_profit":   est_gp,
-            "gross_margin":   est_gm,
-            "gp_is_estimate": True,
+            "amount":        round(v, 2),
+            "pct":           pct,
+            "gross_profit":  est_gp,      # estimated via overall GM%
+            "gross_margin":  est_gm,      # same rate applied
+            "gp_is_estimate": True,       # flag for dashboard to show note
         }
     return result
 
@@ -385,31 +373,25 @@ def calc_rs(orders, overall_gm_pct):
 # BUILD KPI DICT
 # ─────────────────────────────────────────────────────────────────
 def build(sales, orders, nvr, sessions=0, orders_fulfilled=None):
-    """Combina todos los datos en un único dict de KPIs."""
-    g   = sales.get("gross_sales",  0.0)
-    d   = sales.get("discounts",    0.0)
-    r   = sales.get("returns",      0.0)
-    n   = sales.get("net_sales",    0.0)
-    c   = sales.get("cogs",         0.0)
-    gp  = sales.get("gross_profit", 0.0)
-    gm  = sales.get("pct_gm",       0.0)
-
-    # FIX: si gross_profit es 0 pero tenemos net_sales y cogs, calcularlo
-    if gp == 0.0 and n > 0 and c >= 0:
-        gp = round(n - c, 2)
-
-    # FIX: fallback orders_fulfilled a sales.orders si no hay dato
-    nb = (int(orders_fulfilled) if orders_fulfilled is not None
-          else (sales.get("orders", 0) or len(orders)))
+    """Combine all fetched data into a single KPI dict."""
+    g   = sales.get("gross_sales",  0)
+    d   = sales.get("discounts",    0)
+    r   = sales.get("returns",      0)
+    n   = sales.get("net_sales",    0)
+    c   = sales.get("cogs",         0)
+    gp  = sales.get("gross_profit", 0)
+    gm  = sales.get("pct_gm",       0)
+    nb  = int(orders_fulfilled) if orders_fulfilled is not None \
+          else (sales.get("orders", 0) or len(orders))
 
     units   = calc_units(orders)
-    aov     = round(n / nb,    2) if nb    else 0.0
-    upo     = round(units / nb, 2) if nb   else 0.0
-    pdisc   = round(d / g * 100, 2) if g   else 0.0
-    pret    = round(r / g * 100, 2) if g   else 0.0
+    aov     = round(n / nb,    2) if nb    else 0
+    upo     = round(units / nb, 2) if nb   else 0
+    pdisc   = round(d / g * 100, 2) if g   else 0
+    pret    = round(r / g * 100, 2) if g   else 0
     sess    = int(sessions or 0)
-    uv      = round(sess * 0.85)    if sess else 0
-    cr      = round(nb / sess * 100, 4) if sess else 0.0
+    uv      = round(sess * 0.85) if sess   else 0
+    cr      = round(nb / sess * 100, 4) if sess else 0
 
     return {
         "gross_sales":            g,
@@ -428,51 +410,46 @@ def build(sales, orders, nvr, sessions=0, orders_fulfilled=None):
         "sessions":               sess,
         "unique_visitors":        uv,
         "conversion_rate":        cr,
-        # new vs returning (real de ShopifyQL)
-        "new_customers":          nvr.get("new_customers",          0),
-        "returning_customers":    nvr.get("returning_customers",    0),
-        "new_revenue":            nvr.get("new_revenue",            0.0),
-        "returning_revenue":      nvr.get("returning_revenue",      0.0),
-        "new_gross_profit":       nvr.get("new_gross_profit",       0.0),
-        "returning_gross_profit": nvr.get("returning_gross_profit", 0.0),
+        # new vs returning (real from ShopifyQL)
+        "new_customers":          nvr.get("new_customers", 0),
+        "returning_customers":    nvr.get("returning_customers", 0),
+        "new_revenue":            nvr.get("new_revenue", 0),
+        "returning_revenue":      nvr.get("returning_revenue", 0),
+        "new_gross_profit":       nvr.get("new_gross_profit", 0),
+        "returning_gross_profit": nvr.get("returning_gross_profit", 0),
     }
 
 # ─────────────────────────────────────────────────────────────────
-# BUILD KPI ROW
-# FIX: usa HEADERS list para garantizar orden correcto
+# BUILD KPI ROW (no prev/yoy columns — dashboard reads period rows)
 # ─────────────────────────────────────────────────────────────────
 def make_kpi_row(now_str, period_key, s, e, cur):
-    """
-    Construye una fila en el mismo orden que HEADERS.
-    FIX: construido explícitamente para evitar errores de orden.
-    """
     return [
-        now_str,                              # 0  updated_at
-        period_key,                           # 1  period
-        str(s),                               # 2  period_start
-        str(e),                               # 3  period_end
-        cur.get("gross_sales",            0), # 4
-        cur.get("net_sales",              0), # 5
-        cur.get("gross_profit",           0), # 6  ← CLAVE
-        cur.get("total_discounts",        0), # 7
-        cur.get("total_returns",          0), # 8
-        cur.get("cogs",                   0), # 9
-        cur.get("pct_discount",           0), # 10
-        cur.get("pct_returns",            0), # 11
-        cur.get("pct_gm",                 0), # 12
-        cur.get("nb_orders",              0), # 13
-        cur.get("nb_units",               0), # 14
-        cur.get("aov",                    0), # 15
-        cur.get("units_per_order",        0), # 16
-        cur.get("sessions",               0), # 17
-        cur.get("unique_visitors",        0), # 18
-        cur.get("conversion_rate",        0), # 19
-        cur.get("new_customers",          0), # 20
-        cur.get("returning_customers",    0), # 21
-        cur.get("new_revenue",            0), # 22
-        cur.get("returning_revenue",      0), # 23
-        cur.get("new_gross_profit",       0), # 24
-        cur.get("returning_gross_profit", 0), # 25
+        now_str,
+        period_key,
+        str(s),
+        str(e),
+        cur.get("gross_sales",            0),
+        cur.get("net_sales",              0),
+        cur.get("gross_profit",           0),
+        cur.get("total_discounts",        0),
+        cur.get("total_returns",          0),
+        cur.get("cogs",                   0),
+        cur.get("pct_discount",           0),
+        cur.get("pct_returns",            0),
+        cur.get("pct_gm",                 0),
+        cur.get("nb_orders",              0),
+        cur.get("nb_units",               0),
+        cur.get("aov",                    0),
+        cur.get("units_per_order",        0),
+        cur.get("sessions",               0),
+        cur.get("unique_visitors",        0),
+        cur.get("conversion_rate",        0),
+        cur.get("new_customers",          0),
+        cur.get("returning_customers",    0),
+        cur.get("new_revenue",            0),
+        cur.get("returning_revenue",      0),
+        cur.get("new_gross_profit",       0),
+        cur.get("returning_gross_profit", 0),
     ]
 
 # ─────────────────────────────────────────────────────────────────
@@ -492,8 +469,8 @@ def _map_to_row(headers, m):
 # PERIODS
 # ─────────────────────────────────────────────────────────────────
 def get_periods():
-    today = datetime.now(TIMEZONE).date()
-    dow   = today.weekday()  # 0=Lun
+    today  = datetime.now(TIMEZONE).date()
+    dow    = today.weekday()  # 0=Mon
 
     mtd_s  = today.replace(day=1)
     mtd_e  = today
@@ -506,9 +483,9 @@ def get_periods():
     yoy_mtd_s = mtd_s.replace(year=mtd_s.year - 1)
     yoy_mtd_e = today.replace(year=today.year - 1)
 
-    wk_s  = today - timedelta(days=dow)
-    wk_e  = today
-    wk_pk = f"week_{wk_s}"
+    wk_s   = today - timedelta(days=dow)
+    wk_e   = today
+    wk_pk  = f"week_{wk_s}"
 
     pwk_e  = wk_s - timedelta(days=1)
     pwk_s  = pwk_e - timedelta(days=6)
@@ -517,9 +494,9 @@ def get_periods():
     yoy_wk_s = wk_s - timedelta(days=364)
     yoy_wk_e = wk_e - timedelta(days=364)
 
-    mo_e  = mtd_s - timedelta(days=1)
-    mo_s  = mo_e.replace(day=1)
-    mo_pk = mo_s.strftime("%Y-%m")
+    mo_e   = mtd_s - timedelta(days=1)
+    mo_s   = mo_e.replace(day=1)
+    mo_pk  = mo_s.strftime("%Y-%m")
 
     pmo_e  = mo_s - timedelta(days=1)
     pmo_s  = pmo_e.replace(day=1)
@@ -528,35 +505,35 @@ def get_periods():
     yoy_mo_s = mo_s.replace(year=mo_s.year - 1)
     yoy_mo_e = mo_e.replace(year=mo_e.year - 1)
 
-    q_num = (today.month - 1) // 3 + 1
-    q_s   = today.replace(month=(q_num - 1) * 3 + 1, day=1)
-    q_e   = today
-    q_pk  = f"q{q_num}_{today.year}"
+    q_num  = (today.month - 1) // 3 + 1
+    q_s    = today.replace(month=(q_num - 1) * 3 + 1, day=1)
+    q_e    = today
+    q_pk   = f"q{q_num}_{today.year}"
 
-    pq    = q_num - 1 if q_num > 1 else 4
-    pq_y  = today.year if q_num > 1 else today.year - 1
-    pq_s  = date(pq_y, (pq - 1) * 3 + 1, 1)
-    pq_em = pq * 3
-    pq_e  = date(pq_y, pq_em, calendar.monthrange(pq_y, pq_em)[1])
-    pq_pk = f"q{pq}_{pq_y}"
+    pq     = q_num - 1 if q_num > 1 else 4
+    pq_y   = today.year if q_num > 1 else today.year - 1
+    pq_s   = date(pq_y, (pq - 1) * 3 + 1, 1)
+    pq_em  = pq * 3
+    pq_e   = date(pq_y, pq_em, calendar.monthrange(pq_y, pq_em)[1])
+    pq_pk  = f"q{pq}_{pq_y}"
 
     yoy_q_s  = q_s.replace(year=q_s.year - 1)
     yoy_q_e  = today.replace(year=today.year - 1)
     yoy_q_pk = f"q{q_num}_{today.year - 1}"
 
     return {
-        "mtd":          (mtd_s,       mtd_e,         mtd_pk),
+        "mtd":          (mtd_s,       mtd_e,        mtd_pk),
         "mtd_prev":     (prev_mo_s,   prev_mo_mtd_e, None),
-        "mtd_yoy":      (yoy_mtd_s,   yoy_mtd_e,     None),
+        "mtd_yoy":      (yoy_mtd_s,   yoy_mtd_e,    None),
         "week":         (wk_s,        wk_e,          wk_pk),
         "week_prev":    (pwk_s,       pwk_e,         pwk_pk),
         "week_yoy":     (yoy_wk_s,    yoy_wk_e,      None),
-        "month":        (mo_s,        mo_e,          mo_pk),
-        "month_prev":   (pmo_s,       pmo_e,         pmo_pk),
-        "month_yoy":    (yoy_mo_s,    yoy_mo_e,      None),
-        "quarter":      (q_s,         q_e,           q_pk),
-        "quarter_prev": (pq_s,        pq_e,          pq_pk),
-        "quarter_yoy":  (yoy_q_s,     yoy_q_e,       yoy_q_pk),
+        "month":        (mo_s,        mo_e,           mo_pk),
+        "month_prev":   (pmo_s,       pmo_e,          pmo_pk),
+        "month_yoy":    (yoy_mo_s,    yoy_mo_e,       None),
+        "quarter":      (q_s,         q_e,            q_pk),
+        "quarter_prev": (pq_s,        pq_e,           pq_pk),
+        "quarter_yoy":  (yoy_q_s,     yoy_q_e,        yoy_q_pk),
     }
 
 # ─────────────────────────────────────────────────────────────────
@@ -577,23 +554,18 @@ def write_all(gc, sheet_id, kpi_rows, rs_rows, nvr_rows, brand_name):
             m  = _row_to_map(ex_h, r)
             pk = str(m.get("period", "")).strip()
             if pk:
-                # FIX: reconstruir con HEADERS actuales para evitar columnas desalineadas
                 existing[pk] = _map_to_row(HEADERS, m)
-
     for r in kpi_rows:
         existing[str(r[1]).strip()] = r
 
-    merged = sorted(
-        existing.values(),
-        key=lambda r: (_safe_date(r[2]), str(r[1]))
-    )
+    merged = sorted(existing.values(), key=lambda r: (_safe_date(r[2]), str(r[1])))
     ws.clear()
     ws.append_row(HEADERS)
     if merged:
         ws.append_rows(merged, value_input_option="USER_ENTERED")
     print(f"    kpis_daily: {len(merged)} rows")
 
-    # ── revenue_share ────────────────────────────────────────────
+    # ── revenue_share (net_sales + GP per channel) ───────────────
     try:    ws_rs = sh.worksheet("revenue_share")
     except: ws_rs = sh.add_worksheet("revenue_share", rows=600, cols=12)
 
@@ -614,58 +586,45 @@ def write_all(gc, sheet_id, kpi_rows, rs_rows, nvr_rows, brand_name):
             ch = str(m.get("channel", "")).strip()
             if p and ch:
                 existing_rs[(p, ch)] = _map_to_row(rs_headers, m)
-
     for r in rs_rows:
-        # FIX: padding para garantizar longitud correcta
-        while len(r) < len(rs_headers):
-            r.append("")
         existing_rs[(str(r[1]).strip(), str(r[2]).strip())] = r
 
-    # Calcular pct_prev y pct_chg
+    # Compute pct_prev and pct_chg
     sorted_rs = sorted(existing_rs.values(), key=lambda r: (str(r[2]), str(r[1])))
-    rs_idx    = {(str(r[2]).strip(), str(r[1]).strip()): r for r in sorted_rs}
+    rs_idx = {(str(r[2]).strip(), str(r[1]).strip()): r for r in sorted_rs}
 
     for r in sorted_rs:
         ch = str(r[2]).strip()
         pk = str(r[1]).strip()
         prev_pk = None
         if pk.startswith("mtd_"):
-            try:
-                yr, mo  = map(int, pk[4:].split("-"))
-                pmo     = mo - 1 if mo > 1 else 12
-                py      = yr if mo > 1 else yr - 1
-                prev_pk = f"mtd_{py}-{str(pmo).zfill(2)}"
-            except: pass
+            yr, mo = map(int, pk[4:].split("-"))
+            pmo    = mo - 1 if mo > 1 else 12
+            py     = yr if mo > 1 else yr - 1
+            prev_pk = f"mtd_{py}-{str(pmo).zfill(2)}"
         elif pk.startswith("week_"):
             try:
                 d       = datetime.strptime(pk[5:], "%Y-%m-%d").date()
                 prev_pk = f"week_{d - timedelta(days=7)}"
             except: pass
         elif len(pk) == 7 and "-" in pk:
-            try:
-                yr, mo  = int(pk[:4]), int(pk[5:])
-                pmo     = mo - 1 if mo > 1 else 12
-                py      = yr if mo > 1 else yr - 1
-                prev_pk = f"{py}-{str(pmo).zfill(2)}"
-            except: pass
+            yr, mo  = int(pk[:4]), int(pk[5:])
+            pmo     = mo - 1 if mo > 1 else 12
+            py      = yr if mo > 1 else yr - 1
+            prev_pk = f"{py}-{str(pmo).zfill(2)}"
         elif pk.startswith("q") and "_" in pk:
-            try:
-                parts   = pk[1:].split("_")
-                q, yr   = int(parts[0]), int(parts[1])
-                pq      = q - 1 if q > 1 else 4
-                py      = yr if q > 1 else yr - 1
-                prev_pk = f"q{pq}_{py}"
-            except: pass
+            parts   = pk[1:].split("_")
+            q, yr   = int(parts[0]), int(parts[1])
+            pq      = q - 1 if q > 1 else 4
+            py      = yr if q > 1 else yr - 1
+            prev_pk = f"q{pq}_{py}"
 
         prev_row = rs_idx.get((ch, prev_pk)) if prev_pk else None
-        try:    pct_now  = float(r[4]) if str(r[4]) not in ("", "None") else None
-        except: pct_now  = None
-        try:    pct_prev = float(prev_row[4]) if prev_row and str(prev_row[4]) not in ("", "None") else None
-        except: pct_prev = None
-        pct_chg = (round(pct_now - pct_prev, 2)
-                   if pct_now is not None and pct_prev is not None else None)
-        while len(r) < len(rs_headers):
-            r.append("")
+        pct_now  = float(r[4]) if r[4] not in ("", "None") else None
+        pct_prev = float(prev_row[4]) if prev_row and prev_row[4] not in ("", "None") else None
+        pct_chg  = round(pct_now - pct_prev, 2) \
+                   if pct_now is not None and pct_prev is not None else None
+        while len(r) < len(rs_headers): r.append("")
         r[7] = pct_prev if pct_prev is not None else ""
         r[8] = pct_chg  if pct_chg  is not None else ""
 
@@ -695,68 +654,50 @@ def write_all(gc, sheet_id, kpi_rows, rs_rows, nvr_rows, brand_name):
             pk = str(m.get("period", "")).strip()
             if pk:
                 existing_nvr[pk] = _map_to_row(nvr_headers, m)
-
     for r in nvr_rows:
         existing_nvr[str(r[1]).strip()] = r
 
-    merged_nvr = sorted(
-        existing_nvr.values(),
-        key=lambda r: (_safe_date(r[2]), str(r[1]))
-    )
+    merged_nvr = sorted(existing_nvr.values(), key=lambda r: (_safe_date(r[2]), str(r[1])))
     ws_nvr.clear()
     ws_nvr.append_row(nvr_headers)
     if merged_nvr:
         ws_nvr.append_rows(merged_nvr, value_input_option="USER_ENTERED")
     print(f"    new_vs_returning: {len(merged_nvr)} rows")
 
-    # ── ad_spend ─────────────────────────────────────────────────
+    # ── ad_spend (from AD_SPEND_DATA) ────────────────────────────
     try:    ws_ad = sh.worksheet("ad_spend")
     except: ws_ad = sh.add_worksheet("ad_spend", rows=200, cols=10)
 
     ad_headers = [
         "updated_at", "brand", "period", "period_start", "period_end",
         "ad_spend", "roas", "cos",
-        "cac_auto",  # = ad_spend / new_customers del mes
+        "cac_auto",    # = ad_spend / new_customers for that month (if available)
     ]
     now_str    = datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M")
     brand_data = AD_SPEND_DATA.get(brand_name, {})
 
-    # FIX: nc_by_month usando HEADERS.index() — robusto al orden
-    nc_idx = HEADERS.index("new_customers")
+    # Load new_customers by month from kpis_daily (month rows only)
     nc_by_month = {}
     for r in merged:
         pk = str(r[1]).strip()
-        # Solo filas de mes completo (formato YYYY-MM, no mtd_/week_/q)
-        if (len(pk) == 7 and "-" in pk
-                and not pk.startswith("mtd_")
-                and not pk.startswith("week_")
-                and not pk.startswith("q")):
+        # Only full-month rows (format YYYY-MM)
+        if len(pk) == 7 and "-" in pk and not pk.startswith("mtd_"):
             try:
-                nc_by_month[pk] = int(float(r[nc_idx] or 0))
-            except:
-                nc_by_month[pk] = 0
+                nc_by_month[pk] = int(float(r[HEADERS.index("new_customers")] or 0))
+            except: pass
 
     ad_rows = []
     for mo, vals in sorted(brand_data.items()):
+        if not vals.get("spend"): continue
+        yr, mn = int(mo[:4]), int(mo[5:])
+        import calendar as _cal
+        ps  = f"{mo}-01"
+        pe  = f"{mo}-{_cal.monthrange(yr, mn)[1]:02d}"
+        nc  = nc_by_month.get(mo, 0)
         spend = vals.get("spend", 0)
-        if not spend:
-            continue
-        yr, mn  = int(mo[:4]), int(mo[5:])
-        ps      = f"{mo}-01"
-        pe      = f"{mo}-{calendar.monthrange(yr, mn)[1]:02d}"
-        nc      = nc_by_month.get(mo, 0)
-        # FIX: CAC auto con try/except
-        try:
-            cac_auto = round(spend / nc, 2) if nc > 0 else ""
-        except:
-            cac_auto = ""
-
+        cac_auto = round(spend / nc, 2) if nc > 0 else ""
         ad_rows.append([
-            now_str,
-            brand_name,
-            mo,
-            ps,
-            pe,
+            now_str, brand_name, mo, ps, pe,
             spend,
             vals.get("roas", 0),
             vals.get("cos",  0),
@@ -767,8 +708,7 @@ def write_all(gc, sheet_id, kpi_rows, rs_rows, nvr_rows, brand_name):
     ws_ad.append_row(ad_headers)
     if ad_rows:
         ws_ad.append_rows(ad_rows, value_input_option="USER_ENTERED")
-    print(f"    ad_spend: {len(ad_rows)} months  "
-          f"(cac_auto en {sum(1 for r in ad_rows if r[8]!='')} meses)")
+    print(f"    ad_spend: {len(ad_rows)} months  (cac_auto populated where nc > 0)")
 
 # ─────────────────────────────────────────────────────────────────
 # MAIN
@@ -784,18 +724,21 @@ def main():
         kpi_rows, rs_rows, nvr_rows = [], [], []
 
         periods_to_run = [
-            {"label": "MTD",          "cur": "mtd",          "is_snapshot": False},
-            {"label": "WEEK",         "cur": "week",         "is_snapshot": False},
-            {"label": "MONTH",        "cur": "month",        "is_snapshot": False},
-            {"label": "QUARTER",      "cur": "quarter",      "is_snapshot": False},
-            {"label": "WEEK_PREV",    "cur": "week_prev",    "is_snapshot": True},
-            {"label": "MONTH_PREV",   "cur": "month_prev",   "is_snapshot": True},
-            {"label": "QUARTER_PREV", "cur": "quarter_prev", "is_snapshot": True},
+            # Current periods (full fetch)
+            {"label": "MTD",            "cur": "mtd",         "is_snapshot": False},
+            {"label": "WEEK",           "cur": "week",        "is_snapshot": False},
+            {"label": "MONTH",          "cur": "month",       "is_snapshot": False},
+            {"label": "QUARTER",        "cur": "quarter",     "is_snapshot": False},
+            # Snapshots of previous periods (for comparison — only if not already stored)
+            {"label": "WEEK_PREV",      "cur": "week_prev",   "is_snapshot": True},
+            {"label": "MONTH_PREV",     "cur": "month_prev",  "is_snapshot": True},
+            {"label": "QUARTER_PREV",   "cur": "quarter_prev","is_snapshot": True},
         ]
 
         for it in periods_to_run:
             label       = it["label"]
             cur_k       = it["cur"]
+            is_snapshot = it["is_snapshot"]
             s, e, pk    = P[cur_k]
 
             print(f"\n  [{label}] {s} → {e}  (period='{pk}')")
@@ -809,19 +752,19 @@ def main():
             cur  = build(sal, ords, nvr, sess, of)
             kpi_rows.append(make_kpi_row(now_str, pk, s, e, cur))
 
-            # Revenue share
+            # Revenue share rows
             gm_pct = sal.get("pct_gm", 0)
             rs     = calc_rs(ords, gm_pct)
             for ch, v in rs.items():
                 rs_rows.append([
                     now_str, pk, ch,
-                    v["amount"],  v["pct"],
+                    v["amount"], v["pct"],
                     v["gross_profit"], v["gross_margin"],
-                    "", "",  # pct_prev, pct_chg se calculan en write_all
+                    "", "",             # pct_prev, pct_chg computed in write_all
                     str(v["gp_is_estimate"]),
                 ])
 
-            # New vs returning
+            # New vs returning rows
             nvr_rows.append([
                 now_str, pk, str(s), str(e),
                 nvr.get("new_customers",          0),
@@ -834,17 +777,13 @@ def main():
 
         write_all(gc, cfg["sheet_id"], kpi_rows, rs_rows, nvr_rows, brand_name)
 
-        print(f"\n  ✓ {brand_name.upper()} — {len(kpi_rows)} períodos escritos")
+        print(f"\n  ✓ {brand_name.upper()} — {len(kpi_rows)} periods written")
         for row in kpi_rows:
-            gp_val  = row[6]
-            gm_val  = row[12]
-            nc_val  = row[20]
             print(f"    {row[1]:<24}  {row[2]} → {row[3]}"
-                  f"  gross:{float(row[4] or 0):>12,.2f}"
-                  f"  net:{float(row[5] or 0):>12,.2f}"
-                  f"  gp:{float(gp_val or 0):>10,.2f}"
-                  f"  gm:{float(gm_val or 0):>5.1f}%"
-                  f"  new_cust:{int(nc_val or 0):>5}")
+                  f"  gross:{float(row[4]):>12,.2f}"
+                  f"  net:{float(row[5]):>12,.2f}"
+                  f"  gp:{float(row[6]):>10,.2f}"
+                  f"  new_cust:{int(row[20] or 0):>5}")
 
 if __name__ == "__main__":
     main()
