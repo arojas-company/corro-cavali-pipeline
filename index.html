@@ -29,7 +29,6 @@
 }
 html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx)}
 .app{display:flex;min-height:100vh}
-/* SIDEBAR */
 .sb{width:200px;background:var(--sf);border-right:1px solid var(--bd);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;flex-shrink:0;overflow:hidden}
 .sb-top{padding:16px 14px 13px;border-bottom:1px solid var(--bd)}
 .sb-dots{display:flex;gap:3px;margin-bottom:6px}
@@ -48,9 +47,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 .sync-r{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--tx3)}
 .sync-d{width:5px;height:5px;border-radius:50%;background:var(--gr);animation:pu 2.5s infinite}
 @keyframes pu{0%,100%{opacity:1}50%{opacity:.15}}
-/* MAIN */
 .main{flex:1;padding:20px 22px;min-width:0;overflow-x:hidden}
-/* PAGE HEADER */
 .ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px}
 .ph h1{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:var(--tx);letter-spacing:-.025em}
 .ph p{font-size:11px;color:var(--tx3);margin-top:2px}
@@ -60,34 +57,27 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 .icon-btn:hover{border-color:var(--gr);color:var(--gr)}
 .rf-btn{display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:5px;border:1px solid var(--bd2);background:var(--sf2);color:var(--tx2);cursor:pointer;font-size:10px;font-weight:500;font-family:'DM Sans',sans-serif;transition:all .12s}
 .rf-btn:hover{border-color:var(--gr);color:var(--gr)}
-/* CONTROLS */
 .ctrl{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px}
 .btn-grp{display:flex;gap:2px;background:var(--sf2);border:1px solid var(--bd);border-radius:7px;padding:2px}
 .brand-btn{display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:5px;border:1px solid transparent;background:transparent;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;color:var(--tx2);cursor:pointer;transition:all .12s}
 .brand-btn.on{background:var(--sf);color:var(--tx);border-color:var(--bd2)}
 .period-btn{padding:4px 10px;border-radius:5px;border:1px solid transparent;background:transparent;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;color:var(--tx2);cursor:pointer;transition:all .12s}
 .period-btn.on{background:var(--sf);color:var(--tx);border-color:var(--bd2)}
-/* SELECTOR BAR */
 .selbar{background:var(--sf);border:1px solid var(--bd);border-radius:8px;padding:9px 13px;margin-bottom:11px;display:flex;align-items:center;flex-wrap:wrap;gap:12px}
 .sel-grp{display:flex;align-items:center;gap:7px}
 .sel-lbl{font-size:10px;color:var(--tx3);font-weight:500;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
 .sel-div{width:1px;height:16px;background:var(--bd2)}
 select{font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;color:var(--tx);background:var(--sf2);border:1px solid var(--bd2);border-radius:5px;padding:4px 10px;cursor:pointer;outline:none;transition:border-color .12s}
 select:focus{border-color:var(--gr)}
-/* INFO BAR */
 .ibar{font-size:11px;color:var(--tx3);background:var(--sf2);border-radius:6px;padding:6px 12px;margin-bottom:13px;line-height:1.7}
 .ibar span{color:var(--tx);font-weight:500}
-/* WARNINGS */
 .warn-bar{display:none;font-size:10px;color:var(--am);background:var(--am-bg);border:1px solid var(--am-bd);border-radius:6px;padding:5px 11px;margin-bottom:10px;line-height:1.6}
 .warn-bar.show{display:block}
-/* SECTION DIVIDERS */
 .sec{display:flex;align-items:center;gap:8px;margin:16px 0 9px}
 .sec-num{font-size:9px;font-weight:700;color:var(--tx3);letter-spacing:.1em;text-transform:uppercase;font-family:'Syne',sans-serif;white-space:nowrap}
 .sec-line{flex:1;height:1px;background:var(--bd)}
 .sec-lbl{font-size:9px;font-weight:600;color:var(--tx3);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
-/* KPI GRID */
 .kg{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:7px}
-/* KPI CARD */
 .kc{background:var(--sf);border:1px solid var(--bd);border-radius:9px;padding:13px 14px;position:relative;overflow:hidden;transition:border-color .12s,transform .1s}
 .kc:hover{border-color:var(--bd2);transform:translateY(-1px)}
 .kc-bar{position:absolute;top:0;left:0;right:0;height:3px}
@@ -95,26 +85,22 @@ select:focus{border-color:var(--gr)}
 .kc-val{font-family:'Syne',sans-serif;font-size:26px;font-weight:700;color:var(--tx);letter-spacing:-.04em;line-height:1;margin-bottom:9px}
 .kc-badges{display:flex;gap:4px;flex-wrap:wrap}
 .kc-note{font-size:9px;color:var(--tx3);margin-top:4px;font-style:italic}
-/* BADGES */
 .bdg{display:inline-flex;align-items:center;gap:2px;font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px}
 .bdg-lbl{font-size:9px;opacity:.55;margin-right:1px;font-weight:400}
 .bdg-up{background:var(--gr-bg);color:var(--gr);border:1px solid var(--gr-bd)}
 .bdg-dn{background:var(--rd-bg);color:var(--rd);border:1px solid var(--rd-bd)}
 .bdg-neu{background:var(--sf2);color:var(--tx3);border:1px solid var(--bd)}
 .bdg-am{background:var(--am-bg);color:var(--am);border:1px solid var(--am-bd)}
-/* FCS CARD */
 .kc-fcs{background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 100%);border:1px solid var(--bd2);border-radius:9px;padding:13px 14px;position:relative;overflow:hidden;transition:transform .1s}
 .kc-fcs:hover{transform:translateY(-1px)}
 .kc-fcs .kc-lbl{color:#A8C8E8}
 .kc-fcs .kc-val{color:#FFFFFF;font-family:'Syne',sans-serif;font-size:26px;font-weight:700;letter-spacing:-.04em;line-height:1;margin-bottom:9px}
 .kc-fcs .kc-note{color:#7AA8C8}
-/* SUBSCRIBER CARD */
 .kc-sub{background:var(--sf);border:1px solid rgba(160,144,255,.3);border-radius:9px;padding:13px 14px;position:relative;overflow:hidden;transition:border-color .12s,transform .1s}
 .kc-sub:hover{border-color:rgba(160,144,255,.6);transform:translateY(-1px)}
 .kc-sub .kc-bar{background:var(--pu)}
 .kc-sub .kc-lbl{color:var(--pu)}
 .kc-sub .kc-val{font-family:'Syne',sans-serif;font-size:32px;font-weight:700;letter-spacing:-.04em;line-height:1;margin-bottom:9px}
-/* COLLAPSIBLE PANEL */
 .panel{background:var(--sf);border:1px solid var(--bd);border-radius:9px;overflow:hidden;margin-top:7px}
 .panel-hd{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;user-select:none;transition:background .1s}
 .panel-hd:hover{background:var(--sf2)}
@@ -125,7 +111,6 @@ select:focus{border-color:var(--gr)}
 .panel.open .panel-chev{transform:rotate(180deg)}
 .panel-body{display:none;padding:12px 14px}
 .panel.open .panel-body{display:block}
-/* REVENUE SHARE */
 .rs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:7px}
 .rs-card{background:var(--sf2);border:1px solid var(--bd);border-radius:7px;padding:11px 12px}
 .rs-name{font-size:10px;color:var(--tx3);font-weight:500;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}
@@ -135,7 +120,6 @@ select:focus{border-color:var(--gr)}
 .rs-gp span{font-weight:600}
 .rs-bar-wrap{height:2px;background:var(--bd2);border-radius:1px;margin-top:8px;overflow:hidden}
 .rs-bar-fill{height:100%;border-radius:1px}
-/* NEW vs RETURNING */
 .nvr-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .nvr-col{background:var(--sf2);border:1px solid var(--bd);border-radius:7px;padding:12px 13px}
 .nvr-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:6px}
@@ -144,10 +128,8 @@ select:focus{border-color:var(--gr)}
 .nvr-val{font-size:12px;font-weight:600;color:var(--tx);font-family:'Syne',sans-serif}
 .nvr-gp{color:var(--gr) !important}
 .nvr-note{font-size:9px;color:var(--am);margin-top:6px;font-style:italic}
-/* CAC/LTV */
 .cac-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:7px}
 .cac-note-box{font-size:9px;color:var(--am);background:var(--am-bg);border:1px solid var(--am-bd);border-radius:5px;padding:5px 9px;margin-bottom:10px;line-height:1.6}
-/* MANUAL INPUTS */
 .mi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:10px;margin-bottom:12px}
 .mi-field{display:flex;flex-direction:column;gap:4px}
 .mi-lbl{font-size:9px;color:var(--tx3);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
@@ -165,23 +147,23 @@ select:focus{border-color:var(--gr)}
 .btn-clear{padding:6px 14px;border-radius:6px;border:1px solid var(--bd2);background:transparent;color:var(--tx3);font-family:'DM Sans',sans-serif;font-size:11px;cursor:pointer}
 .saved-tag{display:inline-flex;align-items:center;gap:4px;font-size:9px;color:var(--gr);background:var(--gr-bg);border:1px solid var(--gr-bd);border-radius:20px;padding:2px 7px}
 .mi-derived{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:7px;margin-top:4px}
-/* VISIBILITY */
+/* Smartrr status badge */
+.smartrr-badge{display:inline-flex;align-items:center;gap:5px;font-size:9px;padding:2px 8px;border-radius:20px;margin-bottom:8px}
+.smartrr-ok{background:var(--gr-bg);color:var(--gr);border:1px solid var(--gr-bd)}
+.smartrr-warn{background:var(--am-bg);color:var(--am);border:1px solid var(--am-bd)}
 .cavali-only{display:none}
 .is-cavali .cavali-only{display:block}
 .corro-only{display:block}
 .is-cavali .corro-only{display:none}
-/* FOOTER */
 .foot{margin-top:20px;padding-top:12px;border-top:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px}
 .foot-txt{font-size:10px;color:var(--tx3)}
 .foot-tags{display:flex;gap:5px;flex-wrap:wrap}
 .foot-tag{background:var(--sf2);border:1px solid var(--bd);border-radius:20px;padding:2px 8px;font-size:10px;color:var(--tx3)}
-/* LOADING */
 .ov{display:none;position:fixed;inset:0;background:rgba(10,25,45,.72);z-index:200;align-items:center;justify-content:center;flex-direction:column;gap:10px;backdrop-filter:blur(3px)}
 .ov.show{display:flex}
 .spinner{width:24px;height:24px;border:2px solid var(--bd2);border-top-color:var(--gr);border-radius:50%;animation:spin .65s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .ov-lbl{font-size:11px;color:var(--tx);background:var(--sf);padding:7px 14px;border-radius:20px;border:1px solid var(--bd2)}
-/* SKELETON */
 .sk .kc-lbl,.sk .kc-val{background:var(--sf2);border-radius:3px;color:transparent;animation:shimmer 1.4s ease-in-out infinite}
 @keyframes shimmer{0%,100%{opacity:.3}50%{opacity:.8}}
 </style>
@@ -238,8 +220,6 @@ select:focus{border-color:var(--gr)}
 
 <!-- MAIN -->
 <div class="main">
-
-  <!-- Page header -->
   <div class="ph">
     <div>
       <h1 id="ph-title">Corro — Performance</h1>
@@ -255,7 +235,6 @@ select:focus{border-color:var(--gr)}
     </div>
   </div>
 
-  <!-- Brand + Period controls -->
   <div class="ctrl">
     <div class="btn-grp" id="brand-grp">
       <button class="brand-btn on" onclick="setBrand('corro')"><div style="width:5px;height:5px;border-radius:50%;background:#2EE896"></div>Corro</button>
@@ -315,9 +294,10 @@ select:focus{border-color:var(--gr)}
   <div class="cac-note-box" id="cac-note-box">⏳ <strong>CAC note:</strong> Cuando se ingresa gasto G+M abajo, CAC se calcula automáticamente (G+M ÷ nuevos clientes de Shopify). LTV referencia: <strong>$178</strong> · CAC referencia: <strong>$47</strong>.</div>
   <div class="cac-grid" id="s-cac"></div>
 
-  <!-- 06 · Cavali Subscribers -->
+  <!-- 06 · Cavali Subscribers (Smartrr) -->
   <div class="cavali-only" id="subs-sec">
-    <div class="sec"><div class="sec-num">06</div><div class="sec-line"></div><div class="sec-lbl" style="color:var(--pu)">Cavali — Active Subscribers by Box</div><div class="sec-line"></div></div>
+    <div class="sec"><div class="sec-num">06</div><div class="sec-line"></div><div class="sec-lbl" style="color:var(--pu)">Cavali — Active Subscribers by Box · Smartrr</div><div class="sec-line"></div></div>
+    <div id="smartrr-status"></div>
     <div class="kg" id="s-subs"></div>
   </div>
 
@@ -366,13 +346,13 @@ select:focus{border-color:var(--gr)}
           <div class="mi-lbl">Net Sales Override ($)<span class="mi-note">Auto desde Sheets si vacío</span></div>
           <div class="mi-wrap"><span class="mi-pre">$</span><input class="mi-inp" id="mi-ns" type="number" min="0" step="0.01" placeholder="auto" oninput="calcDerived()"></div>
         </div>
-        <!-- Cavali subscribers -->
+        <!-- Cavali subscribers fallback manual -->
         <div class="mi-field cavali-only">
-          <div class="mi-lbl" style="color:var(--pu)">Active Subscribers (Cavali)</div>
+          <div class="mi-lbl" style="color:var(--pu)">Subscribers manual (fallback si Smartrr falla)</div>
           <div class="mi-sub-grid">
-            <div><div class="mi-sub-lbl">Seasonal</div><input class="mi-inp no-pre" id="mi-sea" type="number" min="0" placeholder="0" oninput="renderSubs()"></div>
-            <div><div class="mi-sub-lbl">Signature</div><input class="mi-inp no-pre" id="mi-sig" type="number" min="0" placeholder="0" oninput="renderSubs()"></div>
-            <div><div class="mi-sub-lbl">Premier</div><input class="mi-inp no-pre" id="mi-pre-sub" type="number" min="0" placeholder="0" oninput="renderSubs()"></div>
+            <div><div class="mi-sub-lbl">Seasonal</div><input class="mi-inp no-pre" id="mi-sea" type="number" min="0" placeholder="0" oninput="renderSubsFallback()"></div>
+            <div><div class="mi-sub-lbl">Signature</div><input class="mi-inp no-pre" id="mi-sig" type="number" min="0" placeholder="0" oninput="renderSubsFallback()"></div>
+            <div><div class="mi-sub-lbl">Premier</div><input class="mi-inp no-pre" id="mi-pre-sub" type="number" min="0" placeholder="0" oninput="renderSubsFallback()"></div>
           </div>
         </div>
       </div>
@@ -396,6 +376,7 @@ select:focus{border-color:var(--gr)}
       <div class="foot-tag">Auto-daily 8AM</div>
       <div class="foot-tag" id="ft-manual" style="display:none;color:var(--gd)">G+M Manual active</div>
       <div class="foot-tag" id="ft-roas" style="color:var(--am)">ROAS: Shopify ⚠</div>
+      <div class="foot-tag cavali-only" id="ft-smartrr" style="color:var(--pu)">Smartrr</div>
     </div>
   </div>
 
@@ -412,6 +393,10 @@ const SIDS = {
 };
 const AKEY = "AIzaSyD8oIf_TyxchEkU_MpKJXngrjrMVyV81oY";
 
+// ══ SMARTRR ══════════════════════════════════════════
+// Pega aquí tu API key de Smartrr (ver instrucciones abajo)
+const SMARTRR_KEY = "";   // <-- TU KEY AQUI
+
 const CAVALI_RENAME = {
   "Others":           "Subscriptions",
   "Online":           "Single Products",
@@ -427,9 +412,56 @@ const CH_COLORS = {
   "Subscriptions":    "#2EE896",
 };
 
-/* ── State ── */
 let brand = "corro", ptype = "mtd";
 let cache = {}, manualData = {};
+
+/* ══════════════════════════════════════════════════════
+   SMARTRR — fetch suscriptores activos
+══════════════════════════════════════════════════════ */
+let _smartrrCache = null, _smartrrTs = 0;
+
+async function fetchSmartrrSubs() {
+  // Si no hay key configurada, retorna null para usar fallback manual
+  if (!SMARTRR_KEY || SMARTRR_KEY.trim() === "") return null;
+  // Cache 10 minutos
+  if (_smartrrCache && Date.now() - _smartrrTs < 10 * 60 * 1000) return _smartrrCache;
+
+  try {
+    let sea = 0, sig = 0, pre = 0, jun = 0, other = 0, page = 1;
+    while (true) {
+      const r = await fetch(
+        `https://api.smartrr.com/api/v1/subscription?status=ACTIVE&limit=250&page=${page}`,
+        { headers: { "Authorization": `Bearer ${SMARTRR_KEY}`, "Content-Type": "application/json" } }
+      );
+      if (!r.ok) throw new Error(`Smartrr HTTP ${r.status}`);
+      const d = await r.json();
+      const items = d.items ?? d.subscriptions ?? d.data ?? [];
+      if (!items.length) break;
+      items.forEach(s => {
+        const name = (
+          s.planName ?? s.plan_name ??
+          s.sellingPlan?.name ?? s.selling_plan?.name ??
+          s.subscriptionContractLine?.title ?? ""
+        ).toLowerCase();
+        if      (name.includes("seasonal"))  sea++;
+        else if (name.includes("signature")) sig++;
+        else if (name.includes("premier"))   pre++;
+        else if (name.includes("junior"))    jun++;
+        else                                  other++;
+      });
+      if (items.length < 250) break;
+      page++;
+    }
+    _smartrrCache = { sea, sig, pre, jun, other,
+                      total: sea + sig + pre + jun + other,
+                      source: "Smartrr API ✓" };
+    _smartrrTs = Date.now();
+    return _smartrrCache;
+  } catch(e) {
+    console.warn("Smartrr error:", e.message);
+    return { error: e.message };
+  }
+}
 
 /* ══════════════════════════════════════════════════════
    DATE HELPERS
@@ -504,8 +536,7 @@ function getOpt() {
    SELECTOR BAR
 ══════════════════════════════════════════════════════ */
 function renderSelbar() {
-  const bar = document.getElementById("selbar");
-  if (!bar) return;
+  const bar = document.getElementById("selbar"); if (!bar) return;
   let opts, sv, oc;
   if (ptype==="week")       { opts=WEEKS;    sv=selW;   oc="onSelW(this.value)"; }
   else if (ptype==="mtd")   { opts=MTDS;     sv=selMTD; oc="onSelMTD(this.value)"; }
@@ -530,8 +561,7 @@ function onSelQ(v)   { selQ   = v; cache={}; renderSelbar(); render(); }
 function selCmp2(v)  { selCmp = v; render(); }
 
 function renderIbar(opt, cmpLbl) {
-  const el = document.getElementById("ibar");
-  if (!el) return;
+  const el = document.getElementById("ibar"); if (!el) return;
   let h = `<span>${fmtD(opt.start)}</span> – <span>${fmtD(opt.end)}</span>`;
   if (cmpLbl) h += ` &nbsp;·&nbsp; vs <span>${cmpLbl}</span>`;
   h += ` &nbsp;·&nbsp; <span>Net Sales confirmed ✓</span>`;
@@ -589,7 +619,6 @@ function findRow(rows, opt) {
 function findCmp(rows, opt) {
   if (!rows?.length || selCmp==="none") return { row:null, lbl:"" };
   const prev = selCmp==="prev";
-
   if (ptype==="quarter" && opt.pk) {
     const match = opt.pk.match(/q(\d)_(\d{4})/);
     if (match) {
@@ -647,13 +676,11 @@ function fv(v, f) {
   if (Math.abs(n)>=1000) return (n/1000).toFixed(1)+"K";
   return n%1===0 ? n.toLocaleString() : n.toFixed(2);
 }
-
 function pctChg(c, p) {
   const cv=parseFloat(c), pv=parseFloat(p);
   if (isNaN(cv)||isNaN(pv)||pv===0) return null;
   return ((cv-pv)/Math.abs(pv)*100).toFixed(1);
 }
-
 function badge(pct, lbl, inv) {
   if (pct===null||pct===undefined) return `<span class="bdg bdg-neu"><span class="bdg-lbl">${lbl||"vs"}</span>—</span>`;
   const n=parseFloat(pct), up=n>=0, good=inv?!up:up;
@@ -703,8 +730,7 @@ const DEFS = {
    FCS FORECAST (Corro only)
 ══════════════════════════════════════════════════════ */
 function renderFCS(row) {
-  const el = document.getElementById("s-fcs");
-  if (!el) return;
+  const el = document.getElementById("s-fcs"); if (!el) return;
   if (brand !== "corro" || !row) { el.innerHTML = ""; return; }
   const net = parseFloat(row.net_sales||0);
   const today = new Date(), day = today.getDate();
@@ -723,11 +749,10 @@ function renderFCS(row) {
 }
 
 /* ══════════════════════════════════════════════════════
-   REVENUE SHARE
+   REVENUE SHARE (con Gross Profit por canal)
 ══════════════════════════════════════════════════════ */
 function renderRS(rsRows, row) {
-  const el  = document.getElementById("rs-grid");
-  if (!el) return;
+  const el  = document.getElementById("rs-grid"); if (!el) return;
   const opt = getOpt();
   const pk  = row?.period;
   let ch = pk
@@ -752,7 +777,10 @@ function renderRS(rsRows, row) {
     const isEst= (r.gp_is_estimate||"").toLowerCase()==="true";
     const col  = CH_COLORS[r.channel]||"#707070";
     const chgH = chg!==null ? `<div style="font-size:9px;margin-top:3px;color:${chg>=0?'var(--gr)':'var(--rd)'}">${chg>=0?'▲':'▼'} ${Math.abs(chg).toFixed(1)}pp vs prev</div>` : "";
-    const gpH  = `<div class="rs-gp">GP: <span style="color:var(--gr)">${fv(gp,"$")}</span> · <span style="color:var(--gr)">${gm.toFixed(1)}%</span>${isEst?' <span style="color:var(--am)">(est)</span>':''}</div>`;
+    // Gross Profit: muestra aunque sea 0, si gm existe lo mostramos
+    const gpDisplay = gp > 0 ? fv(gp,"$") : (gm > 0 ? fv(amt * gm / 100,"$") : "—");
+    const gmDisplay = gm > 0 ? gm.toFixed(1)+"%" : "—";
+    const gpH  = `<div class="rs-gp">GP: <span style="color:var(--gr)">${gpDisplay}</span> · <span style="color:var(--gr)">${gmDisplay}</span>${isEst?' <span style="color:var(--am)">(est)</span>':''}</div>`;
     return `<div class="rs-card">
       <div class="rs-name">${r.channel}</div>
       <div class="rs-pct" style="color:${col}">${pct.toFixed(1)}%</div>
@@ -767,23 +795,19 @@ function renderRS(rsRows, row) {
    NEW vs RETURNING
 ══════════════════════════════════════════════════════ */
 function renderNVR(nvrRows, kpiRow) {
-  const el  = document.getElementById("nvr-grid");
-  if (!el) return;
+  const el  = document.getElementById("nvr-grid"); if (!el) return;
   const opt = getOpt();
   const pk  = kpiRow?.period;
-
   let nvrRow = null;
   if (nvrRows?.length) {
     if (pk) nvrRow = nvrRows.find(r=>r.period===pk) || null;
     if (!nvrRow) nvrRow = nvrRows.find(r=>(r.period_start||"").slice(0,7)===(opt.start||"").slice(0,7)) || null;
   }
-
   const src = nvrRow || kpiRow;
   if (!src) {
     el.innerHTML=`<div style="font-size:11px;color:var(--tx3);grid-column:1/-1">No new/returning data for this period. Run pipeline v4.</div>`;
     return;
   }
-
   const newRev  = parseFloat(src.new_revenue||0);
   const retRev  = parseFloat(src.returning_revenue||0);
   const newGP   = parseFloat(src.new_gross_profit||0);
@@ -793,7 +817,6 @@ function renderNVR(nvrRows, kpiRow) {
   const total   = newRev + retRev;
   const isReal  = newRev > 0 || retRev > 0;
   const noDataNote = !isReal ? `<div class="nvr-note">⚠ No data — run pipeline v4</div>` : "";
-
   el.innerHTML = `
     <div class="nvr-col">
       <div class="nvr-title" style="color:var(--bl)">
@@ -823,8 +846,7 @@ function renderNVR(nvrRows, kpiRow) {
    CAC to LTV
 ══════════════════════════════════════════════════════ */
 function renderCAC(cacVal, ltvVal, source) {
-  const el = document.getElementById("s-cac");
-  if (!el) return;
+  const el = document.getElementById("s-cac"); if (!el) return;
   const ltv = ltvVal > 0 ? ltvVal : 178;
   const cac = cacVal > 0 ? cacVal : 47;
   const ratio = ltv / cac;
@@ -849,28 +871,75 @@ function renderCAC(cacVal, ltvVal, source) {
 }
 
 /* ══════════════════════════════════════════════════════
-   CAVALI SUBSCRIBERS
+   CAVALI SUBSCRIBERS — Smartrr API + fallback manual
 ══════════════════════════════════════════════════════ */
-function renderSubs() {
-  if (brand !== "cavali") return;
-  const el = document.getElementById("s-subs");
-  if (!el) return;
-  const sea = parseInt(document.getElementById("mi-sea")?.value||0)||0;
-  const sig = parseInt(document.getElementById("mi-sig")?.value||0)||0;
-  const pre = parseInt(document.getElementById("mi-pre-sub")?.value||0)||0;
-  const tot = sea + sig + pre;
-  el.innerHTML = [
+function renderSubsFallback() {
+  // Solo se usa si Smartrr falla o no tiene key
+  const el = document.getElementById("s-subs"); if (!el) return;
+  const sea  = parseInt(document.getElementById("mi-sea")?.value||0)||0;
+  const sig  = parseInt(document.getElementById("mi-sig")?.value||0)||0;
+  const pre  = parseInt(document.getElementById("mi-pre-sub")?.value||0)||0;
+  const tot  = sea + sig + pre;
+  _renderSubCards([
     { l:"Seasonal",          v:sea, c:"#D8B054" },
     { l:"Signature",         v:sig, c:"#A090FF" },
     { l:"Premier",           v:pre, c:"#2EE896" },
     { l:"Total Subscribers", v:tot, c:"#72AEFF" },
-  ].map(s=>`
+  ], "Manual — ingresa valores abajo");
+}
+
+function _renderSubCards(cards, source) {
+  const el = document.getElementById("s-subs"); if (!el) return;
+  el.innerHTML = cards.map(s => `
     <div class="kc-sub">
       <div class="kc-bar"></div>
       <div class="kc-lbl" style="color:${s.c}">${s.l}</div>
-      <div class="kc-val" style="color:${s.c}">${s.v||"—"}</div>
-      <div class="kc-note">Active${s.v===0?" · Enter value in Manual Inputs":""}</div>
+      <div class="kc-val" style="color:${s.c}">${s.v !== undefined ? s.v.toLocaleString() : "—"}</div>
+      <div class="kc-note">${source}</div>
     </div>`).join('');
+}
+
+async function renderSubs() {
+  if (brand !== "cavali") return;
+  const el = document.getElementById("s-subs"); if (!el) return;
+  const statusEl = document.getElementById("smartrr-status");
+
+  // Skeleton mientras carga
+  el.innerHTML = skel(4);
+  if (statusEl) statusEl.innerHTML = "";
+
+  const data = await fetchSmartrrSubs();
+
+  // Sin key configurada
+  if (data === null) {
+    if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-warn">⚠ API key no configurada — usando valores manuales</div>`;
+    renderSubsFallback();
+    return;
+  }
+
+  // Error de API
+  if (data.error) {
+    if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-warn">⚠ Smartrr error: ${data.error} — usando fallback manual</div>`;
+    renderSubsFallback();
+    // Actualiza el footer tag
+    const ft = document.getElementById("ft-smartrr");
+    if (ft) { ft.textContent = "Smartrr ⚠"; ft.style.color = "var(--am)"; }
+    return;
+  }
+
+  // Éxito
+  if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-ok">✓ Smartrr · ${data.total} activos</div>`;
+  const ft = document.getElementById("ft-smartrr");
+  if (ft) { ft.textContent = "Smartrr ✓"; ft.style.color = "var(--gr)"; }
+
+  const cards = [
+    { l:"Seasonal",          v:data.sea, c:"#D8B054" },
+    { l:"Signature",         v:data.sig, c:"#A090FF" },
+    { l:"Premier",           v:data.pre, c:"#2EE896" },
+    ...(data.jun > 0 ? [{ l:"Junior", v:data.jun, c:"#F06868" }] : []),
+    { l:"Total Subscribers", v:data.sea + data.sig + data.pre + data.jun, c:"#72AEFF" },
+  ];
+  _renderSubCards(cards, `Smartrr API ✓ · actualizado ${new Date().toLocaleTimeString()}`);
 }
 
 /* ══════════════════════════════════════════════════════
@@ -880,7 +949,6 @@ async function renderQ1(kpiRows) {
   const el   = document.getElementById("q1-grid");
   const note = document.getElementById("q1-note");
   if (!el) return;
-
   const Q1_PK = "q1_2026", Q1_S = "2026-01-01", Q1_E = "2026-03-31";
   let row = null;
   if (kpiRows?.length) {
@@ -889,7 +957,6 @@ async function renderQ1(kpiRows) {
     row = bestRow(m);
   }
   const prevQ = kpiRows?.length ? bestRow(kpiRows.filter(r=>r.period==="q4_2025")) : null;
-
   if (!row) {
     el.innerHTML=`<div style="font-size:11px;color:var(--tx3);padding:6px 0">Q1 2026 data not in Sheets yet. Run <strong style="color:var(--gd)">Backfill Historical Data</strong> GitHub Action then refresh.</div>`;
     if (note) note.innerHTML = "";
@@ -925,7 +992,6 @@ function loadManual() {
   setVal("mi-sig",    m.sig||"");
   setVal("mi-pre-sub",m.pre||"");
   calcDerived();
-  renderSubs();
 }
 
 function saveManual() {
@@ -976,20 +1042,10 @@ function calcDerived() {
 }
 
 /* ══════════════════════════════════════════════════════
-   HELPER: safe getElementById setter
+   HELPERS
 ══════════════════════════════════════════════════════ */
-function safeSet(id, val) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = val;
-}
-function safeStyle(id, prop, val) {
-  const el = document.getElementById(id);
-  if (el) el.style[prop] = val;
-}
-function safeHTML(id, val) {
-  const el = document.getElementById(id);
-  if (el) el.innerHTML = val;
-}
+function safeSet(id, val) { const el=document.getElementById(id); if(el) el.textContent=val; }
+function safeHTML(id, val) { const el=document.getElementById(id); if(el) el.innerHTML=val; }
 
 /* ══════════════════════════════════════════════════════
    MAIN RENDER
@@ -1001,15 +1057,13 @@ async function render() {
   const root = document.getElementById("app-root");
   if (root) root.classList.toggle("is-cavali", brand==="cavali");
 
-  // Section numbers: if cavali (has subscribers section), Q1=07, MI=08; else Q1=06, MI=07
   safeSet("q1-num", brand==="cavali" ? "07" : "06");
   safeSet("mi-num", brand==="cavali" ? "08" : "07");
 
-  // Skeletons
   const skelIds = { "s-web": 3, "s-fin": 9, "s-op": 4, "s-mkt": 4 };
   Object.entries(skelIds).forEach(([id, n]) => safeHTML(id, skel(n)));
 
-  const ovEl = document.getElementById("ov");
+  const ovEl  = document.getElementById("ov");
   const ovLbl = document.getElementById("ov-lbl");
   if (ovLbl) ovLbl.textContent = `Loading ${brand==="corro"?"Corro":"Cavali"}...`;
   if (ovEl) ovEl.classList.add("show");
@@ -1022,11 +1076,11 @@ async function render() {
     fetchTab(sid, "ad_spend"),
   ]);
 
-  const row            = findRow(kpiR, opt);
+  const row              = findRow(kpiR, opt);
   const { row:cmpRow, lbl:cmpLbl } = findCmp(kpiR, opt);
-  const cmpShort       = selCmp==="yoy"?"YOY":selCmp==="prev"?"PREV":"—";
+  const cmpShort         = selCmp==="yoy"?"YOY":selCmp==="prev"?"PREV":"—";
 
-  /* Website, Financial, Operational */
+  // Website, Financial, Operational
   ["web","fin","op"].forEach(sec => {
     safeHTML(`s-${sec}`, DEFS[sec].map(s => {
       const val = row ? fv(row[s.k], s.f) : "—";
@@ -1035,18 +1089,18 @@ async function render() {
     }).join(''));
   });
 
-  /* FCS */
+  // FCS
   renderFCS(row);
 
-  /* Revenue Share */
+  // Revenue Share
   renderRS(rsR, row);
 
-  /* New vs Returning */
+  // New vs Returning
   renderNVR(nvrR, row);
 
-  /* Marketing KPIs */
-  const mo    = (opt.start||"").slice(0,7);
-  const adF   = (adR||[]).filter(r => {
+  // Marketing KPIs
+  const mo   = (opt.start||"").slice(0,7);
+  const adF  = (adR||[]).filter(r => {
     if (r.brand && r.brand!==brand) return false;
     const p = (r.period||"").trim();
     if (ptype==="mtd"||ptype==="month"||ptype==="week") return p===mo;
@@ -1087,7 +1141,6 @@ async function render() {
 
   const ltvV = (m.ltv||0) > 0 ? m.ltv : 178;
 
-  // Footer tags
   const ftManual = document.getElementById("ft-manual");
   if (ftManual) ftManual.style.display = hasManualSpend ? "" : "none";
   const ftRoas = document.getElementById("ft-roas");
@@ -1106,22 +1159,21 @@ async function render() {
     { l:"LTV / CAC",                          v:(ltvV&&cacV)?fv(ltvV/cacV,"x"):"—", note:`LTV $${ltvV} ÷ CAC`, warn:false },
   ].map(({l,v,note,warn})=> warn?kcardAmber(l,v,"⚠",note):kcard(l,v,null,null,note,"var(--gd)")).join(''));
 
-  /* CAC/LTV section */
   renderCAC(cacV||0, ltvV, cacSrc);
 
-  /* Cavali subscribers */
-  if (brand==="cavali") renderSubs();
+  // Subscribers Cavali (Smartrr)
+  if (brand==="cavali") await renderSubs();
 
-  /* Q1 snapshot */
+  // Q1 snapshot
   await renderQ1(kpiR);
 
-  /* Info bar */
+  // Info bar
   renderIbar(opt, cmpLbl);
 
-  /* Manual fields reload */
+  // Manual fields
   loadManual();
 
-  /* Footer */
+  // Footer
   if (row) {
     const upd = row.updated_at||"";
     safeSet("foot-txt", `Last updated: ${upd} · Shopify → Sheets → Dashboard`);
@@ -1134,12 +1186,9 @@ async function render() {
 /* ══════════════════════════════════════════════════════
    UI CONTROLS
 ══════════════════════════════════════════════════════ */
-function togglePanel(id) {
-  const el = document.getElementById(id);
-  if (el) el.classList.toggle("open");
-}
+function togglePanel(id) { const el=document.getElementById(id); if(el) el.classList.toggle("open"); }
 function forceRefresh() {
-  cache = {};
+  cache = {}; _smartrrCache = null; _smartrrTs = 0;
   const btn = document.querySelector(".rf-btn");
   if (btn) btn.style.opacity = ".5";
   render().then(()=>{ if(btn) btn.style.opacity="1"; });
@@ -1163,10 +1212,10 @@ function toggleTheme() {
   if (btn) btn.textContent = dk?"☀":"☾";
 }
 
-/* Auto-refresh cada 5 min */
+// Auto-refresh cada 5 min
 setInterval(()=>{ cache={}; render(); }, 5*60*1000);
 
-/* Boot */
+// Boot
 renderSelbar();
 render();
 </script>
