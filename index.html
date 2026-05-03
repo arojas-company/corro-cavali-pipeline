@@ -572,7 +572,9 @@ function renderIbar(opt,cmpLbl){
   if(!el)return;
   let h=`<span>${fmtD(opt.start)}</span> – <span>${fmtD(opt.end)}</span>`;
   if(cmpLbl)h+=` &nbsp;·&nbsp; vs <span>${cmpLbl}</span>`;
-  h+=` &nbsp;·&nbsp; <span>Net Sales + Gross Profit confirmed ✓</span>`;
+  const nvrOk=!MISSING_TABS.has(`${SIDS[brand]}__new_vs_returning`);
+  h+=` &nbsp;·&nbsp; <span>Net Sales + Gross Profit ✓</span>`;
+  if(!nvrOk) h+=` &nbsp;·&nbsp; <span style="color:var(--am)">⚠ NVR tab missing — run pipeline_v4</span>`;
   el.innerHTML=h;
 }
 
@@ -581,31 +583,33 @@ function renderIbar(opt,cmpLbl){
    FIX: handle 400 (missing tab) gracefully — return []
    FIX: safe tab name encoding, no extra params that cause 400
 ══════════════════════════════════════════════════════ */
+// Tracks tabs confirmed missing — avoids repeat 400 requests each render
+const MISSING_TABS = new Set();
+
 async function fetchTab(sid,tab){
   const k=`${sid}__${tab}`;
   if(cache[k])return cache[k];
+  // Skip tabs already confirmed missing this session
+  if(MISSING_TABS.has(k))return[];
   try{
-    // Use tab name directly — Sheets API accepts it URL-encoded
     const url=`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/${encodeURIComponent(tab)}?key=${AKEY}`;
     const r=await fetch(url);
-    // 400 = tab doesn't exist yet (pipeline not run) — not a fatal error
     if(!r.ok){
-      console.warn(`Tab "${tab}" not available (HTTP ${r.status}) — run pipeline first`);
+      MISSING_TABS.add(k);
+      console.info(`Tab "${tab}" not in Sheets yet — using kpis_daily fallback`);
       return[];
     }
     const d=await r.json();
-    // Extra safety: if Sheets returns error object instead of values
-    if(d.error){console.warn(`Sheets error for tab "${tab}":`,d.error.message);return[];}
+    if(d.error){MISSING_TABS.add(k);return[];}
     const rows=d.values||[];
-    if(rows.length<2)return[];
+    if(rows.length<2){cache[k]=[];return[];}
     const h=rows[0];
     const res=rows.slice(1).map(row=>
-      Object.fromEntries(h.map((hh,i)=>[hh, row[i]!==undefined?String(row[i]):""]))
-    );
+      Object.fromEntries(h.map((hh,i)=>[hh, row[i]!==undefined?String(row[i]):""])));
     cache[k]=res;
     setTimeout(()=>delete cache[k],5*60*1000);
     return res;
-  }catch(e){console.error(`fetchTab "${tab}":`,e);return[];}
+  }catch(e){MISSING_TABS.add(k);return[];}
 }
 
 /* FIX: safe string coerce */
@@ -924,9 +928,10 @@ function renderNVR(nvrRows,kpiRow){
     if(!nvrRow)nvrRow=nvrRows.find(r=>(r.period_start||"").slice(0,7)===(opt.start||"").slice(0,7))||null;
   }
 
+  // Always use kpiRow as src — kpis_daily has new_customers/revenue cols from pipeline v4
   const src=nvrRow||kpiRow;
   if(!src){
-    el.innerHTML=`<div style="font-size:11px;color:var(--tx3);grid-column:1/-1">No new/returning data — run pipeline v4.</div>`;
+    el.innerHTML=`<div style="font-size:11px;color:var(--tx3);grid-column:1/-1">No KPI data for this period.</div>`;
     return;
   }
 
@@ -937,7 +942,11 @@ function renderNVR(nvrRows,kpiRow){
   const newNC  =parseInt(src.new_customers||0);
   const retNC  =parseInt(src.returning_customers||0);
   const total  =newRev+retRev;
-  const noDataNote=(!newRev&&!retRev)?`<div class="nvr-note">⚠ Values are 0 — run pipeline v4</div>`:"";
+  // Backfill doesn't include NVR — only pipeline_v4 daily run does
+  const nvrMissing = !nvrRows?.length;
+  const noDataNote=(nvrMissing)?
+    `<div class="nvr-note">⚠ Run <strong>pipeline_v4_fixed.py</strong> daily action to populate — backfill does not include NVR data</div>`
+    :(!newRev&&!retRev?`<div class="nvr-note">⚠ No revenue split for this period</div>`:"");
 
   el.innerHTML=`
     <div class="nvr-col">
@@ -1293,6 +1302,7 @@ async function render(){
 function togglePanel(id){const el=document.getElementById(id);if(el)el.classList.toggle("open");}
 function forceRefresh(){
   cache={};
+  MISSING_TABS.clear(); // Allow retry of previously-missing tabs
   const btn=document.querySelector(".rf-btn");
   if(btn)btn.style.opacity=".5";
   render().then(()=>{if(btn)btn.style.opacity="1";});
