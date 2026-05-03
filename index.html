@@ -1204,7 +1204,7 @@ async function render(){
     // FIX: always coerce period to string — prevents .trim is not a function
     if(!r||typeof r!=="object")return false;
     if(r.brand&&String(r.brand)!==brand)return false;
-    const p=Stringsp(r.period);
+    const p=sp(r.period);
     if(!p)return false;
     if(ptype==="mtd"||ptype==="month"||ptype==="week")return p===mo;
     if(ptype==="quarter"){
