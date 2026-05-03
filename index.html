@@ -147,7 +147,6 @@ select:focus{border-color:var(--gr)}
 .btn-clear{padding:6px 14px;border-radius:6px;border:1px solid var(--bd2);background:transparent;color:var(--tx3);font-family:'DM Sans',sans-serif;font-size:11px;cursor:pointer}
 .saved-tag{display:inline-flex;align-items:center;gap:4px;font-size:9px;color:var(--gr);background:var(--gr-bg);border:1px solid var(--gr-bd);border-radius:20px;padding:2px 7px}
 .mi-derived{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:7px;margin-top:4px}
-/* Smartrr status badge */
 .smartrr-badge{display:inline-flex;align-items:center;gap:5px;font-size:9px;padding:2px 8px;border-radius:20px;margin-bottom:8px}
 .smartrr-ok{background:var(--gr-bg);color:var(--gr);border:1px solid var(--gr-bd)}
 .smartrr-warn{background:var(--am-bg);color:var(--am);border:1px solid var(--am-bd)}
@@ -250,7 +249,7 @@ select:focus{border-color:var(--gr)}
 
   <div class="selbar" id="selbar"></div>
   <div class="ibar" id="ibar"></div>
-  <div class="warn-bar" id="roas-warn">⚠ <strong>ROAS & CAC</strong> — usando datos atribuidos de Shopify (last-click, puede estar inflado). Ingresa <strong>Google + Meta Ad Spend</strong> en Manual Inputs abajo para cifras exactas.</div>
+  <div class="warn-bar" id="roas-warn">⚠ <strong>ROAS & CAC</strong> — using Shopify attributed data (last-click, may be inflated). Enter <strong>Google + Meta Ad Spend</strong> in Manual Inputs below for exact figures.</div>
 
   <!-- 01 · Website KPIs -->
   <div class="sec"><div class="sec-num">01</div><div class="sec-line"></div><div class="sec-lbl">Website KPIs</div><div class="sec-line"></div></div>
@@ -291,7 +290,7 @@ select:focus{border-color:var(--gr)}
 
   <!-- 05 · CAC to LTV -->
   <div class="sec"><div class="sec-num">05</div><div class="sec-line"></div><div class="sec-lbl">CAC to LTV — Ratio & Health</div><div class="sec-line"></div></div>
-  <div class="cac-note-box" id="cac-note-box">⏳ <strong>CAC note:</strong> Cuando se ingresa gasto G+M abajo, CAC se calcula automáticamente (G+M ÷ nuevos clientes de Shopify). LTV referencia: <strong>$178</strong> · CAC referencia: <strong>$47</strong>.</div>
+  <div class="cac-note-box" id="cac-note-box">⏳ <strong>CAC note:</strong> When G+M spend is entered below, CAC is calculated automatically (G+M ÷ new customers from Shopify). LTV reference: <strong>$178</strong> · CAC reference: <strong>$47</strong>.</div>
   <div class="cac-grid" id="s-cac"></div>
 
   <!-- 06 · Cavali Subscribers (Smartrr) -->
@@ -324,31 +323,30 @@ select:focus{border-color:var(--gr)}
       <span class="panel-chev">▾</span>
     </div>
     <div class="panel-body">
-      <div style="font-size:10px;color:var(--tx3);margin-bottom:10px">Valores guardados localmente por brand + período. CAC se calcula automáticamente con G+M spend ÷ nuevos clientes (pipeline v4). LTV override opcional — default $178.</div>
+      <div style="font-size:10px;color:var(--tx3);margin-bottom:10px">Values saved locally per brand + period. CAC is calculated automatically with G+M spend ÷ new customers (pipeline v4). LTV override optional — default $178.</div>
       <div class="mi-grid">
         <div class="mi-field">
-          <div class="mi-lbl">Google + Meta Ad Spend ($)<span class="mi-note">Solo G+M — ROAS & CAC exactos</span></div>
+          <div class="mi-lbl">Google + Meta Ad Spend ($)<span class="mi-note">G+M only — for exact ROAS & CAC</span></div>
           <div class="mi-wrap"><span class="mi-pre">$</span><input class="mi-inp" id="mi-spend" type="number" min="0" step="0.01" placeholder="0.00" oninput="calcDerived()"></div>
         </div>
         <div class="mi-field">
-          <div class="mi-lbl">New Customers (período)<span class="mi-note">Auto desde pipeline v4 si disponible</span></div>
+          <div class="mi-lbl">New Customers (period)<span class="mi-note">Auto from pipeline v4 if available</span></div>
           <div class="mi-wrap"><input class="mi-inp no-pre" id="mi-newcust" type="number" min="0" step="1" placeholder="0" oninput="calcDerived()"></div>
         </div>
         <div class="mi-field">
-          <div class="mi-lbl">LTV-12M ($ por cliente)<span class="mi-note">Default: $178 (ref Shopify)</span></div>
+          <div class="mi-lbl">LTV-12M ($ per customer)<span class="mi-note">Default: $178 (Shopify ref)</span></div>
           <div class="mi-wrap"><span class="mi-pre">$</span><input class="mi-inp" id="mi-ltv" type="number" min="0" step="0.01" placeholder="178.00" oninput="calcDerived()"></div>
         </div>
         <div class="mi-field">
-          <div class="mi-lbl">CAC Override ($)<span class="mi-note">Auto-calculado si se ingresa G+M spend</span></div>
+          <div class="mi-lbl">CAC Override ($)<span class="mi-note">Auto-calculated if G+M spend entered</span></div>
           <div class="mi-wrap"><span class="mi-pre">$</span><input class="mi-inp" id="mi-cac-ov" type="number" min="0" step="0.01" placeholder="auto" oninput="calcDerived()"></div>
         </div>
         <div class="mi-field">
-          <div class="mi-lbl">Net Sales Override ($)<span class="mi-note">Auto desde Sheets si vacío</span></div>
+          <div class="mi-lbl">Net Sales Override ($)<span class="mi-note">Auto from Sheets if empty</span></div>
           <div class="mi-wrap"><span class="mi-pre">$</span><input class="mi-inp" id="mi-ns" type="number" min="0" step="0.01" placeholder="auto" oninput="calcDerived()"></div>
         </div>
-        <!-- Cavali subscribers fallback manual -->
         <div class="mi-field cavali-only">
-          <div class="mi-lbl" style="color:var(--pu)">Subscribers manual (fallback si Smartrr falla)</div>
+          <div class="mi-lbl" style="color:var(--pu)">Subscribers manual (fallback if Smartrr fails)</div>
           <div class="mi-sub-grid">
             <div><div class="mi-sub-lbl">Seasonal</div><input class="mi-inp no-pre" id="mi-sea" type="number" min="0" placeholder="0" oninput="renderSubsFallback()"></div>
             <div><div class="mi-sub-lbl">Signature</div><input class="mi-inp no-pre" id="mi-sig" type="number" min="0" placeholder="0" oninput="renderSubsFallback()"></div>
@@ -356,7 +354,7 @@ select:focus{border-color:var(--gr)}
           </div>
         </div>
       </div>
-      <div style="font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:7px">Calculado (Google+Meta)</div>
+      <div style="font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:7px">Calculated (Google+Meta)</div>
       <div class="mi-derived" id="mi-derived"></div>
       <div class="mi-actions">
         <button class="btn-save" onclick="saveManual()">Save for this period</button>
@@ -393,9 +391,7 @@ const SIDS = {
 };
 const AKEY = "AIzaSyD8oIf_TyxchEkU_MpKJXngrjrMVyV81oY";
 
-// ══ SMARTRR ══════════════════════════════════════════
-// Pega aquí tu API key de Smartrr (ver instrucciones abajo)
-const SMARTRR_KEY = "";   // <-- TU KEY AQUI
+const SMARTRR_KEY = "";   // <-- YOUR KEY HERE
 
 const CAVALI_RENAME = {
   "Others":           "Subscriptions",
@@ -416,16 +412,13 @@ let brand = "corro", ptype = "mtd";
 let cache = {}, manualData = {};
 
 /* ══════════════════════════════════════════════════════
-   SMARTRR — fetch suscriptores activos
+   SMARTRR
 ══════════════════════════════════════════════════════ */
 let _smartrrCache = null, _smartrrTs = 0;
 
 async function fetchSmartrrSubs() {
-  // Si no hay key configurada, retorna null para usar fallback manual
   if (!SMARTRR_KEY || SMARTRR_KEY.trim() === "") return null;
-  // Cache 10 minutos
   if (_smartrrCache && Date.now() - _smartrrTs < 10 * 60 * 1000) return _smartrrCache;
-
   try {
     let sea = 0, sig = 0, pre = 0, jun = 0, other = 0, page = 1;
     while (true) {
@@ -452,9 +445,7 @@ async function fetchSmartrrSubs() {
       if (items.length < 250) break;
       page++;
     }
-    _smartrrCache = { sea, sig, pre, jun, other,
-                      total: sea + sig + pre + jun + other,
-                      source: "Smartrr API ✓" };
+    _smartrrCache = { sea, sig, pre, jun, other, total: sea + sig + pre + jun + other, source: "Smartrr API ✓" };
     _smartrrTs = Date.now();
     return _smartrrCache;
   } catch(e) {
@@ -701,6 +692,26 @@ function kcardAmber(lbl, val, warnTxt, note) {
 }
 function skel(n) { return Array(n).fill(`<div class="kc sk"><div class="kc-lbl" style="width:55%;height:9px"> </div><div class="kc-val" style="height:21px;margin-top:8px"> </div></div>`).join(''); }
 
+/* ── FINANCIAL DEFS ─────────────────────────────────────────────────────────
+   gross_profit is now a dedicated column in the sheet (added by backfill fix).
+   The dashboard reads it directly from row.gross_profit.
+   Fallback: if the column doesn't exist yet in old sheet data, we compute it
+             from net_sales - cogs (approximate until backfill re-runs).
+────────────────────────────────────────────────────────────────────────────*/
+function resolveGrossProfit(row) {
+  // Primary: dedicated column written by fixed backfill
+  const direct = parseFloat(row.gross_profit||"");
+  if (!isNaN(direct) && direct !== 0) return direct;
+  // Fallback: pct_gm × net_sales (if gross_profit column not yet populated)
+  const ns = parseFloat(row.net_sales||0);
+  const gm = parseFloat(row.pct_gm||0);
+  if (ns > 0 && gm > 0) return ns * gm / 100;
+  // Last resort: net_sales - cogs
+  const cogs = parseFloat(row.cogs||0);
+  if (ns > 0 && cogs > 0) return ns - cogs;
+  return null;
+}
+
 const DEFS = {
   web: [
     { k:"sessions",         l:"Sessions",         f:"",  n:"Via ShopifyQL" },
@@ -710,7 +721,7 @@ const DEFS = {
   fin: [
     { k:"gross_sales",    l:"Gross Sales",    f:"$" },
     { k:"net_sales",      l:"Net Sales",      f:"$",  n:"Confirmed: all revenue figures are Net Sales" },
-    { k:"gross_profit",   l:"Gross Profit",   f:"$",  n:"Real — FROM sales SHOW gross_profit" },
+    { k:"gross_profit",   l:"Gross Profit",   f:"$",  n:"FROM sales: net_sales − COGS (Shopify)", computed: true },
     { k:"pct_gm",         l:"Gross Margin",   f:"%" },
     { k:"total_discounts",l:"Discounts",      f:"$",  inv:true },
     { k:"total_returns",  l:"Returns",        f:"$",  inv:true },
@@ -749,7 +760,7 @@ function renderFCS(row) {
 }
 
 /* ══════════════════════════════════════════════════════
-   REVENUE SHARE (con Gross Profit por canal)
+   REVENUE SHARE
 ══════════════════════════════════════════════════════ */
 function renderRS(rsRows, row) {
   const el  = document.getElementById("rs-grid"); if (!el) return;
@@ -777,7 +788,6 @@ function renderRS(rsRows, row) {
     const isEst= (r.gp_is_estimate||"").toLowerCase()==="true";
     const col  = CH_COLORS[r.channel]||"#707070";
     const chgH = chg!==null ? `<div style="font-size:9px;margin-top:3px;color:${chg>=0?'var(--gr)':'var(--rd)'}">${chg>=0?'▲':'▼'} ${Math.abs(chg).toFixed(1)}pp vs prev</div>` : "";
-    // Gross Profit: muestra aunque sea 0, si gm existe lo mostramos
     const gpDisplay = gp > 0 ? fv(gp,"$") : (gm > 0 ? fv(amt * gm / 100,"$") : "—");
     const gmDisplay = gm > 0 ? gm.toFixed(1)+"%" : "—";
     const gpH  = `<div class="rs-gp">GP: <span style="color:var(--gr)">${gpDisplay}</span> · <span style="color:var(--gr)">${gmDisplay}</span>${isEst?' <span style="color:var(--am)">(est)</span>':''}</div>`;
@@ -871,10 +881,9 @@ function renderCAC(cacVal, ltvVal, source) {
 }
 
 /* ══════════════════════════════════════════════════════
-   CAVALI SUBSCRIBERS — Smartrr API + fallback manual
+   CAVALI SUBSCRIBERS
 ══════════════════════════════════════════════════════ */
 function renderSubsFallback() {
-  // Solo se usa si Smartrr falla o no tiene key
   const el = document.getElementById("s-subs"); if (!el) return;
   const sea  = parseInt(document.getElementById("mi-sea")?.value||0)||0;
   const sig  = parseInt(document.getElementById("mi-sig")?.value||0)||0;
@@ -885,7 +894,7 @@ function renderSubsFallback() {
     { l:"Signature",         v:sig, c:"#A090FF" },
     { l:"Premier",           v:pre, c:"#2EE896" },
     { l:"Total Subscribers", v:tot, c:"#72AEFF" },
-  ], "Manual — ingresa valores abajo");
+  ], "Manual — enter values below");
 }
 
 function _renderSubCards(cards, source) {
@@ -903,35 +912,24 @@ async function renderSubs() {
   if (brand !== "cavali") return;
   const el = document.getElementById("s-subs"); if (!el) return;
   const statusEl = document.getElementById("smartrr-status");
-
-  // Skeleton mientras carga
   el.innerHTML = skel(4);
   if (statusEl) statusEl.innerHTML = "";
-
   const data = await fetchSmartrrSubs();
-
-  // Sin key configurada
   if (data === null) {
-    if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-warn">⚠ API key no configurada — usando valores manuales</div>`;
+    if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-warn">⚠ API key not configured — using manual values</div>`;
     renderSubsFallback();
     return;
   }
-
-  // Error de API
   if (data.error) {
-    if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-warn">⚠ Smartrr error: ${data.error} — usando fallback manual</div>`;
+    if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-warn">⚠ Smartrr error: ${data.error} — using manual fallback</div>`;
     renderSubsFallback();
-    // Actualiza el footer tag
     const ft = document.getElementById("ft-smartrr");
     if (ft) { ft.textContent = "Smartrr ⚠"; ft.style.color = "var(--am)"; }
     return;
   }
-
-  // Éxito
-  if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-ok">✓ Smartrr · ${data.total} activos</div>`;
+  if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-ok">✓ Smartrr · ${data.total} active</div>`;
   const ft = document.getElementById("ft-smartrr");
   if (ft) { ft.textContent = "Smartrr ✓"; ft.style.color = "var(--gr)"; }
-
   const cards = [
     { l:"Seasonal",          v:data.sea, c:"#D8B054" },
     { l:"Signature",         v:data.sig, c:"#A090FF" },
@@ -939,7 +937,7 @@ async function renderSubs() {
     ...(data.jun > 0 ? [{ l:"Junior", v:data.jun, c:"#F06868" }] : []),
     { l:"Total Subscribers", v:data.sea + data.sig + data.pre + data.jun, c:"#72AEFF" },
   ];
-  _renderSubCards(cards, `Smartrr API ✓ · actualizado ${new Date().toLocaleTimeString()}`);
+  _renderSubCards(cards, `Smartrr API ✓ · updated ${new Date().toLocaleTimeString()}`);
 }
 
 /* ══════════════════════════════════════════════════════
@@ -962,15 +960,20 @@ async function renderQ1(kpiRows) {
     if (note) note.innerHTML = "";
     return;
   }
+  const gp = resolveGrossProfit(row);
   const fields = [
     {k:"gross_sales",  l:"Gross Sales Q1",  f:"$"},
     {k:"net_sales",    l:"Net Sales Q1",    f:"$"},
-    {k:"gross_profit", l:"Gross Profit Q1", f:"$"},
+    {k:"gross_profit", l:"Gross Profit Q1", f:"$", gp:true},
     {k:"pct_gm",       l:"Gross Margin",    f:"%"},
     {k:"nb_orders",    l:"Orders Q1",       f:""},
     {k:"aov",          l:"AOV Q1",          f:"$"},
   ];
-  el.innerHTML = fields.map(s => kcard(s.l, fv(row[s.k],s.f), prevQ?pctChg(row[s.k],prevQ[s.k]):null, "Q4 25", "", "var(--gd)")).join('');
+  el.innerHTML = fields.map(s => {
+    const val = s.gp ? fv(gp,"$") : fv(row[s.k],s.f);
+    const cmpVal = s.gp ? (prevQ ? resolveGrossProfit(prevQ) : null) : (prevQ ? prevQ[s.k] : null);
+    return kcard(s.l, val, prevQ?pctChg(s.gp?gp:row[s.k], cmpVal):null, "Q4 25", "", "var(--gd)");
+  }).join('');
   if (note) note.innerHTML = `Q1 2026 = Jan 1 – Mar 31, 2026. Updated: <strong>${row.updated_at||"—"}</strong>. Compared vs Q4 2025.`;
 }
 
@@ -1080,14 +1083,30 @@ async function render() {
   const { row:cmpRow, lbl:cmpLbl } = findCmp(kpiR, opt);
   const cmpShort         = selCmp==="yoy"?"YOY":selCmp==="prev"?"PREV":"—";
 
-  // Website, Financial, Operational
-  ["web","fin","op"].forEach(sec => {
+  // Website & Operational — read directly from row
+  ["web","op"].forEach(sec => {
     safeHTML(`s-${sec}`, DEFS[sec].map(s => {
       const val = row ? fv(row[s.k], s.f) : "—";
       const pct = row&&cmpRow ? pctChg(row[s.k], cmpRow[s.k]) : null;
       return kcard(s.l, val, pct, cmpShort, s.n||"", undefined, s.inv||false);
     }).join(''));
   });
+
+  // Financial — special handling for gross_profit
+  safeHTML("s-fin", DEFS.fin.map(s => {
+    let val, pct;
+    if (s.k === "gross_profit") {
+      // Use smart resolver: dedicated column → pct_gm×net_sales → net_sales−cogs
+      const gpCur = row ? resolveGrossProfit(row) : null;
+      const gpCmp = cmpRow ? resolveGrossProfit(cmpRow) : null;
+      val = fv(gpCur, s.f);
+      pct = (gpCur !== null && gpCmp !== null) ? pctChg(gpCur, gpCmp) : null;
+    } else {
+      val = row ? fv(row[s.k], s.f) : "—";
+      pct = row&&cmpRow ? pctChg(row[s.k], cmpRow[s.k]) : null;
+    }
+    return kcard(s.l, val, pct, cmpShort, s.n||"", undefined, s.inv||false);
+  }).join(''));
 
   // FCS
   renderFCS(row);
@@ -1161,19 +1180,14 @@ async function render() {
 
   renderCAC(cacV||0, ltvV, cacSrc);
 
-  // Subscribers Cavali (Smartrr)
   if (brand==="cavali") await renderSubs();
 
-  // Q1 snapshot
   await renderQ1(kpiR);
 
-  // Info bar
   renderIbar(opt, cmpLbl);
 
-  // Manual fields
   loadManual();
 
-  // Footer
   if (row) {
     const upd = row.updated_at||"";
     safeSet("foot-txt", `Last updated: ${upd} · Shopify → Sheets → Dashboard`);
@@ -1212,10 +1226,7 @@ function toggleTheme() {
   if (btn) btn.textContent = dk?"☀":"☾";
 }
 
-// Auto-refresh cada 5 min
 setInterval(()=>{ cache={}; render(); }, 5*60*1000);
-
-// Boot
 renderSelbar();
 render();
 </script>
