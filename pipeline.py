@@ -145,7 +145,7 @@ def rest(store_url, token, endpoint, params):
 # ─────────────────────────────────────────────────────────────────
 def ql_run(store_url, token, ql_query):
     """Run a ShopifyQL query, return list of {col: val} dicts."""
-    q = ('{ shopifyqlQuery(query: "%s") { tableData { columns { name } rows } parseErrors } }'
+    q = ('{ shopifyqlQuery(query: "%s") { tableData { columns { name } rows { cells } } parseErrors } }'
          % ql_query.replace('"', '\\"'))
     data = gql(store_url, token, q)
     if not data:
@@ -157,7 +157,18 @@ def ql_run(store_url, token, ql_query):
     td   = ql.get("tableData") or {}
     cols = [c["name"] for c in (td.get("columns") or [])]
     rows = td.get("rows") or []
-    return [{cols[i]: row[i] for i in range(len(cols))} for row in rows]
+    result = []
+    for row in rows:
+        # Shopify puede devolver rows como lista de listas O lista de {cells: [...]}
+        if isinstance(row, dict):
+            cells = row.get("cells") or []
+            vals  = [c.get("value") if isinstance(c, dict) else c for c in cells]
+        elif isinstance(row, list):
+            vals = row
+        else:
+            continue
+        result.append({cols[i]: (vals[i] if i < len(vals) else "") for i in range(len(cols))})
+    return result
 
 def ql_row(store_url, token, ql_query):
     """Return last row of a ShopifyQL result (totals row for aggregate queries)."""
