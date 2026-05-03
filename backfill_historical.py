@@ -3,6 +3,9 @@ BACKFILL HISTÓRICO — Shopify → Google Sheets
 Jala datos desde 2024-01-01 hasta hoy para todos los meses y quarters.
 Esto llena el Sheet con datos históricos para que el dashboard
 pueda mostrar 2024 y 2025 correctamente.
+
+FIX: gross_profit now fetched from ShopifyQL (gross_profit field)
+     and stored as a dedicated column in kpis_daily sheet.
 """
 import os, json, requests, gspread
 from google.oauth2.service_account import Credentials
@@ -18,9 +21,11 @@ STORES = {
 }
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets","https://www.googleapis.com/auth/drive"]
 
+# gross_profit added as new column after cogs
 HEADERS_KPIS = [
     "updated_at","period","period_start","period_end",
     "gross_sales","net_sales","total_discounts","total_returns","cogs",
+    "gross_profit",                                                        # ← NEW
     "pct_discount","pct_returns","pct_gm",
     "nb_orders","nb_units","aov","units_per_order",
     "sessions","unique_visitors","conversion_rate",
@@ -69,19 +74,24 @@ def gm_ratio(v):
     except: return 0.0
 
 def fetch_sales(store_url, token, start, end):
+    """
+    Fetch sales metrics including gross_profit directly from ShopifyQL.
+    ShopifyQL field: gross_profit = net_sales - cost_of_goods_sold
+    """
     row = run_ql(store_url, token,
-        f"FROM sales SHOW gross_sales, discounts, returns, net_sales, cost_of_goods_sold, gross_margin, orders SINCE {start} UNTIL {end}")
-    empty = {k:None for k in ["gross_sales","discounts","returns","net_sales","cogs","pct_gm","orders"]}
+        f"FROM sales SHOW gross_sales, discounts, returns, net_sales, cost_of_goods_sold, gross_profit, gross_margin, orders SINCE {start} UNTIL {end}")
+    empty = {k:None for k in ["gross_sales","discounts","returns","net_sales","cogs","gross_profit","pct_gm","orders"]}
     if not row: return empty
-    g = round(money(row.get("gross_sales")),2)
-    d = round(abs(money(row.get("discounts"))),2)
-    r = round(abs(money(row.get("returns"))),2)
-    n = round(money(row.get("net_sales")),2)
-    c = round(money(row.get("cost_of_goods_sold")),2)
+    g  = round(money(row.get("gross_sales")),2)
+    d  = round(abs(money(row.get("discounts"))),2)
+    r  = round(abs(money(row.get("returns"))),2)
+    n  = round(money(row.get("net_sales")),2)
+    c  = round(money(row.get("cost_of_goods_sold")),2)
+    gp = round(money(row.get("gross_profit")),2)   # ← NEW: direct from Shopify
     gm = gm_ratio(row.get("gross_margin"))
-    o = int(abs(money(row.get("orders"))))
-    print(f"    gross:{g:>12,.2f} disc:{d:>9,.2f} ret:{r:>9,.2f} net:{n:>12,.2f} gm:{gm:>5.1f}% ord:{o}")
-    return {"gross_sales":g,"discounts":d,"returns":r,"net_sales":n,"cogs":c,"pct_gm":gm,"orders":o}
+    o  = int(abs(money(row.get("orders"))))
+    print(f"    gross:{g:>12,.2f} disc:{d:>9,.2f} ret:{r:>9,.2f} net:{n:>12,.2f} gp:{gp:>12,.2f} gm:{gm:>5.1f}% ord:{o}")
+    return {"gross_sales":g,"discounts":d,"returns":r,"net_sales":n,"cogs":c,"gross_profit":gp,"pct_gm":gm,"orders":o}
 
 def fetch_sessions(store_url, token, start, end):
     row = run_ql(store_url, token, f"FROM sessions SHOW sessions SINCE {start} UNTIL {end}")
@@ -132,23 +142,43 @@ def calc_rs(orders):
 
 def build(ql, orders, sessions=0, orders_fulfilled=None):
     if ql.get("gross_sales") is not None:
-        g=ql["gross_sales"]; d=ql["discounts"]; r=ql["returns"]
-        n=ql["net_sales"]; c=ql["cogs"]or 0; gm=ql["pct_gm"]or 0
-        nb=int(orders_fulfilled) if orders_fulfilled is not None else (ql["orders"]or len(orders))
+        g  = ql["gross_sales"]
+        d  = ql["discounts"]
+        r  = ql["returns"]
+        n  = ql["net_sales"]
+        c  = ql["cogs"] or 0
+        gp = ql.get("gross_profit") or 0    # ← NEW
+        gm = ql["pct_gm"] or 0
+        nb = int(orders_fulfilled) if orders_fulfilled is not None else (ql["orders"] or len(orders))
     else:
-        nb=int(orders_fulfilled) if orders_fulfilled is not None else len(orders)
-        g=sum(float(o.get("subtotal_price",0)or 0) for o in orders)
-        d=r=c=gm=0.0; n=g
-    units=calc_units(orders)
-    aov=round(n/nb,2) if nb else 0
-    upo=round(units/nb,2) if nb else 0
-    pdisc=round(d/g*100,2) if g else 0; pret=round(r/g*100,2) if g else 0
-    s=int(sessions or 0)
-    return {"gross_sales":round(g,2),"net_sales":round(n,2),"total_discounts":round(d,2),
-            "total_returns":round(r,2),"cogs":round(c,2),"pct_discount":pdisc,"pct_returns":pret,
-            "pct_gm":gm,"nb_orders":nb,"nb_units":units,"aov":aov,"units_per_order":upo,
-            "sessions":s,"unique_visitors":round(s*0.85) if s else 0,
-            "conversion_rate":round(nb/s*100,4) if s else 0}
+        nb = int(orders_fulfilled) if orders_fulfilled is not None else len(orders)
+        g  = sum(float(o.get("subtotal_price",0)or 0) for o in orders)
+        d  = r = c = gp = gm = 0.0
+        n  = g
+    units  = calc_units(orders)
+    aov    = round(n/nb,2) if nb else 0
+    upo    = round(units/nb,2) if nb else 0
+    pdisc  = round(d/g*100,2) if g else 0
+    pret   = round(r/g*100,2) if g else 0
+    s      = int(sessions or 0)
+    return {
+        "gross_sales":    round(g,2),
+        "net_sales":      round(n,2),
+        "total_discounts":round(d,2),
+        "total_returns":  round(r,2),
+        "cogs":           round(c,2),
+        "gross_profit":   round(gp,2),       # ← NEW
+        "pct_discount":   pdisc,
+        "pct_returns":    pret,
+        "pct_gm":         gm,
+        "nb_orders":      nb,
+        "nb_units":       units,
+        "aov":            aov,
+        "units_per_order":upo,
+        "sessions":       s,
+        "unique_visitors":round(s*0.85) if s else 0,
+        "conversion_rate":round(nb/s*100,4) if s else 0,
+    }
 
 def pct(c,p):
     if not p: return None
@@ -160,30 +190,40 @@ def last_day(y,m):
 def monday_of(d):
     return d - timedelta(days=d.weekday())
 
-def write_rows(gc, sheet_id, rows_to_append, rs_rows_to_append):
-    sh = gc.open_by_key(sheet_id)
-    now_str = datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M")
-    try:    ws = sh.worksheet("kpis_daily")
-    except: ws = sh.add_worksheet("kpis_daily",rows=2000,cols=35)
-    # Clear and write headers if first run
-    existing = ws.get_all_values()
-    if not existing or existing[0] != HEADERS_KPIS:
-        ws.clear(); ws.append_row(HEADERS_KPIS)
-    for row in rows_to_append:
-        ws.append_row(row)
-    try:    ws_rs = sh.worksheet("revenue_share")
-    except: ws_rs = sh.add_worksheet("revenue_share",rows=2000,cols=10)
-    ex_rs = ws_rs.get_all_values()
-    if not ex_rs or ex_rs[0] != ["updated_at","period","channel","amount","pct"]:
-        ws_rs.clear(); ws_rs.append_row(["updated_at","period","channel","amount","pct"])
-    for row in rs_rows_to_append:
-        ws_rs.append_row(row)
-    print(f"  ✓ Written {len(rows_to_append)} KPI rows + {len(rs_rows_to_append)} RS rows")
+def make_kpi_row(now_str, label, period_start, period_end, cur, prev, yoy):
+    """Build a single kpis_daily row with gross_profit column included."""
+    return [
+        now_str, label, str(period_start), str(period_end),
+        cur.get("gross_sales",0),
+        cur.get("net_sales",0),
+        cur.get("total_discounts",0),
+        cur.get("total_returns",0),
+        cur.get("cogs",0),
+        cur.get("gross_profit",0),           # ← NEW column
+        cur.get("pct_discount",0),
+        cur.get("pct_returns",0),
+        cur.get("pct_gm",0),
+        cur.get("nb_orders",0),
+        cur.get("nb_units",0),
+        cur.get("aov",0),
+        cur.get("units_per_order",0),
+        cur.get("sessions",0),
+        cur.get("unique_visitors",0),
+        cur.get("conversion_rate",0),
+        pct(cur.get("gross_sales",0), prev.get("gross_sales")),
+        pct(cur.get("gross_sales",0), yoy.get("gross_sales")),
+        pct(cur.get("net_sales",0),   prev.get("net_sales")),
+        pct(cur.get("net_sales",0),   yoy.get("net_sales")),
+        pct(cur.get("nb_orders",0),   prev.get("nb_orders")),
+        pct(cur.get("nb_orders",0),   yoy.get("nb_orders")),
+        pct(cur.get("aov",0),          prev.get("aov")),
+        pct(cur.get("aov",0),          yoy.get("aov")),
+    ]
 
 def main():
     gc = get_gc()
     now_str = datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M")
-    today = datetime.now(TIMEZONE).date()
+    today   = datetime.now(TIMEZONE).date()
 
     # Clear existing data first
     for brand, cfg in STORES.items():
@@ -207,21 +247,21 @@ def main():
         y_start = 2024
         for y in range(y_start, today.year+1):
             m_start = 1
-            m_end = today.month if y == today.year else 12
+            m_end   = today.month if y == today.year else 12
             for m in range(m_start, m_end+1):
-                mo_start = date(y,m,1)
-                mo_end   = last_day(y,m) if (y<today.year or m<today.month) else today
+                mo_start    = date(y,m,1)
+                mo_end      = last_day(y,m) if (y<today.year or m<today.month) else today
                 period_label = f"{y}-{str(m).zfill(2)}"
-                mtd_label = f"mtd_{period_label}"
+                mtd_label    = f"mtd_{period_label}"
 
                 print(f"\n  Month {period_label} ({mo_start} → {mo_end})")
 
-                # Current month
-                ql_cur  = fetch_sales(url, token, mo_start, mo_end)
-                s_cur   = fetch_sessions(url, token, mo_start, mo_end)
-                of_cur  = fetch_orders_fulfilled(url, token, mo_start, mo_end)
-                o_cur   = fetch_orders(url, token, mo_start, mo_end)
-                cur     = build(ql_cur, o_cur, s_cur, of_cur)
+                # Current
+                ql_cur = fetch_sales(url, token, mo_start, mo_end)
+                s_cur  = fetch_sessions(url, token, mo_start, mo_end)
+                of_cur = fetch_orders_fulfilled(url, token, mo_start, mo_end)
+                o_cur  = fetch_orders(url, token, mo_start, mo_end)
+                cur    = build(ql_cur, o_cur, s_cur, of_cur)
 
                 # Prev month
                 pm = m-1 if m>1 else 12; py = y if m>1 else y-1
@@ -231,7 +271,7 @@ def main():
                 o_prev  = fetch_orders(url, token, prev_start, prev_end)
                 prev    = build(ql_prev, o_prev, 0, of_prev)
 
-                # YOY (same month last year)
+                # YOY
                 if y > 2024:
                     yoy_start = date(y-1,m,1); yoy_end = last_day(y-1,m)
                     ql_yoy  = fetch_sales(url, token, yoy_start, yoy_end)
@@ -245,48 +285,15 @@ def main():
                 rs = calc_rs(o_cur)
                 for ch, v in rs.items():
                     rs_rows.append([now_str, period_label, ch, v["amount"], v["pct"]])
-                    rs_rows.append([now_str, mtd_label, ch, v["amount"], v["pct"]])
+                    rs_rows.append([now_str, mtd_label,    ch, v["amount"], v["pct"]])
 
-                kpi_rows.append([
-                    now_str, period_label, str(mo_start), str(mo_end),
-                    cur.get("gross_sales",0), cur.get("net_sales",0),
-                    cur.get("total_discounts",0), cur.get("total_returns",0), cur.get("cogs",0),
-                    cur.get("pct_discount",0), cur.get("pct_returns",0), cur.get("pct_gm",0),
-                    cur.get("nb_orders",0), cur.get("nb_units",0),
-                    cur.get("aov",0), cur.get("units_per_order",0),
-                    cur.get("sessions",0), cur.get("unique_visitors",0), cur.get("conversion_rate",0),
-                    pct(cur.get("gross_sales",0), prev.get("gross_sales")),
-                    pct(cur.get("gross_sales",0), yoy.get("gross_sales")),
-                    pct(cur.get("net_sales",0),   prev.get("net_sales")),
-                    pct(cur.get("net_sales",0),   yoy.get("net_sales")),
-                    pct(cur.get("nb_orders",0),   prev.get("nb_orders")),
-                    pct(cur.get("nb_orders",0),   yoy.get("nb_orders")),
-                    pct(cur.get("aov",0),          prev.get("aov")),
-                    pct(cur.get("aov",0),          yoy.get("aov")),
-                ])
+                kpi_rows.append(make_kpi_row(now_str, period_label, mo_start, mo_end, cur, prev, yoy))
+                kpi_rows.append(make_kpi_row(now_str, mtd_label,    mo_start, mo_end, cur, prev, yoy))
 
-                kpi_rows.append([
-                    now_str, mtd_label, str(mo_start), str(mo_end),
-                    cur.get("gross_sales",0), cur.get("net_sales",0),
-                    cur.get("total_discounts",0), cur.get("total_returns",0), cur.get("cogs",0),
-                    cur.get("pct_discount",0), cur.get("pct_returns",0), cur.get("pct_gm",0),
-                    cur.get("nb_orders",0), cur.get("nb_units",0),
-                    cur.get("aov",0), cur.get("units_per_order",0),
-                    cur.get("sessions",0), cur.get("unique_visitors",0), cur.get("conversion_rate",0),
-                    pct(cur.get("gross_sales",0), prev.get("gross_sales")),
-                    pct(cur.get("gross_sales",0), yoy.get("gross_sales")),
-                    pct(cur.get("net_sales",0),   prev.get("net_sales")),
-                    pct(cur.get("net_sales",0),   yoy.get("net_sales")),
-                    pct(cur.get("nb_orders",0),   prev.get("nb_orders")),
-                    pct(cur.get("nb_orders",0),   yoy.get("nb_orders")),
-                    pct(cur.get("aov",0),          prev.get("aov")),
-                    pct(cur.get("aov",0),          yoy.get("aov")),
-                ])
-
-        # Weekly data: Monday-start weeks from 2024 to today
+        # ── WEEKLY DATA ──────────────────────────────────────
         wk_start = monday_of(date(y_start, 1, 1))
         while wk_start <= today:
-            wk_end = min(wk_start + timedelta(days=6), today)
+            wk_end   = min(wk_start + timedelta(days=6), today)
             wk_label = f"week_{wk_start}"
 
             print(f"\n  Week {wk_label} ({wk_start} -> {wk_end})")
@@ -301,38 +308,22 @@ def main():
             pwe = pws + timedelta(days=(wk_end - wk_start).days)
             ql_prev = fetch_sales(url, token, pws, pwe)
             of_prev = fetch_orders_fulfilled(url, token, pws, pwe)
-            prev = build(ql_prev, [], 0, of_prev)
+            prev    = build(ql_prev, [], 0, of_prev)
 
             yws = wk_start - timedelta(days=364)
-            ywe = wk_end - timedelta(days=364)
+            ywe = wk_end   - timedelta(days=364)
             ql_yoy = fetch_sales(url, token, yws, ywe)
             of_yoy = fetch_orders_fulfilled(url, token, yws, ywe)
-            yoy = build(ql_yoy, [], 0, of_yoy)
+            yoy    = build(ql_yoy, [], 0, of_yoy)
 
             rs = calc_rs(o_cur)
             for ch, v in rs.items():
                 rs_rows.append([now_str, wk_label, ch, v["amount"], v["pct"]])
 
-            kpi_rows.append([
-                now_str, wk_label, str(wk_start), str(wk_end),
-                cur.get("gross_sales",0), cur.get("net_sales",0),
-                cur.get("total_discounts",0), cur.get("total_returns",0), cur.get("cogs",0),
-                cur.get("pct_discount",0), cur.get("pct_returns",0), cur.get("pct_gm",0),
-                cur.get("nb_orders",0), cur.get("nb_units",0),
-                cur.get("aov",0), cur.get("units_per_order",0),
-                cur.get("sessions",0), cur.get("unique_visitors",0), cur.get("conversion_rate",0),
-                pct(cur.get("gross_sales",0), prev.get("gross_sales")),
-                pct(cur.get("gross_sales",0), yoy.get("gross_sales")),
-                pct(cur.get("net_sales",0),   prev.get("net_sales")),
-                pct(cur.get("net_sales",0),   yoy.get("net_sales")),
-                pct(cur.get("nb_orders",0),   prev.get("nb_orders")),
-                pct(cur.get("nb_orders",0),   yoy.get("nb_orders")),
-                pct(cur.get("aov",0),          prev.get("aov")),
-                pct(cur.get("aov",0),          yoy.get("aov")),
-            ])
+            kpi_rows.append(make_kpi_row(now_str, wk_label, wk_start, wk_end, cur, prev, yoy))
             wk_start += timedelta(days=7)
 
-        # ── QUARTERLY DATA: Q1 2024 → current Q ─────────────
+        # ── QUARTERLY DATA ───────────────────────────────────
         for y in range(y_start, today.year+1):
             max_q = ((today.month-1)//3)+1 if y == today.year else 4
             for q in range(1, max_q+1):
@@ -351,16 +342,16 @@ def main():
                 # Prev quarter
                 pq = q-1 if q>1 else 4; py = y if q>1 else y-1
                 pq_start = date(py,(pq-1)*3+1,1); pq_end = last_day(py,pq*3)
-                ql_pq = fetch_sales(url, token, pq_start, pq_end)
-                of_pq = fetch_orders_fulfilled(url, token, pq_start, pq_end)
+                ql_pq  = fetch_sales(url, token, pq_start, pq_end)
+                of_pq  = fetch_orders_fulfilled(url, token, pq_start, pq_end)
                 prev_q = build(ql_pq, [], 0, of_pq)
 
                 # YOY quarter
                 if y > 2024:
                     yq_start = date(y-1,(q-1)*3+1,1); yq_end = last_day(y-1,q*3)
-                    ql_yq = fetch_sales(url, token, yq_start, yq_end)
-                    of_yq = fetch_orders_fulfilled(url, token, yq_start, yq_end)
-                    yoy_q = build(ql_yq, [], 0, of_yq)
+                    ql_yq  = fetch_sales(url, token, yq_start, yq_end)
+                    of_yq  = fetch_orders_fulfilled(url, token, yq_start, yq_end)
+                    yoy_q  = build(ql_yq, [], 0, of_yq)
                 else:
                     yoy_q = {}
 
@@ -368,28 +359,12 @@ def main():
                 for ch, v in rs_q.items():
                     rs_rows.append([now_str, q_label, ch, v["amount"], v["pct"]])
 
-                kpi_rows.append([
-                    now_str, q_label, str(q_start), str(q_end),
-                    cur_q.get("gross_sales",0), cur_q.get("net_sales",0),
-                    cur_q.get("total_discounts",0), cur_q.get("total_returns",0), cur_q.get("cogs",0),
-                    cur_q.get("pct_discount",0), cur_q.get("pct_returns",0), cur_q.get("pct_gm",0),
-                    cur_q.get("nb_orders",0), cur_q.get("nb_units",0),
-                    cur_q.get("aov",0), cur_q.get("units_per_order",0),
-                    cur_q.get("sessions",0), cur_q.get("unique_visitors",0), cur_q.get("conversion_rate",0),
-                    pct(cur_q.get("gross_sales",0), prev_q.get("gross_sales")),
-                    pct(cur_q.get("gross_sales",0), yoy_q.get("gross_sales")),
-                    pct(cur_q.get("net_sales",0),   prev_q.get("net_sales")),
-                    pct(cur_q.get("net_sales",0),   yoy_q.get("net_sales")),
-                    pct(cur_q.get("nb_orders",0),   prev_q.get("nb_orders")),
-                    pct(cur_q.get("nb_orders",0),   yoy_q.get("nb_orders")),
-                    pct(cur_q.get("aov",0),          prev_q.get("aov")),
-                    pct(cur_q.get("aov",0),          yoy_q.get("aov")),
-                ])
+                kpi_rows.append(make_kpi_row(now_str, q_label, q_start, q_end, cur_q, prev_q, yoy_q))
 
-        # Write in batches of 50 to avoid timeout
+        # ── WRITE IN BATCHES ─────────────────────────────────
         print(f"\n  Writing {len(kpi_rows)} KPI rows to Sheets...")
-        sh = gc.open_by_key(sid)
-        ws = sh.worksheet("kpis_daily")
+        sh    = gc.open_by_key(sid)
+        ws    = sh.worksheet("kpis_daily")
         ws_rs = sh.worksheet("revenue_share")
         for i in range(0, len(kpi_rows), 50):
             ws.append_rows(kpi_rows[i:i+50])
