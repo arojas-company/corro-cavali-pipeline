@@ -251,18 +251,14 @@ select:focus{border-color:var(--gr)}
   <div class="ibar" id="ibar"></div>
   <div class="warn-bar" id="roas-warn">⚠ <strong>ROAS & CAC</strong> — using Shopify attributed data (last-click, may be inflated). Enter <strong>Google + Meta Ad Spend</strong> in Manual Inputs below for exact figures.</div>
 
-  <!-- 01 · Website KPIs -->
   <div class="sec"><div class="sec-num">01</div><div class="sec-line"></div><div class="sec-lbl">Website KPIs</div><div class="sec-line"></div></div>
   <div class="kg" id="s-web"></div>
 
-  <!-- 02 · Financial KPIs -->
   <div class="sec"><div class="sec-num">02</div><div class="sec-line"></div><div class="sec-lbl">Financial KPIs — Net Sales confirmed</div><div class="sec-line"></div></div>
   <div class="kg" id="s-fin"></div>
 
-  <!-- FCS Forecast — Corro only -->
   <div class="corro-only" style="margin-top:7px"><div class="kg" id="s-fcs"></div></div>
 
-  <!-- Revenue Share -->
   <div class="panel open" id="rs-panel" style="margin-top:7px">
     <div class="panel-hd" onclick="togglePanel('rs-panel')">
       <div class="panel-title"><div class="panel-dot" style="background:var(--gr)"></div>Revenue Share by Channel · Net Sales + Gross Profit</div>
@@ -271,7 +267,6 @@ select:focus{border-color:var(--gr)}
     <div class="panel-body"><div class="rs-grid" id="rs-grid"><div style="font-size:11px;color:var(--tx3)">Loading...</div></div></div>
   </div>
 
-  <!-- New vs Returning -->
   <div class="panel open" id="nvr-panel" style="margin-top:7px">
     <div class="panel-hd" onclick="togglePanel('nvr-panel')">
       <div class="panel-title"><div class="panel-dot" style="background:var(--bl)"></div>New vs Returning — Revenue + Gross Profit (real data)</div>
@@ -280,17 +275,14 @@ select:focus{border-color:var(--gr)}
     <div class="panel-body"><div class="nvr-grid" id="nvr-grid"><div style="font-size:11px;color:var(--tx3)">Loading...</div></div></div>
   </div>
 
-  <!-- 03 · Operational KPIs -->
   <div class="sec"><div class="sec-num">03</div><div class="sec-line"></div><div class="sec-lbl">Operational KPIs</div><div class="sec-line"></div></div>
   <div class="kg" id="s-op"></div>
 
-  <!-- 04 · Marketing KPIs -->
   <div class="sec"><div class="sec-num">04</div><div class="sec-line"></div><div class="sec-lbl" id="mkt-lbl">Marketing KPIs</div><div class="sec-line"></div></div>
   <div class="kg" id="s-mkt"></div>
 
-  <!-- 05 · CAC to LTV -->
   <div class="sec"><div class="sec-num">05</div><div class="sec-line"></div><div class="sec-lbl">CAC to LTV — Ratio & Health</div><div class="sec-line"></div></div>
-  <div class="cac-note-box" id="cac-note-box">⏳ <strong>CAC note:</strong> When G+M spend is entered below, CAC is calculated automatically (G+M ÷ new customers from Shopify). LTV reference: <strong>$178</strong> · CAC reference: <strong>$47</strong>.</div>
+  <div class="cac-note-box" id="cac-note-box">⏳ <strong>CAC note:</strong> When G+M spend is entered below, CAC is calculated automatically (G+M ÷ new customers from pipeline v4). LTV reference: <strong>$178</strong> · CAC reference: <strong>$47</strong>.</div>
   <div class="cac-grid" id="s-cac"></div>
 
   <!-- 06 · Cavali Subscribers (Smartrr) -->
@@ -300,7 +292,6 @@ select:focus{border-color:var(--gr)}
     <div class="kg" id="s-subs"></div>
   </div>
 
-  <!-- 07 · Q1 2026 Snapshot -->
   <div class="sec">
     <div class="sec-num" id="q1-num">07</div>
     <div class="sec-line"></div>
@@ -310,7 +301,6 @@ select:focus{border-color:var(--gr)}
   <div class="kg" id="q1-grid"></div>
   <div style="font-size:10px;color:var(--tx3);margin-top:5px" id="q1-note"></div>
 
-  <!-- 08 · Manual Inputs -->
   <div class="sec">
     <div class="sec-num" id="mi-num">08</div>
     <div class="sec-line"></div>
@@ -364,7 +354,6 @@ select:focus{border-color:var(--gr)}
     </div>
   </div>
 
-  <!-- Footer -->
   <div class="foot">
     <div class="foot-txt" id="foot-txt">Last updated: —</div>
     <div class="foot-tags">
@@ -384,6 +373,10 @@ select:focus{border-color:var(--gr)}
 <script>
 /* ══════════════════════════════════════════════════════
    CONFIG
+   ─────────────────────────────────────────────────────
+   SMARTRR_KEYS: one key per brand, switches automatically.
+   Cavali → cavaliclub.com Smartrr instance
+   Corro  → corroshop.com  Smartrr instance
 ══════════════════════════════════════════════════════ */
 const SIDS = {
   corro:  "1nq8xkDzowAvhD3wpMBlVK2M3FZSNS2DrAiPxz-Y2tdU",
@@ -391,7 +384,15 @@ const SIDS = {
 };
 const AKEY = "AIzaSyD8oIf_TyxchEkU_MpKJXngrjrMVyV81oY";
 
-const SMARTRR_KEY = "";   // <-- YOUR KEY HERE
+// ── Smartrr API keys (one per brand) ──────────────────────────────
+// Cavali: cavaliclub.com Smartrr instance
+// Corro:  corroshop.com  Smartrr instance
+const SMARTRR_KEYS = {
+  cavali: "00EsU0SuASUJcAcdUdASwSuAXasFEcuUT0XS",
+  corro:  "EuXFEXcdAJTc0AcjwJAdjguAwuuFaswugTsc",
+};
+// Active key switches automatically with the brand selector
+function getSmartrrKey() { return SMARTRR_KEYS[brand] || ""; }
 
 const CAVALI_RENAME = {
   "Others":           "Subscriptions",
@@ -413,18 +414,21 @@ let cache = {}, manualData = {};
 
 /* ══════════════════════════════════════════════════════
    SMARTRR
+   Fetches active subscriber counts from Cavali's Smartrr instance.
+   Categorizes by plan name: seasonal / signature / premier / junior.
 ══════════════════════════════════════════════════════ */
 let _smartrrCache = null, _smartrrTs = 0;
 
 async function fetchSmartrrSubs() {
-  if (!SMARTRR_KEY || SMARTRR_KEY.trim() === "") return null;
+  const key = getSmartrrKey();
+  if (!key || key.trim() === "") return null;
   if (_smartrrCache && Date.now() - _smartrrTs < 10 * 60 * 1000) return _smartrrCache;
   try {
     let sea = 0, sig = 0, pre = 0, jun = 0, other = 0, page = 1;
     while (true) {
       const r = await fetch(
         `https://api.smartrr.com/api/v1/subscription?status=ACTIVE&limit=250&page=${page}`,
-        { headers: { "Authorization": `Bearer ${SMARTRR_KEY}`, "Content-Type": "application/json" } }
+        { headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" } }
       );
       if (!r.ok) throw new Error(`Smartrr HTTP ${r.status}`);
       const d = await r.json();
@@ -445,7 +449,11 @@ async function fetchSmartrrSubs() {
       if (items.length < 250) break;
       page++;
     }
-    _smartrrCache = { sea, sig, pre, jun, other, total: sea + sig + pre + jun + other, source: "Smartrr API ✓" };
+    _smartrrCache = {
+      sea, sig, pre, jun, other,
+      total: sea + sig + pre + jun + other,
+      source: `Smartrr API ✓ (${brand === "cavali" ? "cavaliclub.com" : "corroshop.com"})`
+    };
     _smartrrTs = Date.now();
     return _smartrrCache;
   } catch(e) {
@@ -466,7 +474,10 @@ function iso(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 function lastDay(y, m) { return new Date(y, m+1, 0); }
-function fmtD(s) { try { return new Date(s+'T12:00').toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'}); } catch(e){ return s||"—"; } }
+function fmtD(s) {
+  try { return new Date(s+'T12:00').toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'}); }
+  catch(e) { return s||"—"; }
+}
 
 function buildWeeks() {
   const out = [], tod = new Date(NOW), dow = tod.getDay(), mon = new Date(tod);
@@ -692,21 +703,12 @@ function kcardAmber(lbl, val, warnTxt, note) {
 }
 function skel(n) { return Array(n).fill(`<div class="kc sk"><div class="kc-lbl" style="width:55%;height:9px"> </div><div class="kc-val" style="height:21px;margin-top:8px"> </div></div>`).join(''); }
 
-/* ── FINANCIAL DEFS ─────────────────────────────────────────────────────────
-   gross_profit is now a dedicated column in the sheet (added by backfill fix).
-   The dashboard reads it directly from row.gross_profit.
-   Fallback: if the column doesn't exist yet in old sheet data, we compute it
-             from net_sales - cogs (approximate until backfill re-runs).
-────────────────────────────────────────────────────────────────────────────*/
 function resolveGrossProfit(row) {
-  // Primary: dedicated column written by fixed backfill
   const direct = parseFloat(row.gross_profit||"");
   if (!isNaN(direct) && direct !== 0) return direct;
-  // Fallback: pct_gm × net_sales (if gross_profit column not yet populated)
   const ns = parseFloat(row.net_sales||0);
   const gm = parseFloat(row.pct_gm||0);
   if (ns > 0 && gm > 0) return ns * gm / 100;
-  // Last resort: net_sales - cogs
   const cogs = parseFloat(row.cogs||0);
   if (ns > 0 && cogs > 0) return ns - cogs;
   return null;
@@ -803,21 +805,26 @@ function renderRS(rsRows, row) {
 
 /* ══════════════════════════════════════════════════════
    NEW vs RETURNING
+   Now reads from new_vs_returning tab (populated via REST orders_count)
 ══════════════════════════════════════════════════════ */
 function renderNVR(nvrRows, kpiRow) {
   const el  = document.getElementById("nvr-grid"); if (!el) return;
   const opt = getOpt();
   const pk  = kpiRow?.period;
   let nvrRow = null;
+
   if (nvrRows?.length) {
     if (pk) nvrRow = nvrRows.find(r=>r.period===pk) || null;
     if (!nvrRow) nvrRow = nvrRows.find(r=>(r.period_start||"").slice(0,7)===(opt.start||"").slice(0,7)) || null;
   }
+
+  // Fallback: read from kpiRow if nvr tab has no data yet
   const src = nvrRow || kpiRow;
   if (!src) {
-    el.innerHTML=`<div style="font-size:11px;color:var(--tx3);grid-column:1/-1">No new/returning data for this period. Run pipeline v4.</div>`;
+    el.innerHTML=`<div style="font-size:11px;color:var(--tx3);grid-column:1/-1">No new/returning data. Run pipeline v4 then refresh.</div>`;
     return;
   }
+
   const newRev  = parseFloat(src.new_revenue||0);
   const retRev  = parseFloat(src.returning_revenue||0);
   const newGP   = parseFloat(src.new_gross_profit||0);
@@ -826,7 +833,9 @@ function renderNVR(nvrRows, kpiRow) {
   const retNC   = parseInt(src.returning_customers||0);
   const total   = newRev + retRev;
   const isReal  = newRev > 0 || retRev > 0;
-  const noDataNote = !isReal ? `<div class="nvr-note">⚠ No data — run pipeline v4</div>` : "";
+  const src_lbl = nvrRow ? "Pipeline v4 · REST orders_count" : "kpis_daily fallback";
+  const noDataNote = !isReal ? `<div class="nvr-note">⚠ No revenue data — run pipeline v4</div>` : "";
+
   el.innerHTML = `
     <div class="nvr-col">
       <div class="nvr-title" style="color:var(--bl)">
@@ -838,6 +847,7 @@ function renderNVR(nvrRows, kpiRow) {
       <div class="nvr-row"><span class="nvr-lbl">Gross Profit</span><span class="nvr-val nvr-gp">${fv(newGP,"$")}</span></div>
       <div class="nvr-row"><span class="nvr-lbl">% of Total</span><span class="nvr-val">${total?(newRev/total*100).toFixed(1)+"%":"—"}</span></div>
       ${noDataNote}
+      <div class="nvr-note" style="color:var(--tx3)">${src_lbl}</div>
     </div>
     <div class="nvr-col">
       <div class="nvr-title" style="color:var(--gr)">
@@ -881,20 +891,20 @@ function renderCAC(cacVal, ltvVal, source) {
 }
 
 /* ══════════════════════════════════════════════════════
-   CAVALI SUBSCRIBERS
+   CAVALI SUBSCRIBERS (Smartrr)
 ══════════════════════════════════════════════════════ */
 function renderSubsFallback() {
   const el = document.getElementById("s-subs"); if (!el) return;
-  const sea  = parseInt(document.getElementById("mi-sea")?.value||0)||0;
-  const sig  = parseInt(document.getElementById("mi-sig")?.value||0)||0;
-  const pre  = parseInt(document.getElementById("mi-pre-sub")?.value||0)||0;
-  const tot  = sea + sig + pre;
+  const sea = parseInt(document.getElementById("mi-sea")?.value||0)||0;
+  const sig = parseInt(document.getElementById("mi-sig")?.value||0)||0;
+  const pre = parseInt(document.getElementById("mi-pre-sub")?.value||0)||0;
+  const tot = sea + sig + pre;
   _renderSubCards([
     { l:"Seasonal",          v:sea, c:"#D8B054" },
     { l:"Signature",         v:sig, c:"#A090FF" },
     { l:"Premier",           v:pre, c:"#2EE896" },
     { l:"Total Subscribers", v:tot, c:"#72AEFF" },
-  ], "Manual — enter values below");
+  ], "Manual fallback — enter values below");
 }
 
 function _renderSubCards(cards, source) {
@@ -914,9 +924,11 @@ async function renderSubs() {
   const statusEl = document.getElementById("smartrr-status");
   el.innerHTML = skel(4);
   if (statusEl) statusEl.innerHTML = "";
+
   const data = await fetchSmartrrSubs();
+
   if (data === null) {
-    if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-warn">⚠ API key not configured — using manual values</div>`;
+    if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-warn">⚠ Smartrr key not configured for ${brand}. Using manual fallback.</div>`;
     renderSubsFallback();
     return;
   }
@@ -927,9 +939,12 @@ async function renderSubs() {
     if (ft) { ft.textContent = "Smartrr ⚠"; ft.style.color = "var(--am)"; }
     return;
   }
-  if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-ok">✓ Smartrr · ${data.total} active</div>`;
+
+  const storeLabel = brand === "cavali" ? "cavaliclub.com" : "corroshop.com";
+  if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-ok">✓ Smartrr · ${data.total} active subs · ${storeLabel}</div>`;
   const ft = document.getElementById("ft-smartrr");
   if (ft) { ft.textContent = "Smartrr ✓"; ft.style.color = "var(--gr)"; }
+
   const cards = [
     { l:"Seasonal",          v:data.sea, c:"#D8B054" },
     { l:"Signature",         v:data.sig, c:"#A090FF" },
@@ -937,7 +952,7 @@ async function renderSubs() {
     ...(data.jun > 0 ? [{ l:"Junior", v:data.jun, c:"#F06868" }] : []),
     { l:"Total Subscribers", v:data.sea + data.sig + data.pre + data.jun, c:"#72AEFF" },
   ];
-  _renderSubCards(cards, `Smartrr API ✓ · updated ${new Date().toLocaleTimeString()}`);
+  _renderSubCards(cards, `Smartrr API ✓ · ${storeLabel} · ${new Date().toLocaleTimeString()}`);
 }
 
 /* ══════════════════════════════════════════════════════
@@ -956,7 +971,7 @@ async function renderQ1(kpiRows) {
   }
   const prevQ = kpiRows?.length ? bestRow(kpiRows.filter(r=>r.period==="q4_2025")) : null;
   if (!row) {
-    el.innerHTML=`<div style="font-size:11px;color:var(--tx3);padding:6px 0">Q1 2026 data not in Sheets yet. Run <strong style="color:var(--gd)">Backfill Historical Data</strong> GitHub Action then refresh.</div>`;
+    el.innerHTML=`<div style="font-size:11px;color:var(--tx3);padding:6px 0">Q1 2026 data not found. Run <strong style="color:var(--gd)">Backfill Historical Data</strong> action then refresh.</div>`;
     if (note) note.innerHTML = "";
     return;
   }
@@ -970,7 +985,7 @@ async function renderQ1(kpiRows) {
     {k:"aov",          l:"AOV Q1",          f:"$"},
   ];
   el.innerHTML = fields.map(s => {
-    const val = s.gp ? fv(gp,"$") : fv(row[s.k],s.f);
+    const val    = s.gp ? fv(gp,"$") : fv(row[s.k],s.f);
     const cmpVal = s.gp ? (prevQ ? resolveGrossProfit(prevQ) : null) : (prevQ ? prevQ[s.k] : null);
     return kcard(s.l, val, prevQ?pctChg(s.gp?gp:row[s.k], cmpVal):null, "Q4 25", "", "var(--gd)");
   }).join('');
@@ -978,7 +993,7 @@ async function renderQ1(kpiRows) {
 }
 
 /* ══════════════════════════════════════════════════════
-   MANUAL DATA (localStorage)
+   MANUAL DATA
 ══════════════════════════════════════════════════════ */
 function mKey() { return `${brand}_${getOpt().val||"default"}`; }
 
@@ -1083,20 +1098,17 @@ async function render() {
   const { row:cmpRow, lbl:cmpLbl } = findCmp(kpiR, opt);
   const cmpShort         = selCmp==="yoy"?"YOY":selCmp==="prev"?"PREV":"—";
 
-  // Website & Operational — read directly from row
-  ["web","op"].forEach(sec => {
-    safeHTML(`s-${sec}`, DEFS[sec].map(s => {
-      const val = row ? fv(row[s.k], s.f) : "—";
-      const pct = row&&cmpRow ? pctChg(row[s.k], cmpRow[s.k]) : null;
-      return kcard(s.l, val, pct, cmpShort, s.n||"", undefined, s.inv||false);
-    }).join(''));
-  });
+  // Website
+  safeHTML("s-web", DEFS.web.map(s => {
+    const val = row ? fv(row[s.k], s.f) : "—";
+    const pct = row&&cmpRow ? pctChg(row[s.k], cmpRow[s.k]) : null;
+    return kcard(s.l, val, pct, cmpShort, s.n||"", undefined, false);
+  }).join(''));
 
-  // Financial — special handling for gross_profit
+  // Financial
   safeHTML("s-fin", DEFS.fin.map(s => {
     let val, pct;
     if (s.k === "gross_profit") {
-      // Use smart resolver: dedicated column → pct_gm×net_sales → net_sales−cogs
       const gpCur = row ? resolveGrossProfit(row) : null;
       const gpCmp = cmpRow ? resolveGrossProfit(cmpRow) : null;
       val = fv(gpCur, s.f);
@@ -1106,6 +1118,13 @@ async function render() {
       pct = row&&cmpRow ? pctChg(row[s.k], cmpRow[s.k]) : null;
     }
     return kcard(s.l, val, pct, cmpShort, s.n||"", undefined, s.inv||false);
+  }).join(''));
+
+  // Operational
+  safeHTML("s-op", DEFS.op.map(s => {
+    const val = row ? fv(row[s.k], s.f) : "—";
+    const pct = row&&cmpRow ? pctChg(row[s.k], cmpRow[s.k]) : null;
+    return kcard(s.l, val, pct, cmpShort, s.n||"", undefined, false);
   }).join(''));
 
   // FCS
@@ -1145,10 +1164,10 @@ async function render() {
   const newCustRow     = row ? parseFloat(row.new_customers||0) : 0;
 
   let roasV, roasSrc;
-  if (hasManualSpend && nsVal)            { roasV=nsVal/m.spend;       roasSrc="Google+Meta"; }
-  else if (sheetRoas>0&&ptype!=="quarter") { roasV=sheetRoas;           roasSrc="Shopify (attributed)"; }
-  else if (activeSpend&&nsVal)            { roasV=nsVal/activeSpend;   roasSrc=hasManualSpend?"G+M":"Shopify (calc)"; }
-  else                                    { roasV=null;                 roasSrc="—"; }
+  if (hasManualSpend && nsVal)             { roasV=nsVal/m.spend;      roasSrc="Google+Meta"; }
+  else if (sheetRoas>0&&ptype!=="quarter") { roasV=sheetRoas;          roasSrc="Shopify (attributed)"; }
+  else if (activeSpend&&nsVal)             { roasV=nsVal/activeSpend;  roasSrc=hasManualSpend?"G+M":"Shopify (calc)"; }
+  else                                     { roasV=null;               roasSrc="—"; }
 
   const cacOv   = (m.cacOv||0) > 0 ? m.cacOv : null;
   const ncManual= (m.nc||0)    > 0 ? m.nc    : null;
@@ -1185,7 +1204,6 @@ async function render() {
   await renderQ1(kpiR);
 
   renderIbar(opt, cmpLbl);
-
   loadManual();
 
   if (row) {
@@ -1211,7 +1229,7 @@ function setBrand(b) {
   brand = b;
   document.querySelectorAll(".brand-btn").forEach(el=>el.classList.toggle("on",el.textContent.trim().toLowerCase()===b));
   safeSet("ph-title", (b==="corro"?"Corro":"Cavali")+" — Performance");
-  cache = {}; render();
+  cache = {}; _smartrrCache = null; _smartrrTs = 0; render();
 }
 function setPT(p, el) {
   ptype = p;
