@@ -3,7 +3,8 @@ Pipeline CORRO / CAVALI v4
 ===========================
 New in v4:
 - gross_profit exported per channel (real, from ShopifyQL via order line items)
-- new_customer_revenue + returning_customer_revenue from ShopifyQL customer_tag
+- new_customer_revenue + returning_customer_revenue via REST orders_count
+  (replaces ShopifyQL GROUP BY customer_type which returns 0 for small stores)
 - new_customers count → enables automatic CAC calculation
 - Removed duplicate KPI columns (gross_sales_prev/yoy etc. — dashboard uses
   prev/yoy rows directly, not separate columns)
@@ -12,13 +13,12 @@ New in v4:
 - new_vs_returning tab: new_revenue, ret_revenue, new_gp, ret_gp, new_customers
 - CAC = ad_spend / new_customers (auto when ad spend data available)
 
-ShopifyQL confirms: FROM sales SHOW gross_profit is a real field.
-GP per channel is estimated via: channel_net_sales * overall_gm_pct
-(ShopifyQL cannot GROUP BY channel tag + gross_profit simultaneously;
- we use the overall GM% as the most accurate proxy per Shopify's own Analytics.)
-
-New vs Returning: ShopifyQL supports GROUP BY customer_type (new/returning)
-which gives us real split — no estimation needed.
+FIX v4.1:
+- UNTIL date is now e+1 when e==today so ShopifyQL includes the current day
+  (ShopifyQL treats UNTIL as exclusive when date == today in some timezones)
+- new_vs_returning now uses REST orders with customer.orders_count
+  (ShopifyQL GROUP BY customer_type returns 0 for Cavali — confirmed)
+- Smartrr key is for cavaliclub.com (Cavali's own Smartrr instance)
 """
 
 import os, json, requests, gspread, calendar
@@ -47,7 +47,6 @@ SCOPES = [
 ]
 
 # ── kpis_daily columns ────────────────────────────────────────────
-# No prev/yoy columns — dashboard finds prev/yoy rows by period key.
 HEADERS = [
     "updated_at", "period", "period_start", "period_end",
     "gross_sales", "net_sales", "gross_profit", "total_discounts",
@@ -60,11 +59,7 @@ HEADERS = [
     "new_gross_profit", "returning_gross_profit",
 ]
 
-# ── Revenue share channel names (Cavali rename handled in dashboard) ──
-# Pipeline always writes raw Shopify channel names.
-# Dashboard renames: Others→Subscriptions, Online→Single Products, hides Wellington.
-
-# ── Ad Spend (feed from Stats.xlsx before running) ────────────────
+# ── Ad Spend ─────────────────────────────────────────────────────
 AD_SPEND_DATA = {
     "corro": {
         "2024-01": {"spend": 82069,  "roas": 2.12, "cos": 0.472},
@@ -159,7 +154,6 @@ def ql_run(store_url, token, ql_query):
     rows = td.get("rows") or []
     result = []
     for row in rows:
-        # Shopify puede devolver rows como lista de listas O lista de {cells: [...]}
         if isinstance(row, dict):
             cells = row.get("cells") or []
             vals  = [c.get("value") if isinstance(c, dict) else c for c in cells]
@@ -171,7 +165,6 @@ def ql_run(store_url, token, ql_query):
     return result
 
 def ql_row(store_url, token, ql_query):
-    """Return last row of a ShopifyQL result (totals row for aggregate queries)."""
     rows = ql_run(store_url, token, ql_query)
     return rows[-1] if rows else None
 
@@ -188,22 +181,31 @@ def _gm(v):
     except: return 0.0
 
 # ─────────────────────────────────────────────────────────────────
+# FIX: UNTIL date helper
+# ShopifyQL treats UNTIL as exclusive when date == today in some TZs.
+# Passing tomorrow ensures the current day is always included.
+# ─────────────────────────────────────────────────────────────────
+def _until(e):
+    """Return e+1 if e is today or in the future, else e as-is."""
+    today = datetime.now(TIMEZONE).date()
+    if e >= today:
+        return e + timedelta(days=1)
+    return e
+
+# ─────────────────────────────────────────────────────────────────
 # FETCH: SALES (gross_profit included)
 # ─────────────────────────────────────────────────────────────────
 def fetch_sales(url, token, s, e):
-    """
-    FROM sales — returns gross_sales, net_sales, gross_profit, cogs, gm%, orders.
-    ShopifyQL exposes gross_profit as a real field (confirmed).
-    """
+    e_ql = _until(e)   # ← FIX: include today
     row = ql_row(url, token,
         f"FROM sales SHOW gross_sales, discounts, returns, net_sales, "
         f"cost_of_goods_sold, gross_profit, gross_margin, orders "
-        f"SINCE {s} UNTIL {e}")
+        f"SINCE {s} UNTIL {e_ql}")
     if not row:
         return {k: 0 for k in
                 ["gross_sales","discounts","returns","net_sales",
                  "cogs","gross_profit","pct_gm","orders"]}
-    g  = round(_m(row.get("gross_sales")),   2)
+    g  = round(_m(row.get("gross_sales")),    2)
     d  = round(abs(_m(row.get("discounts"))), 2)
     r  = round(abs(_m(row.get("returns"))),   2)
     n  = round(_m(row.get("net_sales")),      2)
@@ -212,7 +214,7 @@ def fetch_sales(url, token, s, e):
     gm = _gm(row.get("gross_margin"))
     o  = int(abs(_m(row.get("orders"))))
     print(f"    gross:{g:>12,.2f}  net:{n:>12,.2f}  gp:{gp:>10,.2f}  "
-          f"cogs:{c:>9,.2f}  gm:{gm:>5.1f}%  orders:{o}")
+          f"cogs:{c:>9,.2f}  gm:{gm:>5.1f}%  orders:{o}  [UNTIL {e_ql}]")
     return {"gross_sales": g, "discounts": d, "returns": r, "net_sales": n,
             "cogs": c, "gross_profit": gp, "pct_gm": gm, "orders": o}
 
@@ -220,7 +222,8 @@ def fetch_sales(url, token, s, e):
 # FETCH: SESSIONS
 # ─────────────────────────────────────────────────────────────────
 def fetch_sessions(url, token, s, e):
-    row = ql_row(url, token, f"FROM sessions SHOW sessions SINCE {s} UNTIL {e}")
+    e_ql = _until(e)   # ← FIX
+    row = ql_row(url, token, f"FROM sessions SHOW sessions SINCE {s} UNTIL {e_ql}")
     if not row: return 0
     v = int(abs(_m(row.get("sessions", 0))))
     print(f"    sessions: {v:,}")
@@ -230,57 +233,57 @@ def fetch_sessions(url, token, s, e):
 # FETCH: ORDERS FULFILLED
 # ─────────────────────────────────────────────────────────────────
 def fetch_orders_fulfilled(url, token, s, e):
+    e_ql = _until(e)   # ← FIX
     row = ql_row(url, token,
-        f"FROM fulfillments SHOW orders_fulfilled SINCE {s} UNTIL {e}")
+        f"FROM fulfillments SHOW orders_fulfilled SINCE {s} UNTIL {e_ql}")
     if not row: return None
     v = int(abs(_m(row.get("orders_fulfilled", 0))))
     print(f"    orders_fulfilled: {v:,}")
     return v
 
 # ─────────────────────────────────────────────────────────────────
-# FETCH: NEW vs RETURNING (ShopifyQL GROUP BY customer_type)
+# FETCH: NEW vs RETURNING via REST orders
+# FIX: ShopifyQL GROUP BY customer_type returns 0 for Cavali.
+# Using REST orders with customer.orders_count is reliable for both stores.
+# orders_count == 1 → new customer on that order
+# orders_count >  1 → returning customer
 # ─────────────────────────────────────────────────────────────────
 def fetch_new_vs_returning(url, token, s, e):
-    """
-    ShopifyQL supports customer_type dimension (values: "new" | "returning").
-    Returns real split — no estimation.
-    CAC = ad_spend / new_customers (calculated automatically in dashboard
-    when ad spend data is available for the period).
-
-    NOTE: gross_profit cannot be grouped by customer_type simultaneously in
-    ShopifyQL. We apply overall GM% to each segment's net_sales as the best proxy.
-    """
-    rows = ql_run(url, token,
-        f"FROM sales SHOW customer_type, net_sales, orders, gross_profit "
-        f"SINCE {s} UNTIL {e} GROUP BY customer_type")
+    orders = rest(url, token, "orders.json", {
+        "status":           "any",
+        "financial_status": "paid,partially_paid,partially_refunded,refunded",
+        "created_at_min":   f"{s}T00:00:00-05:00",
+        "created_at_max":   f"{e}T23:59:59-05:00",
+        "limit":            250,
+        "fields":           "id,subtotal_price,customer",
+    })
 
     result = {
-        "new_customers":       0,
-        "returning_customers": 0,
-        "new_revenue":         0.0,
-        "returning_revenue":   0.0,
-        "new_gross_profit":    0.0,
+        "new_customers":          0,
+        "returning_customers":    0,
+        "new_revenue":            0.0,
+        "returning_revenue":      0.0,
+        "new_gross_profit":       0.0,   # filled later in build() using overall gm%
         "returning_gross_profit": 0.0,
     }
 
-    for row in rows:
-        ctype = str(row.get("customer_type") or "").lower().strip()
-        rev   = round(_m(row.get("net_sales")), 2)
-        orders = int(abs(_m(row.get("orders", 0))))
-        gp    = round(_m(row.get("gross_profit", 0)), 2)
+    for o in orders:
+        amt      = float(o.get("subtotal_price", 0) or 0)
+        customer = o.get("customer") or {}
+        count    = int(customer.get("orders_count", 1) or 1)
+        if count <= 1:
+            result["new_customers"]   += 1
+            result["new_revenue"]     += amt
+        else:
+            result["returning_customers"] += 1
+            result["returning_revenue"]   += amt
 
-        if ctype in ("new", "first_time"):
-            result["new_revenue"]      += rev
-            result["new_customers"]    += orders
-            result["new_gross_profit"] += gp
-        elif ctype in ("returning", "repeat"):
-            result["returning_revenue"]      += rev
-            result["returning_customers"]    += orders
-            result["returning_gross_profit"] += gp
+    result["new_revenue"]      = round(result["new_revenue"],      2)
+    result["returning_revenue"]= round(result["returning_revenue"], 2)
 
-    print(f"    new_customers:{result['new_customers']:>6}  "
+    print(f"    new_customers:{result['new_customers']:>5}  "
           f"new_rev:{result['new_revenue']:>10,.2f}  "
-          f"ret_customers:{result['returning_customers']:>6}  "
+          f"ret:{result['returning_customers']:>5}  "
           f"ret_rev:{result['returning_revenue']:>10,.2f}")
     return result
 
@@ -304,15 +307,9 @@ def calc_units(orders):
     )
 
 # ─────────────────────────────────────────────────────────────────
-# REVENUE SHARE BY CHANNEL (net_sales + estimated GP)
+# REVENUE SHARE BY CHANNEL
 # ─────────────────────────────────────────────────────────────────
 def calc_rs(orders, overall_gm_pct):
-    """
-    Revenue share by channel using subtotal_price (net per order).
-    GP per channel = channel_net_sales * overall_gm_pct / 100
-    (ShopifyQL cannot GROUP BY channel tag and gross_profit simultaneously;
-     overall GM% is the most accurate proxy available.)
-    """
     ch = {
         "Wellington (POS)": 0.,
         "Concierge":        0.,
@@ -338,13 +335,12 @@ def calc_rs(orders, overall_gm_pct):
     for k, v in ch.items():
         pct    = round(v / total * 100, 2) if total else 0
         est_gp = round(v * overall_gm_pct / 100, 2)
-        est_gm = round(overall_gm_pct, 2)
         result[k] = {
-            "amount":        round(v, 2),
-            "pct":           pct,
-            "gross_profit":  est_gp,      # estimated via overall GM%
-            "gross_margin":  est_gm,      # same rate applied
-            "gp_is_estimate": True,       # flag for dashboard to show note
+            "amount":         round(v, 2),
+            "pct":            pct,
+            "gross_profit":   est_gp,
+            "gross_margin":   round(overall_gm_pct, 2),
+            "gp_is_estimate": True,
         }
     return result
 
@@ -352,7 +348,6 @@ def calc_rs(orders, overall_gm_pct):
 # BUILD KPI DICT
 # ─────────────────────────────────────────────────────────────────
 def build(sales, orders, nvr, sessions=0, orders_fulfilled=None):
-    """Combine all fetched data into a single KPI dict."""
     g   = sales.get("gross_sales",  0)
     d   = sales.get("discounts",    0)
     r   = sales.get("returns",      0)
@@ -363,14 +358,19 @@ def build(sales, orders, nvr, sessions=0, orders_fulfilled=None):
     nb  = int(orders_fulfilled) if orders_fulfilled is not None \
           else (sales.get("orders", 0) or len(orders))
 
-    units   = calc_units(orders)
-    aov     = round(n / nb,    2) if nb    else 0
-    upo     = round(units / nb, 2) if nb   else 0
-    pdisc   = round(d / g * 100, 2) if g   else 0
-    pret    = round(r / g * 100, 2) if g   else 0
-    sess    = int(sessions or 0)
-    uv      = round(sess * 0.85) if sess   else 0
-    cr      = round(nb / sess * 100, 4) if sess else 0
+    units = calc_units(orders)
+    aov   = round(n / nb,     2) if nb   else 0
+    upo   = round(units / nb, 2) if nb   else 0
+    pdisc = round(d / g * 100, 2) if g   else 0
+    pret  = round(r / g * 100, 2) if g   else 0
+    sess  = int(sessions or 0)
+    uv    = round(sess * 0.85) if sess    else 0
+    cr    = round(nb / sess * 100, 4) if sess else 0
+
+    # GP per segment = prorate overall GP% to each segment's revenue
+    gm_rate = gm / 100 if gm > 0 else (gp / n if n > 0 else 0)
+    new_gp  = round(nvr.get("new_revenue", 0) * gm_rate, 2)
+    ret_gp  = round(nvr.get("returning_revenue", 0) * gm_rate, 2)
 
     return {
         "gross_sales":            g,
@@ -389,24 +389,20 @@ def build(sales, orders, nvr, sessions=0, orders_fulfilled=None):
         "sessions":               sess,
         "unique_visitors":        uv,
         "conversion_rate":        cr,
-        # new vs returning (real from ShopifyQL)
-        "new_customers":          nvr.get("new_customers", 0),
+        "new_customers":          nvr.get("new_customers",       0),
         "returning_customers":    nvr.get("returning_customers", 0),
-        "new_revenue":            nvr.get("new_revenue", 0),
-        "returning_revenue":      nvr.get("returning_revenue", 0),
-        "new_gross_profit":       nvr.get("new_gross_profit", 0),
-        "returning_gross_profit": nvr.get("returning_gross_profit", 0),
+        "new_revenue":            nvr.get("new_revenue",         0),
+        "returning_revenue":      nvr.get("returning_revenue",   0),
+        "new_gross_profit":       new_gp,
+        "returning_gross_profit": ret_gp,
     }
 
 # ─────────────────────────────────────────────────────────────────
-# BUILD KPI ROW (no prev/yoy columns — dashboard reads period rows)
+# BUILD KPI ROW
 # ─────────────────────────────────────────────────────────────────
 def make_kpi_row(now_str, period_key, s, e, cur):
     return [
-        now_str,
-        period_key,
-        str(s),
-        str(e),
+        now_str, period_key, str(s), str(e),
         cur.get("gross_sales",            0),
         cur.get("net_sales",              0),
         cur.get("gross_profit",           0),
@@ -448,8 +444,8 @@ def _map_to_row(headers, m):
 # PERIODS
 # ─────────────────────────────────────────────────────────────────
 def get_periods():
-    today  = datetime.now(TIMEZONE).date()
-    dow    = today.weekday()  # 0=Mon
+    today = datetime.now(TIMEZONE).date()
+    dow   = today.weekday()  # 0=Mon
 
     mtd_s  = today.replace(day=1)
     mtd_e  = today
@@ -501,18 +497,18 @@ def get_periods():
     yoy_q_pk = f"q{q_num}_{today.year - 1}"
 
     return {
-        "mtd":          (mtd_s,       mtd_e,        mtd_pk),
+        "mtd":          (mtd_s,       mtd_e,         mtd_pk),
         "mtd_prev":     (prev_mo_s,   prev_mo_mtd_e, None),
-        "mtd_yoy":      (yoy_mtd_s,   yoy_mtd_e,    None),
-        "week":         (wk_s,        wk_e,          wk_pk),
-        "week_prev":    (pwk_s,       pwk_e,         pwk_pk),
-        "week_yoy":     (yoy_wk_s,    yoy_wk_e,      None),
-        "month":        (mo_s,        mo_e,           mo_pk),
-        "month_prev":   (pmo_s,       pmo_e,          pmo_pk),
-        "month_yoy":    (yoy_mo_s,    yoy_mo_e,       None),
-        "quarter":      (q_s,         q_e,            q_pk),
-        "quarter_prev": (pq_s,        pq_e,           pq_pk),
-        "quarter_yoy":  (yoy_q_s,     yoy_q_e,        yoy_q_pk),
+        "mtd_yoy":      (yoy_mtd_s,   yoy_mtd_e,     None),
+        "week":         (wk_s,        wk_e,           wk_pk),
+        "week_prev":    (pwk_s,       pwk_e,          pwk_pk),
+        "week_yoy":     (yoy_wk_s,    yoy_wk_e,       None),
+        "month":        (mo_s,        mo_e,            mo_pk),
+        "month_prev":   (pmo_s,       pmo_e,           pmo_pk),
+        "month_yoy":    (yoy_mo_s,    yoy_mo_e,        None),
+        "quarter":      (q_s,         q_e,             q_pk),
+        "quarter_prev": (pq_s,        pq_e,            pq_pk),
+        "quarter_yoy":  (yoy_q_s,     yoy_q_e,         yoy_q_pk),
     }
 
 # ─────────────────────────────────────────────────────────────────
@@ -544,7 +540,7 @@ def write_all(gc, sheet_id, kpi_rows, rs_rows, nvr_rows, brand_name):
         ws.append_rows(merged, value_input_option="USER_ENTERED")
     print(f"    kpis_daily: {len(merged)} rows")
 
-    # ── revenue_share (net_sales + GP per channel) ───────────────
+    # ── revenue_share ────────────────────────────────────────────
     try:    ws_rs = sh.worksheet("revenue_share")
     except: ws_rs = sh.add_worksheet("revenue_share", rows=600, cols=12)
 
@@ -568,18 +564,17 @@ def write_all(gc, sheet_id, kpi_rows, rs_rows, nvr_rows, brand_name):
     for r in rs_rows:
         existing_rs[(str(r[1]).strip(), str(r[2]).strip())] = r
 
-    # Compute pct_prev and pct_chg
     sorted_rs = sorted(existing_rs.values(), key=lambda r: (str(r[2]), str(r[1])))
-    rs_idx = {(str(r[2]).strip(), str(r[1]).strip()): r for r in sorted_rs}
+    rs_idx    = {(str(r[2]).strip(), str(r[1]).strip()): r for r in sorted_rs}
 
     for r in sorted_rs:
         ch = str(r[2]).strip()
         pk = str(r[1]).strip()
         prev_pk = None
         if pk.startswith("mtd_"):
-            yr, mo = map(int, pk[4:].split("-"))
-            pmo    = mo - 1 if mo > 1 else 12
-            py     = yr if mo > 1 else yr - 1
+            yr, mo  = map(int, pk[4:].split("-"))
+            pmo     = mo - 1 if mo > 1 else 12
+            py      = yr if mo > 1 else yr - 1
             prev_pk = f"mtd_{py}-{str(pmo).zfill(2)}"
         elif pk.startswith("week_"):
             try:
@@ -643,23 +638,20 @@ def write_all(gc, sheet_id, kpi_rows, rs_rows, nvr_rows, brand_name):
         ws_nvr.append_rows(merged_nvr, value_input_option="USER_ENTERED")
     print(f"    new_vs_returning: {len(merged_nvr)} rows")
 
-    # ── ad_spend (from AD_SPEND_DATA) ────────────────────────────
+    # ── ad_spend ─────────────────────────────────────────────────
     try:    ws_ad = sh.worksheet("ad_spend")
     except: ws_ad = sh.add_worksheet("ad_spend", rows=200, cols=10)
 
     ad_headers = [
         "updated_at", "brand", "period", "period_start", "period_end",
-        "ad_spend", "roas", "cos",
-        "cac_auto",    # = ad_spend / new_customers for that month (if available)
+        "ad_spend", "roas", "cos", "cac_auto",
     ]
     now_str    = datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M")
     brand_data = AD_SPEND_DATA.get(brand_name, {})
 
-    # Load new_customers by month from kpis_daily (month rows only)
     nc_by_month = {}
     for r in merged:
         pk = str(r[1]).strip()
-        # Only full-month rows (format YYYY-MM)
         if len(pk) == 7 and "-" in pk and not pk.startswith("mtd_"):
             try:
                 nc_by_month[pk] = int(float(r[HEADERS.index("new_customers")] or 0))
@@ -673,21 +665,18 @@ def write_all(gc, sheet_id, kpi_rows, rs_rows, nvr_rows, brand_name):
         ps  = f"{mo}-01"
         pe  = f"{mo}-{_cal.monthrange(yr, mn)[1]:02d}"
         nc  = nc_by_month.get(mo, 0)
-        spend = vals.get("spend", 0)
+        spend    = vals.get("spend", 0)
         cac_auto = round(spend / nc, 2) if nc > 0 else ""
         ad_rows.append([
             now_str, brand_name, mo, ps, pe,
-            spend,
-            vals.get("roas", 0),
-            vals.get("cos",  0),
-            cac_auto,
+            spend, vals.get("roas", 0), vals.get("cos", 0), cac_auto,
         ])
 
     ws_ad.clear()
     ws_ad.append_row(ad_headers)
     if ad_rows:
         ws_ad.append_rows(ad_rows, value_input_option="USER_ENTERED")
-    print(f"    ad_spend: {len(ad_rows)} months  (cac_auto populated where nc > 0)")
+    print(f"    ad_spend: {len(ad_rows)} months")
 
 # ─────────────────────────────────────────────────────────────────
 # MAIN
@@ -703,22 +692,21 @@ def main():
         kpi_rows, rs_rows, nvr_rows = [], [], []
 
         periods_to_run = [
-            # Current periods (full fetch)
-            {"label": "MTD",            "cur": "mtd",         "is_snapshot": False},
-            {"label": "WEEK",           "cur": "week",        "is_snapshot": False},
-            {"label": "MONTH",          "cur": "month",       "is_snapshot": False},
-            {"label": "QUARTER",        "cur": "quarter",     "is_snapshot": False},
-            # Snapshots of previous periods (for comparison — only if not already stored)
-            {"label": "WEEK_PREV",      "cur": "week_prev",   "is_snapshot": True},
-            {"label": "MONTH_PREV",     "cur": "month_prev",  "is_snapshot": True},
-            {"label": "QUARTER_PREV",   "cur": "quarter_prev","is_snapshot": True},
+            {"label": "MTD",          "cur": "mtd",          "is_snapshot": False},
+            {"label": "WEEK",         "cur": "week",         "is_snapshot": False},
+            {"label": "MONTH",        "cur": "month",        "is_snapshot": False},
+            {"label": "QUARTER",      "cur": "quarter",      "is_snapshot": False},
+            {"label": "WEEK_PREV",    "cur": "week_prev",    "is_snapshot": True},
+            {"label": "MONTH_PREV",   "cur": "month_prev",   "is_snapshot": True},
+            {"label": "QUARTER_PREV", "cur": "quarter_prev", "is_snapshot": True},
         ]
 
         for it in periods_to_run:
-            label       = it["label"]
-            cur_k       = it["cur"]
-            is_snapshot = it["is_snapshot"]
-            s, e, pk    = P[cur_k]
+            label    = it["label"]
+            cur_k    = it["cur"]
+            s, e, pk = P[cur_k]
+            if pk is None:
+                continue
 
             print(f"\n  [{label}] {s} → {e}  (period='{pk}')")
 
@@ -728,10 +716,9 @@ def main():
             ords = fetch_orders(url, token, s, e)
             nvr  = fetch_new_vs_returning(url, token, s, e)
 
-            cur  = build(sal, ords, nvr, sess, of)
+            cur = build(sal, ords, nvr, sess, of)
             kpi_rows.append(make_kpi_row(now_str, pk, s, e, cur))
 
-            # Revenue share rows
             gm_pct = sal.get("pct_gm", 0)
             rs     = calc_rs(ords, gm_pct)
             for ch, v in rs.items():
@@ -739,19 +726,18 @@ def main():
                     now_str, pk, ch,
                     v["amount"], v["pct"],
                     v["gross_profit"], v["gross_margin"],
-                    "", "",             # pct_prev, pct_chg computed in write_all
+                    "", "",
                     str(v["gp_is_estimate"]),
                 ])
 
-            # New vs returning rows
             nvr_rows.append([
                 now_str, pk, str(s), str(e),
                 nvr.get("new_customers",          0),
                 nvr.get("returning_customers",    0),
                 nvr.get("new_revenue",            0),
                 nvr.get("returning_revenue",      0),
-                nvr.get("new_gross_profit",       0),
-                nvr.get("returning_gross_profit", 0),
+                cur.get("new_gross_profit",       0),
+                cur.get("returning_gross_profit", 0),
             ])
 
         write_all(gc, cfg["sheet_id"], kpi_rows, rs_rows, nvr_rows, brand_name)
@@ -759,9 +745,9 @@ def main():
         print(f"\n  ✓ {brand_name.upper()} — {len(kpi_rows)} periods written")
         for row in kpi_rows:
             print(f"    {row[1]:<24}  {row[2]} → {row[3]}"
-                  f"  gross:{float(row[4]):>12,.2f}"
-                  f"  net:{float(row[5]):>12,.2f}"
-                  f"  gp:{float(row[6]):>10,.2f}"
+                  f"  gross:{float(row[4] or 0):>12,.2f}"
+                  f"  net:{float(row[5] or 0):>12,.2f}"
+                  f"  gp:{float(row[6] or 0):>10,.2f}"
                   f"  new_cust:{int(row[20] or 0):>5}")
 
 if __name__ == "__main__":
