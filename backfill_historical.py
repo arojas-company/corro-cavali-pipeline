@@ -24,7 +24,7 @@ COMPORTAMIENTO EN SHEETS:
       Además actualiza smartrr_subscribers para Cavali
 """
 
-import os, json, requests, gspread
+import os, json, time, random, requests, gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta, date
 import pytz
@@ -199,22 +199,125 @@ def run_ql(store_url, token, ql_query):
     return rows[-1] if rows else None
 
 
+# ─────────────────────────────────────────────────────────────────
+# SHOPIFY REST — rate-limit safe pagination
+# ─────────────────────────────────────────────────────────────────
+REST_MAX_RETRIES = 8
+REST_BASE_SLEEP  = 1.25
+
+
+def _sleep_for_shopify_rate_limit_(response=None, attempt=0, reason=""):
+    """
+    Shopify REST can return 429 during big backfills.
+    This helper sleeps using Retry-After when present, otherwise exponential backoff.
+    It also slows down when X-Shopify-Shop-Api-Call-Limit is close to the bucket limit.
+    """
+    sleep_for = 0.0
+
+    if response is not None:
+        retry_after = response.headers.get("Retry-After")
+        if retry_after:
+            try:
+                sleep_for = max(sleep_for, float(retry_after))
+            except Exception:
+                pass
+
+        call_limit = response.headers.get("X-Shopify-Shop-Api-Call-Limit", "")
+        # Example: "39/40"
+        try:
+            used, limit = [int(x) for x in call_limit.split("/", 1)]
+            if limit and used / limit >= 0.80:
+                sleep_for = max(sleep_for, 2.0)
+            elif limit and used / limit >= 0.65:
+                sleep_for = max(sleep_for, 1.0)
+        except Exception:
+            pass
+
+    # Exponential backoff + small jitter for 429/5xx/network errors
+    if attempt > 0:
+        sleep_for = max(
+            sleep_for,
+            min(60.0, REST_BASE_SLEEP * (2 ** (attempt - 1)) + random.uniform(0.15, 0.85))
+        )
+
+    if sleep_for > 0:
+        msg = f"    ⏳ Shopify REST throttle {reason or ''} — sleeping {sleep_for:.1f}s"
+        if response is not None:
+            msg += f" [HTTP {response.status_code}, call-limit {response.headers.get('X-Shopify-Shop-Api-Call-Limit','?')}]"
+        print(msg)
+        time.sleep(sleep_for)
+
+
+def _shopify_rest_get_with_retry_(url, headers, params=None):
+    """GET with retry for Shopify 429/5xx/transient network errors."""
+    last_error = None
+
+    for attempt in range(REST_MAX_RETRIES + 1):
+        try:
+            r = requests.get(url, headers=headers, params=params, timeout=90)
+
+            # Success: still slow down a little if bucket is getting hot
+            if 200 <= r.status_code < 300:
+                _sleep_for_shopify_rate_limit_(r, 0, "near bucket")
+                return r
+
+            # Retry throttling and transient server errors
+            if r.status_code == 429 or 500 <= r.status_code < 600:
+                last_error = requests.HTTPError(f"HTTP {r.status_code}: {r.text[:300]}", response=r)
+                if attempt < REST_MAX_RETRIES:
+                    _sleep_for_shopify_rate_limit_(r, attempt + 1, "retry")
+                    continue
+
+            # Non-retryable errors fail normally
+            r.raise_for_status()
+            return r
+
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+            last_error = e
+            if attempt < REST_MAX_RETRIES:
+                _sleep_for_shopify_rate_limit_(None, attempt + 1, "network")
+                continue
+            raise
+
+    if last_error:
+        raise last_error
+    raise RuntimeError("Shopify REST request failed without response")
+
+
 def rest_get(store_url, token, endpoint, params):
+    """
+    Shopify REST paginator with 429 protection.
+    Keeps the previous output unchanged, but prevents the backfill from dying on:
+      requests.exceptions.HTTPError: 429 Client Error: Too Many Requests
+    """
     url     = f"https://{store_url}/admin/api/2024-01/{endpoint}"
     headers = {"X-Shopify-Access-Token": token}
     results = []
+    page = 0
+
     while url:
-        r = requests.get(url, headers=headers, params=params, timeout=60)
-        r.raise_for_status()
+        page += 1
+        r = _shopify_rest_get_with_retry_(url, headers=headers, params=params)
         data = r.json()
-        results.extend(data[list(data.keys())[0]])
-        link   = r.headers.get("Link", "")
+        key = list(data.keys())[0]
+        batch = data.get(key, []) or []
+        results.extend(batch)
+
+        link   = r.headers.get("Link", "") or r.headers.get("link", "") or ""
         url    = None
-        params = {}
+        params = {}  # page_info URLs already contain all query params
+
         if 'rel="next"' in link:
             for part in link.split(","):
                 if 'rel="next"' in part:
                     url = part.split(";")[0].strip().strip("<>")
+                    break
+
+        # Small steady pacing for long historical backfills.
+        # This is intentionally conservative; it protects Corro/Cavali runs.
+        if url:
+            time.sleep(0.35)
+
     return results
 
 
