@@ -374,25 +374,15 @@ select:focus{border-color:var(--gr)}
 /* ══════════════════════════════════════════════════════
    CONFIG
    ─────────────────────────────────────────────────────
-   SMARTRR_KEYS: one key per brand, switches automatically.
-   Cavali → cavaliclub.com Smartrr instance
-   Corro  → corroshop.com  Smartrr instance
+   Shopify data is read from Google Sheets.
+   Smartrr keys must NOT live in this static HTML. Smartrr is fetched
+   by the GitHub Actions pipeline and written to the `smartrr_subscribers` tab.
 ══════════════════════════════════════════════════════ */
 const SIDS = {
   corro:  "1nq8xkDzowAvhD3wpMBlVK2M3FZSNS2DrAiPxz-Y2tdU",
   cavali: "1QUdJc2EIdElIX5nlLQxWxS98aAz-TgQnSg9glJpNtig",
 };
 const AKEY = "AIzaSyD8oIf_TyxchEkU_MpKJXngrjrMVyV81oY";
-
-// ── Smartrr API keys (one per brand) ──────────────────────────────
-// Cavali: cavaliclub.com Smartrr instance
-// Corro:  corroshop.com  Smartrr instance
-const SMARTRR_KEYS = {
-  cavali: "00EsU0SuASUJcAcdUdASwSuAXasFEcuUT0XS",
-  corro:  "EuXFEXcdAJTc0AcjwJAdjguAwuuFaswugTsc",
-};
-// Active key switches automatically with the brand selector
-function getSmartrrKey() { return SMARTRR_KEYS[brand] || ""; }
 
 const CAVALI_RENAME = {
   "Others":           "Subscriptions",
@@ -419,47 +409,39 @@ let cache = {}, manualData = {};
 ══════════════════════════════════════════════════════ */
 let _smartrrCache = null, _smartrrTs = 0;
 
+function _smartrrNum(v) {
+  const n = parseFloat(String(v ?? "").replace(/,/g, "").trim());
+  return isNaN(n) ? 0 : n;
+}
+
 async function fetchSmartrrSubs() {
-  const key = getSmartrrKey();
-  if (!key || key.trim() === "") return null;
+  if (brand !== "cavali") return null;
   if (_smartrrCache && Date.now() - _smartrrTs < 10 * 60 * 1000) return _smartrrCache;
-  try {
-    let sea = 0, sig = 0, pre = 0, jun = 0, other = 0, page = 1;
-    while (true) {
-      const r = await fetch(
-        `https://api.smartrr.com/api/v1/subscription?status=ACTIVE&limit=250&page=${page}`,
-        { headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" } }
-      );
-      if (!r.ok) throw new Error(`Smartrr HTTP ${r.status}`);
-      const d = await r.json();
-      const items = d.items ?? d.subscriptions ?? d.data ?? [];
-      if (!items.length) break;
-      items.forEach(s => {
-        const name = (
-          s.planName ?? s.plan_name ??
-          s.sellingPlan?.name ?? s.selling_plan?.name ??
-          s.subscriptionContractLine?.title ?? ""
-        ).toLowerCase();
-        if      (name.includes("seasonal"))  sea++;
-        else if (name.includes("signature")) sig++;
-        else if (name.includes("premier"))   pre++;
-        else if (name.includes("junior"))    jun++;
-        else                                  other++;
-      });
-      if (items.length < 250) break;
-      page++;
-    }
-    _smartrrCache = {
-      sea, sig, pre, jun, other,
-      total: sea + sig + pre + jun + other,
-      source: `Smartrr API ✓ (${brand === "cavali" ? "cavaliclub.com" : "corroshop.com"})`
-    };
-    _smartrrTs = Date.now();
-    return _smartrrCache;
-  } catch(e) {
-    console.warn("Smartrr error:", e.message);
-    return { error: e.message };
-  }
+
+  const sid = SIDS[brand];
+  const rows = await fetchTab(sid, "smartrr_subscribers");
+  if (!rows || !rows.length) return null;
+
+  const candidates = rows.filter(r => (r.brand || "cavali").toLowerCase() === "cavali");
+  const row = bestRow(candidates.length ? candidates : rows);
+  if (!row) return null;
+
+  if ((row.error || "").trim()) return { error: row.error };
+
+  const sea = _smartrrNum(row.seasonal);
+  const sig = _smartrrNum(row.signature);
+  const pre = _smartrrNum(row.premier);
+  const jun = _smartrrNum(row.junior);
+  const other = _smartrrNum(row.other);
+  const total = _smartrrNum(row.total_subscribers) || (sea + sig + pre + jun + other);
+
+  _smartrrCache = {
+    sea, sig, pre, jun, other, total,
+    updated_at: row.updated_at || "",
+    source: row.source || "Smartrr → Sheets"
+  };
+  _smartrrTs = Date.now();
+  return _smartrrCache;
 }
 
 /* ══════════════════════════════════════════════════════
@@ -928,19 +910,19 @@ async function renderSubs() {
   const data = await fetchSmartrrSubs();
 
   if (data === null) {
-    if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-warn">⚠ Smartrr key not configured for ${brand}. Using manual fallback.</div>`;
+    if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-warn">⚠ No ` + "`smartrr_subscribers`" + ` tab/data yet. Using manual fallback.</div>`;
     renderSubsFallback();
     return;
   }
   if (data.error) {
-    if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-warn">⚠ Smartrr error: ${data.error} — using manual fallback</div>`;
+    if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-warn">⚠ Smartrr pipeline error: ${data.error} — using manual fallback</div>`;
     renderSubsFallback();
     const ft = document.getElementById("ft-smartrr");
     if (ft) { ft.textContent = "Smartrr ⚠"; ft.style.color = "var(--am)"; }
     return;
   }
 
-  const storeLabel = brand === "cavali" ? "cavaliclub.com" : "corroshop.com";
+  const storeLabel = "cavaliclub.com";
   if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-ok">✓ Smartrr · ${data.total} active subs · ${storeLabel}</div>`;
   const ft = document.getElementById("ft-smartrr");
   if (ft) { ft.textContent = "Smartrr ✓"; ft.style.color = "var(--gr)"; }
@@ -950,9 +932,10 @@ async function renderSubs() {
     { l:"Signature",         v:data.sig, c:"#A090FF" },
     { l:"Premier",           v:data.pre, c:"#2EE896" },
     ...(data.jun > 0 ? [{ l:"Junior", v:data.jun, c:"#F06868" }] : []),
-    { l:"Total Subscribers", v:data.sea + data.sig + data.pre + data.jun, c:"#72AEFF" },
+    ...(data.other > 0 ? [{ l:"Other", v:data.other, c:"#707070" }] : []),
+    { l:"Total Subscribers", v:data.total, c:"#72AEFF" },
   ];
-  _renderSubCards(cards, `Smartrr API ✓ · ${storeLabel} · ${new Date().toLocaleTimeString()}`);
+  _renderSubCards(cards, `${data.source} · ${data.updated_at || "latest"}`);
 }
 
 /* ══════════════════════════════════════════════════════
