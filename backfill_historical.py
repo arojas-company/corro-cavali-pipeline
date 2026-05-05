@@ -97,65 +97,63 @@ def gql(store_url, token, query):
     return d.get("data")
 
 # ─────────────────────────────────────────────────────────────────
-# ql_run — FIX v2.3
-# API 2025-10: tableData.rows = lista de OBJETOS {col: val, ...}
-# Se pide solo `rows` (NO rowData, que fue eliminado de la API).
+# ql_run — DEFINITIVO (verificado contra docs.shopify.dev 2026-01)
+#
+# Estructura oficial ShopifyqlQueryResponse:
+#   parseErrors  [String!]!    → [] si OK, ["msg..."] si error ShopifyQL
+#   tableData    ShopifyqlTableData | null
+#     columns    [ShopifyqlTableDataColumn!]!
+#     rows       JSON!  → lista de dicts {"col_name": "value"}
 # ─────────────────────────────────────────────────────────────────
 def ql_run(store_url, token, ql_query):
     """
-    Ejecuta una ShopifyQL query.
-    API 2025-10+: tableData.rows devuelve lista de objetos JSON.
-    Devuelve lista de {columna: valor}.
+    Ejecuta una ShopifyQL query contra la Admin API 2025-10+.
+    Devuelve lista de {columna: valor} o [] si no hay datos / error.
     """
     escaped = ql_query.replace("\\", "\\\\").replace('"', '\\"')
 
+    # parseErrors NO tiene subfields — es [String!]! (scalar list)
     q = (
         f'{{ shopifyqlQuery(query: "{escaped}") {{ '
         f'tableData {{ columns {{ name }} rows }} '
-        f'parseErrors {{ code message }} }} }}'
+        f'parseErrors }} }}'
     )
     data = gql(store_url, token, q)
-
     if not data:
         return []
 
     ql_obj = data.get("shopifyqlQuery") or {}
-    errs   = ql_obj.get("parseErrors") or []
-    if errs:
+
+    # parseErrors = [String!]! — lista vacía [] cuando OK
+    errs = ql_obj.get("parseErrors") or []
+    if isinstance(errs, list) and len(errs) > 0:
         print(f"parseErrors: {errs}")
         return []
 
-    td   = ql_obj.get("tableData") or {}
-    rows = td.get("rows") or []
+    # tableData es null cuando hay parseErrors
+    td = ql_obj.get("tableData")
+    if not td:
+        return []
 
+    # rows = JSON! scalar → lista de dicts {"col_name": "value"}
+    rows = td.get("rows") or []
     if not rows:
         return []
 
-    # API 2025-10: cada row ES un objeto dict {col_name: value}
-    # Validamos que sea dict; si fuera lista (API antigua) hacemos fallback.
-    if isinstance(rows[0], dict):
-        # Formato correcto 2025-10 — devolver directo
+    # Tipo esperado: lista de dicts
+    if isinstance(rows, list) and isinstance(rows[0], dict):
         return rows
 
-    # Fallback para API antigua donde rows era lista de listas
-    cols = [c["name"] for c in (td.get("columns") or [])]
-    if not cols:
-        return []
+    # Fallback defensivo por si rows llega como string JSON
+    if isinstance(rows, str):
+        try:
+            parsed = json.loads(rows)
+            if isinstance(parsed, list):
+                return parsed
+        except Exception:
+            pass
 
-    result = []
-    for row in rows:
-        if isinstance(row, list):
-            result.append({cols[i]: (row[i] if i < len(row) else "") for i in range(len(cols))})
-        elif isinstance(row, str):
-            try:
-                parsed = json.loads(row)
-                if isinstance(parsed, list):
-                    result.append({cols[i]: (parsed[i] if i < len(parsed) else "") for i in range(len(cols))})
-                elif isinstance(parsed, dict):
-                    result.append(parsed)
-            except Exception:
-                pass
-    return result
+    return []
 
 
 def run_ql(store_url, token, ql_query):
