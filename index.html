@@ -402,6 +402,18 @@ const CH_COLORS = {
 let brand = "corro", ptype = "mtd";
 let cache = {}, manualData = {};
 
+// Last-known values from the Cavali/Smartrr review screen.
+// Used only when the pipeline tab is missing, errored or returns 0, so the dashboard never shows blank circles.
+const CAVALI_SMARTRR_LAST_KNOWN = {
+  sea: 337,   // Cavali Club Membership / Seasonal
+  sig: 7,
+  pre: 17,
+  jun: 0,
+  other: 0,
+  total: 361,
+  source: "Review fallback · Smartrr screen Apr 30"
+};
+
 /* ══════════════════════════════════════════════════════
    SMARTRR
    Fetches active subscriber counts from Cavali's Smartrr instance.
@@ -426,22 +438,32 @@ async function fetchSmartrrSubs() {
   const row = bestRow(candidates.length ? candidates : rows);
   if (!row) return null;
 
-  if ((row.error || "").trim()) return { error: row.error };
-
   const sea = _smartrrNum(row.seasonal);
   const sig = _smartrrNum(row.signature);
   const pre = _smartrrNum(row.premier);
   const jun = _smartrrNum(row.junior);
   const other = _smartrrNum(row.other);
   const total = _smartrrNum(row.total_subscribers) || (sea + sig + pre + jun + other);
+  const err = (row.error || "").trim();
 
-  _smartrrCache = {
-    sea, sig, pre, jun, other, total,
+  // If the Python wrote counts plus an error/warning, still show the counts and display a warning.
+  if (total > 0) {
+    _smartrrCache = {
+      sea, sig, pre, jun, other, total,
+      updated_at: row.updated_at || "",
+      source: row.source || "Smartrr → Sheets",
+      warning: err || ""
+    };
+    _smartrrTs = Date.now();
+    return _smartrrCache;
+  }
+
+  // If the tab exists but is 0, do NOT render empty circles. Use review fallback with visible warning.
+  return {
+    ...CAVALI_SMARTRR_LAST_KNOWN,
     updated_at: row.updated_at || "",
-    source: row.source || "Smartrr → Sheets"
+    warning: err || "Smartrr tab exists but total_subscribers is 0. Showing review fallback until the pipeline pulls live Smartrr data."
   };
-  _smartrrTs = Date.now();
-  return _smartrrCache;
 }
 
 /* ══════════════════════════════════════════════════════
@@ -875,18 +897,33 @@ function renderCAC(cacVal, ltvVal, source) {
 /* ══════════════════════════════════════════════════════
    CAVALI SUBSCRIBERS (Smartrr)
 ══════════════════════════════════════════════════════ */
-function renderSubsFallback() {
+function renderSubsFallback(reason) {
   const el = document.getElementById("s-subs"); if (!el) return;
-  const sea = parseInt(document.getElementById("mi-sea")?.value||0)||0;
-  const sig = parseInt(document.getElementById("mi-sig")?.value||0)||0;
-  const pre = parseInt(document.getElementById("mi-pre-sub")?.value||0)||0;
-  const tot = sea + sig + pre;
+  let sea = parseInt(document.getElementById("mi-sea")?.value||0)||0;
+  let sig = parseInt(document.getElementById("mi-sig")?.value||0)||0;
+  let pre = parseInt(document.getElementById("mi-pre-sub")?.value||0)||0;
+  let jun = 0, other = 0;
+  let source = "Manual fallback — enter values below";
+
+  // If manual fields are empty, use last-known Smartrr review values instead of showing zero.
+  if ((sea + sig + pre) === 0) {
+    sea = CAVALI_SMARTRR_LAST_KNOWN.sea;
+    sig = CAVALI_SMARTRR_LAST_KNOWN.sig;
+    pre = CAVALI_SMARTRR_LAST_KNOWN.pre;
+    jun = CAVALI_SMARTRR_LAST_KNOWN.jun;
+    other = CAVALI_SMARTRR_LAST_KNOWN.other;
+    source = CAVALI_SMARTRR_LAST_KNOWN.source + (reason ? " · " + reason : "");
+  }
+
+  const tot = sea + sig + pre + jun + other;
   _renderSubCards([
     { l:"Seasonal",          v:sea, c:"#D8B054" },
     { l:"Signature",         v:sig, c:"#A090FF" },
     { l:"Premier",           v:pre, c:"#2EE896" },
+    ...(jun > 0 ? [{ l:"Junior", v:jun, c:"#F06868" }] : []),
+    ...(other > 0 ? [{ l:"Other", v:other, c:"#707070" }] : []),
     { l:"Total Subscribers", v:tot, c:"#72AEFF" },
-  ], "Manual fallback — enter values below");
+  ], source);
 }
 
 function _renderSubCards(cards, source) {
@@ -910,22 +947,23 @@ async function renderSubs() {
   const data = await fetchSmartrrSubs();
 
   if (data === null) {
-    if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-warn">⚠ No ` + "`smartrr_subscribers`" + ` tab/data yet. Using manual fallback.</div>`;
-    renderSubsFallback();
-    return;
-  }
-  if (data.error) {
-    if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-warn">⚠ Smartrr pipeline error: ${data.error} — using manual fallback</div>`;
-    renderSubsFallback();
+    if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-warn">⚠ No smartrr_subscribers tab/data yet. Showing review fallback.</div>`;
+    renderSubsFallback("pipeline tab missing");
     const ft = document.getElementById("ft-smartrr");
     if (ft) { ft.textContent = "Smartrr ⚠"; ft.style.color = "var(--am)"; }
     return;
   }
 
   const storeLabel = "cavaliclub.com";
-  if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-ok">✓ Smartrr · ${data.total} active subs · ${storeLabel}</div>`;
-  const ft = document.getElementById("ft-smartrr");
-  if (ft) { ft.textContent = "Smartrr ✓"; ft.style.color = "var(--gr)"; }
+  if (data.warning) {
+    if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-warn">⚠ Smartrr warning: ${data.warning}</div>`;
+    const ft = document.getElementById("ft-smartrr");
+    if (ft) { ft.textContent = "Smartrr ⚠"; ft.style.color = "var(--am)"; }
+  } else {
+    if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-ok">✓ Smartrr · ${data.total} active subs · ${storeLabel}</div>`;
+    const ft = document.getElementById("ft-smartrr");
+    if (ft) { ft.textContent = "Smartrr ✓"; ft.style.color = "var(--gr)"; }
+  }
 
   const cards = [
     { l:"Seasonal",          v:data.sea, c:"#D8B054" },
@@ -933,9 +971,9 @@ async function renderSubs() {
     { l:"Premier",           v:data.pre, c:"#2EE896" },
     ...(data.jun > 0 ? [{ l:"Junior", v:data.jun, c:"#F06868" }] : []),
     ...(data.other > 0 ? [{ l:"Other", v:data.other, c:"#707070" }] : []),
-    { l:"Total Subscribers", v:data.total, c:"#72AEFF" },
+    { l:"Total Subscribers", v:data.total || (data.sea + data.sig + data.pre + data.jun + data.other), c:"#72AEFF" },
   ];
-  _renderSubCards(cards, `${data.source} · ${data.updated_at || "latest"}`);
+  _renderSubCards(cards, `${data.source || "Smartrr → Sheets"} · ${data.updated_at || "latest"}`);
 }
 
 /* ══════════════════════════════════════════════════════
