@@ -28,6 +28,7 @@ import os, json, time, random, requests, gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta, date
 import pytz
+import re
 
 TIMEZONE    = pytz.timezone("America/Bogota")
 GQL_VERSION = "2025-10"
@@ -381,7 +382,7 @@ def fetch_orders(store_url, token, start, end):
         "created_at_min":   f"{start}T00:00:00-05:00",
         "created_at_max":   f"{end}T23:59:59-05:00",
         "limit":            250,
-        "fields":           "id,subtotal_price,line_items,source_name,tags,customer",
+        "fields":           "id,subtotal_price,created_at,line_items,source_name,tags,customer",
     })
     return enrich_orders_with_customer_order_counts(store_url, token, orders)
 
@@ -389,7 +390,9 @@ def fetch_orders(store_url, token, start, end):
 # NEW vs RETURNING via REST
 # ─────────────────────────────────────────────────────────────────
 
+
 CUSTOMER_ORDER_COUNT_CACHE = {}
+CUSTOMER_FIRST_ORDER_DATE_CACHE = {}
 
 
 def _shopify_rest_get_json_with_retry(store_url, token, endpoint, params=None, max_retries=7):
@@ -397,8 +400,10 @@ def _shopify_rest_get_json_with_retry(store_url, token, endpoint, params=None, m
     url = f"https://{store_url}/admin/api/2024-01/{endpoint}"
     headers = {"X-Shopify-Access-Token": token}
     params = params or {}
+    last_resp = None
     for attempt in range(max_retries):
         r = requests.get(url, headers=headers, params=params, timeout=60)
+        last_resp = r
         if r.status_code == 429 or r.status_code in (500, 502, 503, 504):
             retry_after = r.headers.get("Retry-After")
             if retry_after:
@@ -412,7 +417,6 @@ def _shopify_rest_get_json_with_retry(store_url, token, endpoint, params=None, m
             time.sleep(sleep_for)
             continue
         r.raise_for_status()
-        # Slow down if Shopify REST bucket is close to full.
         lim = r.headers.get("X-Shopify-Shop-Api-Call-Limit", "")
         try:
             used, cap = [int(x) for x in lim.split("/", 1)]
@@ -421,7 +425,9 @@ def _shopify_rest_get_json_with_retry(store_url, token, endpoint, params=None, m
         except Exception:
             pass
         return r.json()
-    r.raise_for_status()
+    if last_resp is not None:
+        last_resp.raise_for_status()
+    return {}
 
 
 def _order_customer_id(order):
@@ -432,9 +438,14 @@ def _order_customer_id(order):
 
 def enrich_orders_with_customer_order_counts(store_url, token, orders):
     """
-    Shopify order payloads do not always include customer.orders_count.
-    New vs Returning must not default every missing customer to New.
-    This enriches each order.customer.orders_count from Shopify Customer REST.
+    Enrich each order with:
+      - customer.orders_count when available
+      - customer._first_order_created_at from Shopify Customer Orders
+
+    New vs Returning is then date-aware:
+      first-ever order before this order => Returning
+      this is the customer's first-ever order => New
+    This avoids the dashboard showing every Cavali subscription order as New.
     """
     ids = []
     seen = set()
@@ -448,21 +459,34 @@ def enrich_orders_with_customer_order_counts(store_url, token, orders):
         if current not in (None, ""):
             try:
                 CUSTOMER_ORDER_COUNT_CACHE[cid] = int(current)
-                continue
             except Exception:
                 pass
-        if cid not in CUSTOMER_ORDER_COUNT_CACHE:
+        if cid not in CUSTOMER_FIRST_ORDER_DATE_CACHE:
             ids.append(cid)
 
     for i, cid in enumerate(ids, 1):
         try:
-            data = _shopify_rest_get_json_with_retry(store_url, token, f"customers/{cid}.json", {"fields": "id,orders_count"})
-            customer = data.get("customer") or {}
-            CUSTOMER_ORDER_COUNT_CACHE[cid] = int(customer.get("orders_count", 1) or 1)
+            data = _shopify_rest_get_json_with_retry(
+                store_url, token, f"customers/{cid}/orders.json",
+                {"status": "any", "limit": 1, "order": "created_at asc", "fields": "id,created_at"}
+            )
+            first_order = (data.get("orders") or [{}])[0]
+            CUSTOMER_FIRST_ORDER_DATE_CACHE[cid] = first_order.get("created_at") or ""
         except Exception as e:
-            print(f"    ⚠ customer orders_count fallback cid={cid}: {e}")
-            CUSTOMER_ORDER_COUNT_CACHE[cid] = 1
-        if i % 40 == 0:
+            print(f"    ⚠ first-order fallback cid={cid}: {e}")
+            CUSTOMER_FIRST_ORDER_DATE_CACHE[cid] = ""
+
+        # orders_count is only used as fallback if first-order lookup fails.
+        if cid not in CUSTOMER_ORDER_COUNT_CACHE:
+            try:
+                data = _shopify_rest_get_json_with_retry(store_url, token, f"customers/{cid}.json", {"fields": "id,orders_count"})
+                customer = data.get("customer") or {}
+                CUSTOMER_ORDER_COUNT_CACHE[cid] = int(customer.get("orders_count", 1) or 1)
+            except Exception as e:
+                print(f"    ⚠ customer orders_count fallback cid={cid}: {e}")
+                CUSTOMER_ORDER_COUNT_CACHE[cid] = 1
+
+        if i % 35 == 0:
             time.sleep(0.5)
 
     for o in orders or []:
@@ -471,8 +495,8 @@ def enrich_orders_with_customer_order_counts(store_url, token, orders):
             continue
         if not o.get("customer"):
             o["customer"] = {"id": cid}
-        if cid in CUSTOMER_ORDER_COUNT_CACHE:
-            o["customer"]["orders_count"] = CUSTOMER_ORDER_COUNT_CACHE[cid]
+        o["customer"]["orders_count"] = CUSTOMER_ORDER_COUNT_CACHE.get(cid, o["customer"].get("orders_count", 1))
+        o["customer"]["_first_order_created_at"] = CUSTOMER_FIRST_ORDER_DATE_CACHE.get(cid, "")
     return orders
 
 
@@ -482,13 +506,20 @@ def calc_new_returning(orders):
     for o in orders:
         amt      = float(o.get("subtotal_price", 0) or 0)
         customer = o.get("customer") or {}
-        count    = int(customer.get("orders_count", 1) or 1)
-        if count <= 1:
-            new_nc  += 1
-            new_rev += amt
+        first_dt = _parse_shopify_dt(customer.get("_first_order_created_at"))
+        order_dt = _parse_shopify_dt(o.get("created_at"))
+        if first_dt and order_dt:
+            is_returning = first_dt < order_dt
         else:
+            count = int(customer.get("orders_count", 1) or 1)
+            is_returning = count > 1
+
+        if is_returning:
             ret_nc  += 1
             ret_rev += amt
+        else:
+            new_nc  += 1
+            new_rev += amt
     return {
         "new_customers":       new_nc,
         "returning_customers": ret_nc,
@@ -634,6 +665,202 @@ def make_kpi_row(now_str, label, period_start, period_end, cur, prev, yoy):
 # ─────────────────────────────────────────────────────────────────
 # SMARTRR — fetch active subscriptions and split by real Cavali box/product
 # ─────────────────────────────────────────────────────────────────
+
+def _norm_txt(v):
+    """Normalize text for robust Cavali box/product matching."""
+    return re.sub(r"\s+", " ", str(v or "").strip().lower())
+
+
+def _dig(obj, *paths):
+    """Return first non-empty nested value from a dict/list using dot paths."""
+    for path in paths:
+        cur = obj
+        ok = True
+        for part in path.split("."):
+            if isinstance(cur, dict):
+                cur = cur.get(part)
+            elif isinstance(cur, list):
+                try:
+                    cur = cur[int(part)]
+                except Exception:
+                    ok = False
+                    break
+            else:
+                ok = False
+                break
+        if ok and cur not in (None, ""):
+            return cur
+    return ""
+
+
+def _smartrr_items(payload):
+    """Normalize Smartrr list responses into a list."""
+    if isinstance(payload, list):
+        return payload
+    if not isinstance(payload, dict):
+        return []
+
+    for key in (
+        "data", "items", "results", "records",
+        "purchaseStates", "purchase_states", "purchaseState", "purchase_state",
+        "subscriptions", "subscription_contracts", "contracts",
+    ):
+        val = payload.get(key)
+        if isinstance(val, list):
+            return val
+        if isinstance(val, dict):
+            nested = _smartrr_items(val)
+            if nested:
+                return nested
+    return []
+
+
+def _smartrr_total_hint(payload):
+    if not isinstance(payload, dict):
+        return None
+    for path in ("total", "totalCount", "count", "meta.total", "pagination.total", "page.total"):
+        val = _dig(payload, path)
+        if val not in (None, ""):
+            try:
+                return int(float(str(val).replace(",", "")))
+            except Exception:
+                pass
+    return None
+
+
+def _collect_text(obj, depth=0, out=None):
+    """Collect product/line-item text from nested Smartrr objects."""
+    if out is None:
+        out = []
+    if depth > 7 or obj is None:
+        return out
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            lk = str(k).lower()
+            # Product/line-item fields first. Plan/group fields are useful only when product title is absent.
+            useful_key = any(x in lk for x in (
+                "product", "variant", "lineitem", "line_item", "stline", "item", "sku",
+                "title", "name", "label", "program", "plan"
+            ))
+            if isinstance(v, (dict, list)):
+                _collect_text(v, depth + 1, out)
+            elif useful_key and v not in (None, ""):
+                out.append(str(v))
+    elif isinstance(obj, list):
+        for v in obj[:80]:
+            _collect_text(v, depth + 1, out)
+    return out
+
+
+def _smartrr_plan_text(subscription):
+    """
+    Build classification text from Smartrr response.
+    Important: Cavali Club Quarterly/Yearly Membership are plan/group names,
+    NOT the Seasonal box. The actual boxes are Product values:
+      - Cavali Club Membership        => Seasonal
+      - The Signature Box             => Signature
+      - The Premier Box               => Premier
+      - Cavali Club Junior Membership => Junior
+    """
+    # Put the most product-specific fields first.
+    vals = [
+        _dig(subscription, "product.title"),
+        _dig(subscription, "product.name"),
+        _dig(subscription, "productTitle"),
+        _dig(subscription, "product_title"),
+        _dig(subscription, "productName"),
+        _dig(subscription, "product_name"),
+        _dig(subscription, "variant.title"),
+        _dig(subscription, "variant.name"),
+        _dig(subscription, "stLineItems.0.title"),
+        _dig(subscription, "stLineItems.0.name"),
+        _dig(subscription, "stLineItems.0.productTitle"),
+        _dig(subscription, "stLineItems.0.product_title"),
+        _dig(subscription, "stLineItems.0.productName"),
+        _dig(subscription, "stLineItems.0.product_name"),
+        _dig(subscription, "lineItems.0.title"),
+        _dig(subscription, "lineItems.0.name"),
+        _dig(subscription, "lineItems.0.productTitle"),
+        _dig(subscription, "line_items.0.title"),
+        _dig(subscription, "items.0.title"),
+        _dig(subscription, "items.0.name"),
+        _dig(subscription, "items.0.productTitle"),
+        _dig(subscription, "subscriptionContractLine.title"),
+        _dig(subscription, "subscription_contract_line.title"),
+        # lower-priority plan/group text
+        _dig(subscription, "sellingPlan.name"),
+        _dig(subscription, "selling_plan.name"),
+        _dig(subscription, "sellingPlanName"),
+        _dig(subscription, "selling_plan_name"),
+        _dig(subscription, "subscriptionProgram.name"),
+        _dig(subscription, "subscription_program.name"),
+        _dig(subscription, "planName"),
+        _dig(subscription, "plan_name"),
+        _dig(subscription, "name"),
+        _dig(subscription, "title"),
+    ]
+    vals.extend(_collect_text(subscription))
+    return " | ".join(str(v) for v in vals if v)
+
+
+def _smartrr_is_active(subscription):
+    status = str(
+        _dig(subscription, "purchaseStateStatus") or
+        _dig(subscription, "purchase_state_status") or
+        _dig(subscription, "status") or
+        _dig(subscription, "subscriptionStatus") or
+        _dig(subscription, "subscription_status") or
+        _dig(subscription, "state") or
+        _dig(subscription, "sts.0.purchaseStateStatus") or
+        _dig(subscription, "sts.0.status")
+    ).strip().lower()
+
+    cancelled = (
+        _dig(subscription, "cancelledAt") or
+        _dig(subscription, "cancelled_at") or
+        _dig(subscription, "deletedAt") or
+        _dig(subscription, "deleted_at")
+    )
+    if cancelled:
+        return False
+
+    # Endpoint is already filtered by ACTIVE. If no status field is returned, count it.
+    return status in ("", "active", "activated")
+
+
+def _smartrr_headers(api_key, mode="token"):
+    if mode == "bearer":
+        return {
+            "Authorization": f"Bearer {api_key}",
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+        }
+    return {
+        "x-smartrr-access-token": api_key,
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+
+
+def _smartrr_get(url, api_key, params=None):
+    """Try the Smartrr access-token header first; retry bearer only if needed."""
+    r = requests.get(url, headers=_smartrr_headers(api_key, "token"), params=params, timeout=60)
+    if r.status_code in (401, 403):
+        rb = requests.get(url, headers=_smartrr_headers(api_key, "bearer"), params=params, timeout=60)
+        if rb.status_code < 400:
+            return rb
+    return r
+
+
+def _parse_shopify_dt(v):
+    if not v:
+        return None
+    try:
+        return datetime.fromisoformat(str(v).replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+
 def _smartrr_empty_row(now_str, brand_name, source, reason):
     """Write an explicit empty/error row. No hardcoded reviewed fallback values."""
     return [now_str, brand_name, 0, 0, 0, 0, 0, 0, source, reason or ""]
@@ -689,7 +916,7 @@ def _classify_box_text(text):
         return "signature"
     if "the premier box" in t or "premier box" in t or re.search(r'\bpremier\b', t):
         return "premier"
-    if "cavali club membership" in t or "club membership" in t or re.search(r'\bseasonal\b', t):
+    if re.search(r'\bcavali club membership\b', t) or re.search(r'\bseasonal\b', t):
         return "seasonal"
     return "other"
 
