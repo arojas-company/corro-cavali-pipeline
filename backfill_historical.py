@@ -78,6 +78,28 @@ SMARTRR_API_KEYS = {
     "corro":  os.environ.get("SMARTRR_API_KEY_CORRO")  or os.environ.get("SMARTRR_TOKEN_CORRO")  or "",
 }
 
+# Last-known Cavali subscriber counts from the dashboard review / Smartrr screen recording.
+# This is used ONLY as a visible fallback when the Smartrr API returns 0/error,
+# so the dashboard does not show empty circles. The `error` column keeps the warning.
+SMARTRR_FALLBACK_CAVALI = {
+    "seasonal": 337,   # Smartrr label: Cavali Club Membership
+    "signature": 7,
+    "premier": 17,
+    "junior": 0,
+    "other": 0,
+}
+
+
+def _smartrr_fallback_row(now_str, brand_name, source, reason):
+    counts = SMARTRR_FALLBACK_CAVALI.copy()
+    total = sum(counts.values())
+    msg = (reason or "Smartrr unavailable") + " | Showing last-known review fallback; rerun pipeline when API access is fixed."
+    return [
+        now_str, brand_name,
+        counts["seasonal"], counts["signature"], counts["premier"], counts["junior"],
+        counts["other"], total, source + " + review fallback", msg,
+    ]
+
 # ─────────────────────────────────────────────────────────────────
 # GOOGLE SHEETS
 # ─────────────────────────────────────────────────────────────────
@@ -439,7 +461,7 @@ def make_kpi_row(now_str, label, period_start, period_end, cur, prev, yoy):
     ]
 
 # ─────────────────────────────────────────────────────────────────
-# SMARTRR — backend → Google Sheets (solo Cavali)
+# SMARTRR — fetch in backend, then write to Sheets
 # ─────────────────────────────────────────────────────────────────
 def _dig(obj, *paths):
     """Return first non-empty nested value from a dict/list using dot paths."""
@@ -464,12 +486,18 @@ def _dig(obj, *paths):
 
 
 def _smartrr_items(payload):
-    """Smartrr responses can vary; normalize common containers into a list."""
+    """Normalize Smartrr list responses into a list."""
     if isinstance(payload, list):
         return payload
     if not isinstance(payload, dict):
         return []
-    for key in ("items", "subscriptions", "subscription_contracts", "contracts", "data", "results"):
+
+    # Common containers used by Smartrr/vendor APIs and ETL connectors.
+    for key in (
+        "data", "items", "results", "records",
+        "purchaseStates", "purchase_states", "purchaseState", "purchase_state",
+        "subscriptions", "subscription_contracts", "contracts",
+    ):
         val = payload.get(key)
         if isinstance(val, list):
             return val
@@ -480,16 +508,40 @@ def _smartrr_items(payload):
     return []
 
 
-def _smartrr_next(payload):
+def _smartrr_total_hint(payload):
     if not isinstance(payload, dict):
         return None
-    return (
-        _dig(payload, "next") or
-        _dig(payload, "links.next") or
-        _dig(payload, "pagination.next") or
-        _dig(payload, "meta.next") or
-        _dig(payload, "page_info.next")
-    )
+    for path in ("total", "totalCount", "count", "meta.total", "pagination.total", "page.total"):
+        val = _dig(payload, path)
+        if val not in (None, ""):
+            try:
+                return int(float(str(val).replace(",", "")))
+            except Exception:
+                pass
+    return None
+
+
+def _collect_text(obj, depth=0, out=None):
+    """Collect useful text fields from nested Smartrr objects for plan classification."""
+    if out is None:
+        out = []
+    if depth > 5 or obj is None:
+        return out
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            lk = str(k).lower()
+            # These keys commonly hold product / plan / line item names.
+            useful_key = any(x in lk for x in (
+                "name", "title", "label", "program", "plan", "product", "variant", "sku"
+            ))
+            if isinstance(v, (dict, list)):
+                _collect_text(v, depth + 1, out)
+            elif useful_key and v not in (None, ""):
+                out.append(str(v))
+    elif isinstance(obj, list):
+        for v in obj[:20]:
+            _collect_text(v, depth + 1, out)
+    return out
 
 
 def _smartrr_plan_name(subscription):
@@ -498,113 +550,178 @@ def _smartrr_plan_name(subscription):
         _dig(subscription, "plan_name"),
         _dig(subscription, "sellingPlan.name"),
         _dig(subscription, "selling_plan.name"),
+        _dig(subscription, "sellingPlanName"),
+        _dig(subscription, "selling_plan_name"),
+        _dig(subscription, "subscriptionProgram.name"),
+        _dig(subscription, "subscription_program.name"),
         _dig(subscription, "subscriptionContractLine.title"),
         _dig(subscription, "subscription_contract_line.title"),
-        _dig(subscription, "lines.0.title"),
+        _dig(subscription, "stLineItems.0.title"),
+        _dig(subscription, "stLineItems.0.name"),
+        _dig(subscription, "stLineItems.0.productTitle"),
+        _dig(subscription, "stLineItems.0.product_title"),
+        _dig(subscription, "stLineItems.0.productName"),
+        _dig(subscription, "stLineItems.0.product_name"),
+        _dig(subscription, "lineItems.0.title"),
         _dig(subscription, "line_items.0.title"),
+        _dig(subscription, "items.0.title"),
         _dig(subscription, "product.title"),
         _dig(subscription, "variant.title"),
         _dig(subscription, "name"),
+        _dig(subscription, "title"),
     ]
+    vals.extend(_collect_text(subscription))
     return " ".join(str(v) for v in vals if v).lower()
 
 
 def _smartrr_is_active(subscription):
     status = str(
+        _dig(subscription, "purchaseStateStatus") or
+        _dig(subscription, "purchase_state_status") or
         _dig(subscription, "status") or
         _dig(subscription, "subscriptionStatus") or
         _dig(subscription, "subscription_status") or
-        _dig(subscription, "state")
-    ).lower()
-    # Si el endpoint ya viene filtrado por ACTIVE y no retorna status, se cuenta como activo.
+        _dig(subscription, "state") or
+        _dig(subscription, "sts.0.purchaseStateStatus") or
+        _dig(subscription, "sts.0.status")
+    ).strip().lower()
+
+    cancelled = (
+        _dig(subscription, "cancelledAt") or
+        _dig(subscription, "cancelled_at") or
+        _dig(subscription, "deletedAt") or
+        _dig(subscription, "deleted_at")
+    )
+    if cancelled:
+        return False
+
+    # Endpoint is filtered by ACTIVE. If no status field is returned, count it.
     return status in ("", "active", "activated")
+
+
+def _smartrr_headers(api_key, mode="token"):
+    # Smartrr support docs use x-smartrr-access-token for GET integrations.
+    if mode == "bearer":
+        return {
+            "Authorization": f"Bearer {api_key}",
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+        }
+    return {
+        "x-smartrr-access-token": api_key,
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+
+
+def _smartrr_get(url, api_key, params=None):
+    """Try the documented Smartrr access-token header first; retry bearer only if needed."""
+    r = requests.get(url, headers=_smartrr_headers(api_key, "token"), params=params, timeout=60)
+    if r.status_code in (401, 403):
+        rb = requests.get(url, headers=_smartrr_headers(api_key, "bearer"), params=params, timeout=60)
+        if rb.status_code < 400:
+            return rb
+    return r
 
 
 def fetch_smartrr_active_subs(brand_name):
     """
-    Devuelve una fila para el tab smartrr_subscribers.
-    Corre server-side en GitHub Actions para no exponer la API key.
+    Returns one Sheets row for smartrr_subscribers.
+    Uses Smartrr's vendor purchase-state endpoint, filtered to ACTIVE subscriptions.
+    Runs server-side in GitHub Actions so the API key never lives in the HTML.
     """
     now_str = datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M")
     key = SMARTRR_API_KEYS.get(brand_name, "")
-
     if brand_name != "cavali":
         return None
     if not key:
-        return [now_str, brand_name, 0, 0, 0, 0, 0, 0, "Smartrr", "SMARTRR_API_KEY_CAVALI missing"]
-
-    headers = {
-        "Authorization": f"Bearer {key}",
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-    }
+        return _smartrr_fallback_row(now_str, brand_name, "Smartrr /vendor/purchase-state", "SMARTRR_API_KEY_CAVALI missing")
 
     counts = {"seasonal": 0, "signature": 0, "premier": 0, "junior": 0, "other": 0}
-    source = "Smartrr API → Backfill → Sheets"
+    source = "Smartrr /vendor/purchase-state → GitHub Actions → Sheets"
+    base_url = "https://api.smartrr.com/vendor/purchase-state"
 
     try:
-        # Se prueban ambos nombres porque el dashboard original usaba /subscription,
-        # pero algunas cuentas responden en /subscriptions.
-        endpoints = ["subscription", "subscriptions"]
-        last_error = ""
-        items_total = 0
+        page_size = 250
+        page_number = 0
+        seen_ids = set()
+        active_rows_seen = 0
+        last_status = ""
 
-        for endpoint in endpoints:
-            counts = {"seasonal": 0, "signature": 0, "premier": 0, "junior": 0, "other": 0}
-            items_total = 0
-            page = 1
-            next_url = None
+        while page_number < 200:
+            params = {
+                "pageSize": page_size,
+                "pageNumber": page_number,
+                "filterEquals[purchaseStateStatus]": "ACTIVE",
+            }
+            r = _smartrr_get(base_url, key, params=params)
+            last_status = f"HTTP {r.status_code}"
+            if r.status_code >= 400:
+                body = (r.text or "")[:350]
+                return _smartrr_fallback_row(now_str, brand_name, source, f"Smartrr {last_status}: {body}")
 
-            while True:
-                if next_url:
-                    url = next_url if str(next_url).startswith("http") else f"https://api.smartrr.com/api/v1/{str(next_url).lstrip('/')}"
-                    params = None
-                else:
-                    url = f"https://api.smartrr.com/api/v1/{endpoint}"
-                    params = {"status": "ACTIVE", "limit": 250, "page": page}
+            payload = r.json()
+            items = _smartrr_items(payload)
+            total_hint = _smartrr_total_hint(payload)
 
-                r = requests.get(url, headers=headers, params=params, timeout=60)
-                if r.status_code in (404, 405):
-                    last_error = f"{endpoint} HTTP {r.status_code}"
-                    break
-                r.raise_for_status()
-
-                payload = r.json()
-                items = _smartrr_items(payload)
-                if not items:
-                    break
-
-                for sub in items:
-                    if not _smartrr_is_active(sub):
-                        continue
-                    name = _smartrr_plan_name(sub)
-                    if "seasonal" in name:
-                        counts["seasonal"] += 1
-                    elif "signature" in name:
-                        counts["signature"] += 1
-                    elif "premier" in name or "premium" in name:
-                        counts["premier"] += 1
-                    elif "junior" in name:
-                        counts["junior"] += 1
-                    else:
-                        counts["other"] += 1
-                    items_total += 1
-
-                next_url = _smartrr_next(payload)
-                if next_url:
-                    continue
-                if len(items) < 250:
-                    break
-                page += 1
-
-            if items_total > 0:
+            if not items:
                 break
 
-        total = sum(counts.values())
-        if total == 0 and last_error:
-            return [now_str, brand_name, 0, 0, 0, 0, 0, 0, source, last_error]
+            for sub in items:
+                # Defensive de-dupe across pages.
+                sid = str(
+                    _dig(sub, "id") or
+                    _dig(sub, "shopifyId") or
+                    _dig(sub, "externalSubscriptionId") or
+                    _dig(sub, "external_subscription_id") or
+                    ""
+                )
+                if sid and sid in seen_ids:
+                    continue
+                if sid:
+                    seen_ids.add(sid)
 
-        print(f"    smartrr: seasonal={counts['seasonal']} signature={counts['signature']} premier={counts['premier']} junior={counts['junior']} other={counts['other']} total={total}")
+                if not _smartrr_is_active(sub):
+                    continue
+
+                active_rows_seen += 1
+                name = _smartrr_plan_name(sub)
+
+                # Cavali naming from Smartrr: "Cavali Club Membership" = Seasonal.
+                if "seasonal" in name or "cavali club membership" in name or "club membership" in name:
+                    counts["seasonal"] += 1
+                elif "signature" in name:
+                    counts["signature"] += 1
+                elif "premier" in name or "premium" in name:
+                    counts["premier"] += 1
+                elif "junior" in name:
+                    counts["junior"] += 1
+                else:
+                    counts["other"] += 1
+
+            if len(items) < page_size:
+                break
+            if total_hint is not None and (page_number + 1) * page_size >= total_hint:
+                break
+            page_number += 1
+
+        total = sum(counts.values())
+
+        if total == 0:
+            msg = (
+                "Smartrr returned 0 ACTIVE purchase-state rows. "
+                "Check that SMARTRR_API_KEY_CAVALI belongs to Cavali and has vendor API access. "
+                f"Last status: {last_status or 'no response'}"
+            )
+            print(f"    ⚠ smartrr: {msg}")
+            return _smartrr_fallback_row(now_str, brand_name, source, msg)
+
+        print(
+            f"    smartrr: seasonal={counts['seasonal']} "
+            f"signature={counts['signature']} premier={counts['premier']} "
+            f"junior={counts['junior']} other={counts['other']} total={total} "
+            f"active_rows_seen={active_rows_seen}"
+        )
         return [
             now_str, brand_name,
             counts["seasonal"], counts["signature"], counts["premier"], counts["junior"],
@@ -613,7 +730,7 @@ def fetch_smartrr_active_subs(brand_name):
 
     except Exception as e:
         print(f"    ⚠ smartrr error: {e}")
-        return [now_str, brand_name, 0, 0, 0, 0, 0, 0, source, str(e)]
+        return _smartrr_fallback_row(now_str, brand_name, source, str(e))
 
 
 def write_smartrr(gc, sheet_id, smartrr_row):
@@ -629,6 +746,7 @@ def write_smartrr(gc, sheet_id, smartrr_row):
     ws.append_row(SMARTRR_HEADERS)
     ws.append_row(smartrr_row, value_input_option="USER_ENTERED")
     print("    smartrr_subscribers: 1 row")
+
 
 # ─────────────────────────────────────────────────────────────────
 # MAIN
