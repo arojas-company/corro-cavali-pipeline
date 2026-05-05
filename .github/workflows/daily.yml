@@ -27,4 +27,5 @@ jobs:
           SHOPIFY_TOKEN_CORRO: ${{ secrets.SHOPIFY_TOKEN_CORRO }}
           SHOPIFY_TOKEN_CAVALI: ${{ secrets.SHOPIFY_TOKEN_CAVALI }}
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          SMARTRR_API_KEY_CAVALI: ${{ secrets.SMARTRR_API_KEY_CAVALI }}
         run: python pipeline.py
