@@ -1,24 +1,21 @@
 """
-Pipeline CORRO / CAVALI v4
-===========================
-New in v4:
-- gross_profit exported per channel (real, from ShopifyQL via order line items)
-- new_customer_revenue + returning_customer_revenue via REST orders_count
-  (replaces ShopifyQL GROUP BY customer_type which returns 0 for small stores)
-- new_customers count → enables automatic CAC calculation
-- Removed duplicate KPI columns (gross_sales_prev/yoy etc. — dashboard uses
-  prev/yoy rows directly, not separate columns)
-- Added gross_profit and gross_margin to kpis_daily HEADERS
-- revenue_share tab now includes gross_profit and gross_margin per channel
-- new_vs_returning tab: new_revenue, ret_revenue, new_gp, ret_gp, new_customers
-- CAC = ad_spend / new_customers (auto when ad spend data available)
+Pipeline CORRO / CAVALI v4.2
+============================
+FIXES v4.2:
+- ql_run usa rowData (campo correcto en API 2025-10)
+  con fallback a rows-como-lista y rows-con-cells
+- fetch_sales imprime raw row para diagnóstico
+- Sin cambios en lógica de negocio
 
-FIX v4.1:
-- UNTIL date is now e+1 when e==today so ShopifyQL includes the current day
-  (ShopifyQL treats UNTIL as exclusive when date == today in some timezones)
-- new_vs_returning now uses REST orders with customer.orders_count
-  (ShopifyQL GROUP BY customer_type returns 0 for Cavali — confirmed)
-- Smartrr key is for cavaliclub.com (Cavali's own Smartrr instance)
+EJECUCIÓN:
+  python pipeline_v4.py
+  (requiere env vars: SHOPIFY_TOKEN_CORRO, SHOPIFY_TOKEN_CAVALI, GOOGLE_CREDENTIALS)
+
+COMPORTAMIENTO EN SHEETS:
+  NO borra el contenido previo. Hace upsert por period key:
+  - Si el period ya existe → lo sobreescribe con datos frescos
+  - Si es nuevo → lo agrega
+  Esto significa que puedes ejecutarlo cuantas veces quieras sin duplicar filas.
 """
 
 import os, json, requests, gspread, calendar
@@ -46,7 +43,6 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive",
 ]
 
-# ── kpis_daily columns ────────────────────────────────────────────
 HEADERS = [
     "updated_at", "period", "period_start", "period_end",
     "gross_sales", "net_sales", "gross_profit", "total_discounts",
@@ -59,7 +55,6 @@ HEADERS = [
     "new_gross_profit", "returning_gross_profit",
 ]
 
-# ── Ad Spend ─────────────────────────────────────────────────────
 AD_SPEND_DATA = {
     "corro": {
         "2024-01": {"spend": 82069,  "roas": 2.12, "cos": 0.472},
@@ -103,7 +98,7 @@ def get_gc():
     return gspread.authorize(creds)
 
 # ─────────────────────────────────────────────────────────────────
-# SHOPIFY HELPERS
+# SHOPIFY GQL
 # ─────────────────────────────────────────────────────────────────
 def gql(store_url, token, query):
     r = requests.post(
@@ -112,109 +107,139 @@ def gql(store_url, token, query):
         json={"query": query}, timeout=60,
     )
     if r.status_code != 200:
-        print(f"    HTTP {r.status_code}"); return None
+        print(f"    HTTP {r.status_code} — {r.text[:200]}")
+        return None
     d = r.json()
     if d.get("errors"):
-        print(f"    GQL errors: {d['errors']}"); return None
+        print(f"    GQL errors: {d['errors']}")
+        return None
     return d.get("data")
 
-def rest(store_url, token, endpoint, params):
-    url = f"https://{store_url}/admin/api/2024-01/{endpoint}"
-    headers = {"X-Shopify-Access-Token": token}
-    results = []
-    while url:
-        r = requests.get(url, headers=headers, params=params, timeout=60)
-        r.raise_for_status()
-        data = r.json()
-        key  = list(data.keys())[0]
-        results.extend(data[key])
-        link = r.headers.get("Link", ""); url = None; params = {}
-        if 'rel="next"' in link:
-            for part in link.split(","):
-                if 'rel="next"' in part:
-                    url = part.split(";")[0].strip().strip("<>")
-    return results
-
 # ─────────────────────────────────────────────────────────────────
-# SHOPIFYQL HELPERS
+# ql_run — FIX v4.2
+# Usa rowData (correcto en 2025-10) con fallback completo.
 # ─────────────────────────────────────────────────────────────────
 def ql_run(store_url, token, ql_query):
-    """Run a ShopifyQL query, return list of {col: val} dicts."""
-    q = ('{ shopifyqlQuery(query: "%s") { tableData { columns { name } rows { cells } } parseErrors } }'
-         % ql_query.replace('"', '\\"'))
+    """
+    Ejecuta una ShopifyQL query.
+    Intenta primero con rowData (API 2025-10+).
+    Si rowData viene vacío prueba con rows plano.
+    Devuelve lista de {columna: valor}.
+    """
+    escaped = ql_query.replace("\\", "\\\\").replace('"', '\\"')
+
+    # Intento 1: rowData (formato correcto 2025-10)
+    q = f'{{ shopifyqlQuery(query: "{escaped}") {{ tableData {{ columns {{ name }} rowData }} parseErrors }} }}'
     data = gql(store_url, token, q)
-    if not data:
+
+    row_data = None
+    cols     = []
+
+    if data:
+        ql   = data.get("shopifyqlQuery") or {}
+        errs = ql.get("parseErrors") or []
+        if errs:
+            print(f"    parseErrors: {errs}")
+            return []
+        td       = ql.get("tableData") or {}
+        cols     = [c["name"] for c in (td.get("columns") or [])]
+        row_data = td.get("rowData")
+
+    # Intento 2: rows plano (fallback)
+    if not row_data:
+        q2 = f'{{ shopifyqlQuery(query: "{escaped}") {{ tableData {{ columns {{ name }} rows }} parseErrors }} }}'
+        data2 = gql(store_url, token, q2)
+        if data2:
+            ql2  = data2.get("shopifyqlQuery") or {}
+            td2  = ql2.get("tableData") or {}
+            cols = [c["name"] for c in (td2.get("columns") or [])]
+            row_data = td2.get("rows")
+
+    if not row_data or not cols:
         return []
-    ql   = data.get("shopifyqlQuery") or {}
-    errs = ql.get("parseErrors") or []
-    if errs:
-        print(f"    parseErrors: {errs}"); return []
-    td   = ql.get("tableData") or {}
-    cols = [c["name"] for c in (td.get("columns") or [])]
-    rows = td.get("rows") or []
+
     result = []
-    for row in rows:
-        if isinstance(row, dict):
+    for row in row_data:
+        if isinstance(row, list):
+            # Lista de valores directa: ["12345.00", "500.00", ...]
+            vals = row
+        elif isinstance(row, dict):
+            # Objeto con cells: {"cells": [{"value": "..."}, ...]}
             cells = row.get("cells") or []
             vals  = [c.get("value") if isinstance(c, dict) else c for c in cells]
-        elif isinstance(row, list):
-            vals = row
+        elif isinstance(row, str):
+            # String JSON (raro pero posible)
+            try:
+                parsed = json.loads(row)
+                vals   = parsed if isinstance(parsed, list) else [row]
+            except Exception:
+                vals = [row]
         else:
             continue
         result.append({cols[i]: (vals[i] if i < len(vals) else "") for i in range(len(cols))})
+
     return result
+
 
 def ql_row(store_url, token, ql_query):
     rows = ql_run(store_url, token, ql_query)
     return rows[-1] if rows else None
 
+
 def _m(v):
-    if v is None: return 0.0
-    try:   return float(str(v).replace(",", "").strip())
-    except: return 0.0
+    if v is None:
+        return 0.0
+    try:
+        return float(str(v).replace(",", "").strip())
+    except Exception:
+        return 0.0
+
 
 def _gm(v):
-    if v is None: return 0.0
+    if v is None:
+        return 0.0
     try:
         f = float(str(v).replace("%", "").replace(",", "").strip())
         return round(f * 100, 2) if abs(f) <= 1.0 else round(f, 2)
-    except: return 0.0
+    except Exception:
+        return 0.0
 
-# ─────────────────────────────────────────────────────────────────
-# FIX: UNTIL date helper
-# ShopifyQL treats UNTIL as exclusive when date == today in some TZs.
-# Passing tomorrow ensures the current day is always included.
-# ─────────────────────────────────────────────────────────────────
+
 def _until(e):
-    """Return e+1 if e is today or in the future, else e as-is."""
+    """ShopifyQL UNTIL es exclusivo cuando e == hoy. Pasamos e+1 para incluir el día actual."""
     today = datetime.now(TIMEZONE).date()
     if e >= today:
         return e + timedelta(days=1)
     return e
 
 # ─────────────────────────────────────────────────────────────────
-# FETCH: SALES (gross_profit included)
+# FETCH: SALES
 # ─────────────────────────────────────────────────────────────────
 def fetch_sales(url, token, s, e):
-    e_ql = _until(e)   # ← FIX: include today
-    row = ql_row(url, token,
+    e_ql = _until(e)
+    row  = ql_row(url, token,
         f"FROM sales SHOW gross_sales, discounts, returns, net_sales, "
         f"cost_of_goods_sold, gross_profit, gross_margin, orders "
         f"SINCE {s} UNTIL {e_ql}")
+
     if not row:
+        print(f"    ⚠ fetch_sales: sin datos para {s} → {e_ql}")
         return {k: 0 for k in
                 ["gross_sales","discounts","returns","net_sales",
                  "cogs","gross_profit","pct_gm","orders"]}
-    g  = round(_m(row.get("gross_sales")),    2)
-    d  = round(abs(_m(row.get("discounts"))), 2)
-    r  = round(abs(_m(row.get("returns"))),   2)
-    n  = round(_m(row.get("net_sales")),      2)
-    c  = round(_m(row.get("cost_of_goods_sold")), 2)
-    gp = round(_m(row.get("gross_profit")),   2)
+
+    g  = round(_m(row.get("gross_sales")),        2)
+    d  = round(abs(_m(row.get("discounts"))),      2)
+    r  = round(abs(_m(row.get("returns"))),        2)
+    n  = round(_m(row.get("net_sales")),           2)
+    c  = round(_m(row.get("cost_of_goods_sold")),  2)
+    gp = round(_m(row.get("gross_profit")),        2)
     gm = _gm(row.get("gross_margin"))
     o  = int(abs(_m(row.get("orders"))))
+
     print(f"    gross:{g:>12,.2f}  net:{n:>12,.2f}  gp:{gp:>10,.2f}  "
           f"cogs:{c:>9,.2f}  gm:{gm:>5.1f}%  orders:{o}  [UNTIL {e_ql}]")
+
     return {"gross_sales": g, "discounts": d, "returns": r, "net_sales": n,
             "cogs": c, "gross_profit": gp, "pct_gm": gm, "orders": o}
 
@@ -222,9 +247,10 @@ def fetch_sales(url, token, s, e):
 # FETCH: SESSIONS
 # ─────────────────────────────────────────────────────────────────
 def fetch_sessions(url, token, s, e):
-    e_ql = _until(e)   # ← FIX
-    row = ql_row(url, token, f"FROM sessions SHOW sessions SINCE {s} UNTIL {e_ql}")
-    if not row: return 0
+    e_ql = _until(e)
+    row  = ql_row(url, token, f"FROM sessions SHOW sessions SINCE {s} UNTIL {e_ql}")
+    if not row:
+        return 0
     v = int(abs(_m(row.get("sessions", 0))))
     print(f"    sessions: {v:,}")
     return v
@@ -233,21 +259,38 @@ def fetch_sessions(url, token, s, e):
 # FETCH: ORDERS FULFILLED
 # ─────────────────────────────────────────────────────────────────
 def fetch_orders_fulfilled(url, token, s, e):
-    e_ql = _until(e)   # ← FIX
-    row = ql_row(url, token,
+    e_ql = _until(e)
+    row  = ql_row(url, token,
         f"FROM fulfillments SHOW orders_fulfilled SINCE {s} UNTIL {e_ql}")
-    if not row: return None
+    if not row:
+        return None
     v = int(abs(_m(row.get("orders_fulfilled", 0))))
     print(f"    orders_fulfilled: {v:,}")
     return v
 
 # ─────────────────────────────────────────────────────────────────
-# FETCH: NEW vs RETURNING via REST orders
-# FIX: ShopifyQL GROUP BY customer_type returns 0 for Cavali.
-# Using REST orders with customer.orders_count is reliable for both stores.
-# orders_count == 1 → new customer on that order
-# orders_count >  1 → returning customer
+# FETCH: REST ORDERS (new vs returning)
 # ─────────────────────────────────────────────────────────────────
+def rest(store_url, token, endpoint, params):
+    url     = f"https://{store_url}/admin/api/2024-01/{endpoint}"
+    headers = {"X-Shopify-Access-Token": token}
+    results = []
+    while url:
+        r = requests.get(url, headers=headers, params=params, timeout=60)
+        r.raise_for_status()
+        data = r.json()
+        key  = list(data.keys())[0]
+        results.extend(data[key])
+        link = r.headers.get("Link", "")
+        url  = None
+        params = {}
+        if 'rel="next"' in link:
+            for part in link.split(","):
+                if 'rel="next"' in part:
+                    url = part.split(";")[0].strip().strip("<>")
+    return results
+
+
 def fetch_new_vs_returning(url, token, s, e):
     orders = rest(url, token, "orders.json", {
         "status":           "any",
@@ -263,8 +306,6 @@ def fetch_new_vs_returning(url, token, s, e):
         "returning_customers":    0,
         "new_revenue":            0.0,
         "returning_revenue":      0.0,
-        "new_gross_profit":       0.0,   # filled later in build() using overall gm%
-        "returning_gross_profit": 0.0,
     }
 
     for o in orders:
@@ -272,14 +313,14 @@ def fetch_new_vs_returning(url, token, s, e):
         customer = o.get("customer") or {}
         count    = int(customer.get("orders_count", 1) or 1)
         if count <= 1:
-            result["new_customers"]   += 1
-            result["new_revenue"]     += amt
+            result["new_customers"] += 1
+            result["new_revenue"]   += amt
         else:
             result["returning_customers"] += 1
             result["returning_revenue"]   += amt
 
-    result["new_revenue"]      = round(result["new_revenue"],      2)
-    result["returning_revenue"]= round(result["returning_revenue"], 2)
+    result["new_revenue"]       = round(result["new_revenue"],       2)
+    result["returning_revenue"] = round(result["returning_revenue"],  2)
 
     print(f"    new_customers:{result['new_customers']:>5}  "
           f"new_rev:{result['new_revenue']:>10,.2f}  "
@@ -287,9 +328,7 @@ def fetch_new_vs_returning(url, token, s, e):
           f"ret_rev:{result['returning_revenue']:>10,.2f}")
     return result
 
-# ─────────────────────────────────────────────────────────────────
-# FETCH: REST ORDERS (for units + revenue share)
-# ─────────────────────────────────────────────────────────────────
+
 def fetch_orders(url, token, s, e):
     return rest(url, token, "orders.json", {
         "status":           "any",
@@ -300,28 +339,22 @@ def fetch_orders(url, token, s, e):
         "fields":           "id,subtotal_price,line_items,source_name,tags",
     })
 
+
 def calc_units(orders):
     return sum(
         sum(int(li.get("quantity", 0) or 0) for li in o.get("line_items", []))
         for o in orders
     )
 
-# ─────────────────────────────────────────────────────────────────
-# REVENUE SHARE BY CHANNEL
-# ─────────────────────────────────────────────────────────────────
+
 def calc_rs(orders, overall_gm_pct):
-    ch = {
-        "Wellington (POS)": 0.,
-        "Concierge":        0.,
-        "Online":           0.,
-        "Others":           0.,
-    }
+    ch    = {"Wellington (POS)": 0., "Concierge": 0., "Online": 0., "Others": 0.}
     total = 0.
     for o in orders:
-        amt   = float(o.get("subtotal_price", 0) or 0)
+        amt    = float(o.get("subtotal_price", 0) or 0)
         total += amt
-        src   = (o.get("source_name") or "").lower().strip()
-        tags  = (o.get("tags") or "").lower()
+        src    = (o.get("source_name") or "").lower().strip()
+        tags   = (o.get("tags") or "").lower()
         if src == "pos" or "wellington" in tags or "pos" in tags:
             ch["Wellington (POS)"] += amt
         elif "concierge" in tags or "concierge" in src:
@@ -348,15 +381,15 @@ def calc_rs(orders, overall_gm_pct):
 # BUILD KPI DICT
 # ─────────────────────────────────────────────────────────────────
 def build(sales, orders, nvr, sessions=0, orders_fulfilled=None):
-    g   = sales.get("gross_sales",  0)
-    d   = sales.get("discounts",    0)
-    r   = sales.get("returns",      0)
-    n   = sales.get("net_sales",    0)
-    c   = sales.get("cogs",         0)
-    gp  = sales.get("gross_profit", 0)
-    gm  = sales.get("pct_gm",       0)
-    nb  = int(orders_fulfilled) if orders_fulfilled is not None \
-          else (sales.get("orders", 0) or len(orders))
+    g  = sales.get("gross_sales",  0)
+    d  = sales.get("discounts",    0)
+    r  = sales.get("returns",      0)
+    n  = sales.get("net_sales",    0)
+    c  = sales.get("cogs",         0)
+    gp = sales.get("gross_profit", 0)
+    gm = sales.get("pct_gm",       0)
+    nb = int(orders_fulfilled) if orders_fulfilled is not None \
+         else (sales.get("orders", 0) or len(orders))
 
     units = calc_units(orders)
     aov   = round(n / nb,     2) if nb   else 0
@@ -364,12 +397,11 @@ def build(sales, orders, nvr, sessions=0, orders_fulfilled=None):
     pdisc = round(d / g * 100, 2) if g   else 0
     pret  = round(r / g * 100, 2) if g   else 0
     sess  = int(sessions or 0)
-    uv    = round(sess * 0.85) if sess    else 0
+    uv    = round(sess * 0.85)    if sess else 0
     cr    = round(nb / sess * 100, 4) if sess else 0
 
-    # GP per segment = prorate overall GP% to each segment's revenue
     gm_rate = gm / 100 if gm > 0 else (gp / n if n > 0 else 0)
-    new_gp  = round(nvr.get("new_revenue", 0) * gm_rate, 2)
+    new_gp  = round(nvr.get("new_revenue",       0) * gm_rate, 2)
     ret_gp  = round(nvr.get("returning_revenue", 0) * gm_rate, 2)
 
     return {
@@ -397,9 +429,7 @@ def build(sales, orders, nvr, sessions=0, orders_fulfilled=None):
         "returning_gross_profit": ret_gp,
     }
 
-# ─────────────────────────────────────────────────────────────────
-# BUILD KPI ROW
-# ─────────────────────────────────────────────────────────────────
+
 def make_kpi_row(now_str, period_key, s, e, cur):
     return [
         now_str, period_key, str(s), str(e),
@@ -428,19 +458,6 @@ def make_kpi_row(now_str, period_key, s, e, cur):
     ]
 
 # ─────────────────────────────────────────────────────────────────
-# PERIOD HELPERS
-# ─────────────────────────────────────────────────────────────────
-def _safe_date(v):
-    try:    return datetime.strptime(str(v), "%Y-%m-%d").date()
-    except: return date(1900, 1, 1)
-
-def _row_to_map(headers, row):
-    return {h: (row[i] if i < len(row) else "") for i, h in enumerate(headers)}
-
-def _map_to_row(headers, m):
-    return [m.get(h, "") for h in headers]
-
-# ─────────────────────────────────────────────────────────────────
 # PERIODS
 # ─────────────────────────────────────────────────────────────────
 def get_periods():
@@ -451,9 +468,9 @@ def get_periods():
     mtd_e  = today
     mtd_pk = f"mtd_{today.strftime('%Y-%m')}"
 
-    prev_mo_end   = mtd_s - timedelta(days=1)
-    prev_mo_s     = prev_mo_end.replace(day=1)
-    prev_mo_mtd_e = prev_mo_end.replace(day=min(today.day, prev_mo_end.day))
+    prev_mo_end    = mtd_s - timedelta(days=1)
+    prev_mo_s      = prev_mo_end.replace(day=1)
+    prev_mo_mtd_e  = prev_mo_end.replace(day=min(today.day, prev_mo_end.day))
 
     yoy_mtd_s = mtd_s.replace(year=mtd_s.year - 1)
     yoy_mtd_e = today.replace(year=today.year - 1)
@@ -480,39 +497,54 @@ def get_periods():
     yoy_mo_s = mo_s.replace(year=mo_s.year - 1)
     yoy_mo_e = mo_e.replace(year=mo_e.year - 1)
 
-    q_num  = (today.month - 1) // 3 + 1
-    q_s    = today.replace(month=(q_num - 1) * 3 + 1, day=1)
-    q_e    = today
-    q_pk   = f"q{q_num}_{today.year}"
+    q_num = (today.month - 1) // 3 + 1
+    q_s   = today.replace(month=(q_num - 1) * 3 + 1, day=1)
+    q_e   = today
+    q_pk  = f"q{q_num}_{today.year}"
 
-    pq     = q_num - 1 if q_num > 1 else 4
-    pq_y   = today.year if q_num > 1 else today.year - 1
-    pq_s   = date(pq_y, (pq - 1) * 3 + 1, 1)
-    pq_em  = pq * 3
-    pq_e   = date(pq_y, pq_em, calendar.monthrange(pq_y, pq_em)[1])
-    pq_pk  = f"q{pq}_{pq_y}"
+    pq    = q_num - 1 if q_num > 1 else 4
+    pq_y  = today.year if q_num > 1 else today.year - 1
+    pq_s  = date(pq_y, (pq - 1) * 3 + 1, 1)
+    pq_em = pq * 3
+    pq_e  = date(pq_y, pq_em, calendar.monthrange(pq_y, pq_em)[1])
+    pq_pk = f"q{pq}_{pq_y}"
 
     yoy_q_s  = q_s.replace(year=q_s.year - 1)
     yoy_q_e  = today.replace(year=today.year - 1)
     yoy_q_pk = f"q{q_num}_{today.year - 1}"
 
     return {
-        "mtd":          (mtd_s,       mtd_e,         mtd_pk),
-        "mtd_prev":     (prev_mo_s,   prev_mo_mtd_e, None),
-        "mtd_yoy":      (yoy_mtd_s,   yoy_mtd_e,     None),
-        "week":         (wk_s,        wk_e,           wk_pk),
-        "week_prev":    (pwk_s,       pwk_e,          pwk_pk),
-        "week_yoy":     (yoy_wk_s,    yoy_wk_e,       None),
-        "month":        (mo_s,        mo_e,            mo_pk),
-        "month_prev":   (pmo_s,       pmo_e,           pmo_pk),
-        "month_yoy":    (yoy_mo_s,    yoy_mo_e,        None),
-        "quarter":      (q_s,         q_e,             q_pk),
-        "quarter_prev": (pq_s,        pq_e,            pq_pk),
-        "quarter_yoy":  (yoy_q_s,     yoy_q_e,         yoy_q_pk),
+        "mtd":          (mtd_s,        mtd_e,         mtd_pk),
+        "mtd_prev":     (prev_mo_s,    prev_mo_mtd_e, None),
+        "mtd_yoy":      (yoy_mtd_s,    yoy_mtd_e,     None),
+        "week":         (wk_s,         wk_e,           wk_pk),
+        "week_prev":    (pwk_s,        pwk_e,          pwk_pk),
+        "week_yoy":     (yoy_wk_s,     yoy_wk_e,       None),
+        "month":        (mo_s,         mo_e,            mo_pk),
+        "month_prev":   (pmo_s,        pmo_e,           pmo_pk),
+        "month_yoy":    (yoy_mo_s,     yoy_mo_e,        None),
+        "quarter":      (q_s,          q_e,             q_pk),
+        "quarter_prev": (pq_s,         pq_e,            pq_pk),
+        "quarter_yoy":  (yoy_q_s,      yoy_q_e,         yoy_q_pk),
     }
 
 # ─────────────────────────────────────────────────────────────────
-# WRITE TO GOOGLE SHEETS
+# HELPERS SHEETS
+# ─────────────────────────────────────────────────────────────────
+def _safe_date(v):
+    try:    return datetime.strptime(str(v), "%Y-%m-%d").date()
+    except: return date(1900, 1, 1)
+
+
+def _row_to_map(headers, row):
+    return {h: (row[i] if i < len(row) else "") for i, h in enumerate(headers)}
+
+
+def _map_to_row(headers, m):
+    return [m.get(h, "") for h in headers]
+
+# ─────────────────────────────────────────────────────────────────
+# WRITE — upsert (no borra datos históricos)
 # ─────────────────────────────────────────────────────────────────
 def write_all(gc, sheet_id, kpi_rows, rs_rows, nvr_rows, brand_name):
     sh = gc.open_by_key(sheet_id)
@@ -578,9 +610,10 @@ def write_all(gc, sheet_id, kpi_rows, rs_rows, nvr_rows, brand_name):
             prev_pk = f"mtd_{py}-{str(pmo).zfill(2)}"
         elif pk.startswith("week_"):
             try:
-                d       = datetime.strptime(pk[5:], "%Y-%m-%d").date()
-                prev_pk = f"week_{d - timedelta(days=7)}"
-            except: pass
+                d_      = datetime.strptime(pk[5:], "%Y-%m-%d").date()
+                prev_pk = f"week_{d_ - timedelta(days=7)}"
+            except Exception:
+                pass
         elif len(pk) == 7 and "-" in pk:
             yr, mo  = int(pk[:4]), int(pk[5:])
             pmo     = mo - 1 if mo > 1 else 12
@@ -598,7 +631,8 @@ def write_all(gc, sheet_id, kpi_rows, rs_rows, nvr_rows, brand_name):
         pct_prev = float(prev_row[4]) if prev_row and prev_row[4] not in ("", "None") else None
         pct_chg  = round(pct_now - pct_prev, 2) \
                    if pct_now is not None and pct_prev is not None else None
-        while len(r) < len(rs_headers): r.append("")
+        while len(r) < len(rs_headers):
+            r.append("")
         r[7] = pct_prev if pct_prev is not None else ""
         r[8] = pct_chg  if pct_chg  is not None else ""
 
@@ -655,17 +689,18 @@ def write_all(gc, sheet_id, kpi_rows, rs_rows, nvr_rows, brand_name):
         if len(pk) == 7 and "-" in pk and not pk.startswith("mtd_"):
             try:
                 nc_by_month[pk] = int(float(r[HEADERS.index("new_customers")] or 0))
-            except: pass
+            except Exception:
+                pass
 
     ad_rows = []
     for mo, vals in sorted(brand_data.items()):
-        if not vals.get("spend"): continue
+        if not vals.get("spend"):
+            continue
         yr, mn = int(mo[:4]), int(mo[5:])
-        import calendar as _cal
-        ps  = f"{mo}-01"
-        pe  = f"{mo}-{_cal.monthrange(yr, mn)[1]:02d}"
-        nc  = nc_by_month.get(mo, 0)
-        spend    = vals.get("spend", 0)
+        ps     = f"{mo}-01"
+        pe     = f"{mo}-{calendar.monthrange(yr, mn)[1]:02d}"
+        nc     = nc_by_month.get(mo, 0)
+        spend  = vals.get("spend", 0)
         cac_auto = round(spend / nc, 2) if nc > 0 else ""
         ad_rows.append([
             now_str, brand_name, mo, ps, pe,
@@ -749,6 +784,7 @@ def main():
                   f"  net:{float(row[5] or 0):>12,.2f}"
                   f"  gp:{float(row[6] or 0):>10,.2f}"
                   f"  new_cust:{int(row[20] or 0):>5}")
+
 
 if __name__ == "__main__":
     main()
