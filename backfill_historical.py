@@ -3,7 +3,8 @@ BACKFILL HISTÓRICO v2.3 — Shopify → Google Sheets
 ===================================================
 Jala datos desde 2024-01-01 hasta hoy para todos los meses, semanas y quarters.
 
-FIXES v2.3:
+FIXES v2.3 + Smartrr safe fix:
+- Smartrr se consulta desde Python/backend y se escribe en Sheets; NO se expone API key en HTML.
 - ql_run corregido para API 2025-10: `rows` devuelve OBJETOS JSON (dicts),
   NO rowData (eliminado) NI arrays de listas.
   Estructura real: tableData.rows = [{"col_name": "value", ...}, ...]
@@ -15,10 +16,12 @@ FIXES v2.3:
 EJECUCIÓN:
   python backfill.py
   (requiere env vars: SHOPIFY_TOKEN_CORRO, SHOPIFY_TOKEN_CAVALI, GOOGLE_CREDENTIALS)
+  Opcional/recomendado para Cavali: SMARTRR_API_KEY_CAVALI
 
 COMPORTAMIENTO EN SHEETS:
   ⚠️  BORRA y reescribe completamente los tabs:
       kpis_daily, revenue_share, new_vs_returning
+      Además actualiza smartrr_subscribers para Cavali
 """
 
 import os, json, requests, gspread
@@ -31,14 +34,16 @@ GQL_VERSION = "2025-10"
 
 STORES = {
     "corro":  {
-        "url":      "equestrian-labs.myshopify.com",
+        # Usa tus mismos GitHub Secrets si existen; los defaults mantienen intacto el comportamiento anterior.
+        "url":      os.environ.get("SHOPIFY_URL_CORRO", "equestrian-labs.myshopify.com"),
         "token":    os.environ["SHOPIFY_TOKEN_CORRO"],
-        "sheet_id": "1nq8xkDzowAvhD3wpMBlVK2M3FZSNS2DrAiPxz-Y2tdU",
+        "sheet_id": os.environ.get("SHEET_ID_CORRO", "1nq8xkDzowAvhD3wpMBlVK2M3FZSNS2DrAiPxz-Y2tdU"),
     },
     "cavali": {
-        "url":      "cavali-club.myshopify.com",
+        # Usa tus mismos GitHub Secrets si existen; los defaults mantienen intacto el comportamiento anterior.
+        "url":      os.environ.get("SHOPIFY_URL_CAVALI", "cavali-club.myshopify.com"),
         "token":    os.environ["SHOPIFY_TOKEN_CAVALI"],
-        "sheet_id": "1QUdJc2EIdElIX5nlLQxWxS98aAz-TgQnSg9glJpNtig",
+        "sheet_id": os.environ.get("SHEET_ID_CAVALI", "1QUdJc2EIdElIX5nlLQxWxS98aAz-TgQnSg9glJpNtig"),
     },
 }
 SCOPES = [
@@ -61,6 +66,17 @@ HEADERS_KPIS = [
     "new_revenue", "returning_revenue",
     "new_gross_profit", "returning_gross_profit",
 ]
+
+SMARTRR_HEADERS = [
+    "updated_at", "brand", "seasonal", "signature", "premier", "junior",
+    "other", "total_subscribers", "source", "error",
+]
+
+SMARTRR_API_KEYS = {
+    # Guardar en GitHub Actions Secrets. Nunca poner esta key en el HTML público.
+    "cavali": os.environ.get("SMARTRR_API_KEY_CAVALI") or os.environ.get("SMARTRR_TOKEN_CAVALI") or "",
+    "corro":  os.environ.get("SMARTRR_API_KEY_CORRO")  or os.environ.get("SMARTRR_TOKEN_CORRO")  or "",
+}
 
 # ─────────────────────────────────────────────────────────────────
 # GOOGLE SHEETS
@@ -423,6 +439,198 @@ def make_kpi_row(now_str, label, period_start, period_end, cur, prev, yoy):
     ]
 
 # ─────────────────────────────────────────────────────────────────
+# SMARTRR — backend → Google Sheets (solo Cavali)
+# ─────────────────────────────────────────────────────────────────
+def _dig(obj, *paths):
+    """Return first non-empty nested value from a dict/list using dot paths."""
+    for path in paths:
+        cur = obj
+        ok = True
+        for part in path.split("."):
+            if isinstance(cur, dict):
+                cur = cur.get(part)
+            elif isinstance(cur, list):
+                try:
+                    cur = cur[int(part)]
+                except Exception:
+                    ok = False
+                    break
+            else:
+                ok = False
+                break
+        if ok and cur not in (None, ""):
+            return cur
+    return ""
+
+
+def _smartrr_items(payload):
+    """Smartrr responses can vary; normalize common containers into a list."""
+    if isinstance(payload, list):
+        return payload
+    if not isinstance(payload, dict):
+        return []
+    for key in ("items", "subscriptions", "subscription_contracts", "contracts", "data", "results"):
+        val = payload.get(key)
+        if isinstance(val, list):
+            return val
+        if isinstance(val, dict):
+            nested = _smartrr_items(val)
+            if nested:
+                return nested
+    return []
+
+
+def _smartrr_next(payload):
+    if not isinstance(payload, dict):
+        return None
+    return (
+        _dig(payload, "next") or
+        _dig(payload, "links.next") or
+        _dig(payload, "pagination.next") or
+        _dig(payload, "meta.next") or
+        _dig(payload, "page_info.next")
+    )
+
+
+def _smartrr_plan_name(subscription):
+    vals = [
+        _dig(subscription, "planName"),
+        _dig(subscription, "plan_name"),
+        _dig(subscription, "sellingPlan.name"),
+        _dig(subscription, "selling_plan.name"),
+        _dig(subscription, "subscriptionContractLine.title"),
+        _dig(subscription, "subscription_contract_line.title"),
+        _dig(subscription, "lines.0.title"),
+        _dig(subscription, "line_items.0.title"),
+        _dig(subscription, "product.title"),
+        _dig(subscription, "variant.title"),
+        _dig(subscription, "name"),
+    ]
+    return " ".join(str(v) for v in vals if v).lower()
+
+
+def _smartrr_is_active(subscription):
+    status = str(
+        _dig(subscription, "status") or
+        _dig(subscription, "subscriptionStatus") or
+        _dig(subscription, "subscription_status") or
+        _dig(subscription, "state")
+    ).lower()
+    # Si el endpoint ya viene filtrado por ACTIVE y no retorna status, se cuenta como activo.
+    return status in ("", "active", "activated")
+
+
+def fetch_smartrr_active_subs(brand_name):
+    """
+    Devuelve una fila para el tab smartrr_subscribers.
+    Corre server-side en GitHub Actions para no exponer la API key.
+    """
+    now_str = datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M")
+    key = SMARTRR_API_KEYS.get(brand_name, "")
+
+    if brand_name != "cavali":
+        return None
+    if not key:
+        return [now_str, brand_name, 0, 0, 0, 0, 0, 0, "Smartrr", "SMARTRR_API_KEY_CAVALI missing"]
+
+    headers = {
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+
+    counts = {"seasonal": 0, "signature": 0, "premier": 0, "junior": 0, "other": 0}
+    source = "Smartrr API → Backfill → Sheets"
+
+    try:
+        # Se prueban ambos nombres porque el dashboard original usaba /subscription,
+        # pero algunas cuentas responden en /subscriptions.
+        endpoints = ["subscription", "subscriptions"]
+        last_error = ""
+        items_total = 0
+
+        for endpoint in endpoints:
+            counts = {"seasonal": 0, "signature": 0, "premier": 0, "junior": 0, "other": 0}
+            items_total = 0
+            page = 1
+            next_url = None
+
+            while True:
+                if next_url:
+                    url = next_url if str(next_url).startswith("http") else f"https://api.smartrr.com/api/v1/{str(next_url).lstrip('/')}"
+                    params = None
+                else:
+                    url = f"https://api.smartrr.com/api/v1/{endpoint}"
+                    params = {"status": "ACTIVE", "limit": 250, "page": page}
+
+                r = requests.get(url, headers=headers, params=params, timeout=60)
+                if r.status_code in (404, 405):
+                    last_error = f"{endpoint} HTTP {r.status_code}"
+                    break
+                r.raise_for_status()
+
+                payload = r.json()
+                items = _smartrr_items(payload)
+                if not items:
+                    break
+
+                for sub in items:
+                    if not _smartrr_is_active(sub):
+                        continue
+                    name = _smartrr_plan_name(sub)
+                    if "seasonal" in name:
+                        counts["seasonal"] += 1
+                    elif "signature" in name:
+                        counts["signature"] += 1
+                    elif "premier" in name or "premium" in name:
+                        counts["premier"] += 1
+                    elif "junior" in name:
+                        counts["junior"] += 1
+                    else:
+                        counts["other"] += 1
+                    items_total += 1
+
+                next_url = _smartrr_next(payload)
+                if next_url:
+                    continue
+                if len(items) < 250:
+                    break
+                page += 1
+
+            if items_total > 0:
+                break
+
+        total = sum(counts.values())
+        if total == 0 and last_error:
+            return [now_str, brand_name, 0, 0, 0, 0, 0, 0, source, last_error]
+
+        print(f"    smartrr: seasonal={counts['seasonal']} signature={counts['signature']} premier={counts['premier']} junior={counts['junior']} other={counts['other']} total={total}")
+        return [
+            now_str, brand_name,
+            counts["seasonal"], counts["signature"], counts["premier"], counts["junior"],
+            counts["other"], total, source, "",
+        ]
+
+    except Exception as e:
+        print(f"    ⚠ smartrr error: {e}")
+        return [now_str, brand_name, 0, 0, 0, 0, 0, 0, source, str(e)]
+
+
+def write_smartrr(gc, sheet_id, smartrr_row):
+    if not smartrr_row:
+        return
+    sh = gc.open_by_key(sheet_id)
+    try:
+        ws = sh.worksheet("smartrr_subscribers")
+    except Exception:
+        ws = sh.add_worksheet("smartrr_subscribers", rows=50, cols=len(SMARTRR_HEADERS))
+
+    ws.clear()
+    ws.append_row(SMARTRR_HEADERS)
+    ws.append_row(smartrr_row, value_input_option="USER_ENTERED")
+    print("    smartrr_subscribers: 1 row")
+
+# ─────────────────────────────────────────────────────────────────
 # MAIN
 # ─────────────────────────────────────────────────────────────────
 def main():
@@ -648,6 +856,11 @@ def main():
         for i in range(0, len(nvr_rows), 50):
             ws_nvr.append_rows(nvr_rows[i:i+50])
             print(f"  NVR batch {i//50+1} escrito")
+
+        # Smartrr no es histórico por periodo: es snapshot actual de suscriptores activos.
+        # Se escribe aquí para que, al correr backfill, el dashboard también tenga esta pestaña lista.
+        smartrr_row = fetch_smartrr_active_subs(brand)
+        write_smartrr(gc, sid, smartrr_row)
 
         print(f"\n  ✓ {brand.upper()} completado: "
               f"{len(kpi_rows)} KPI + {len(rs_rows)} RS + {len(nvr_rows)} NVR filas")
