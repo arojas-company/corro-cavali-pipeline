@@ -19,7 +19,7 @@ COMPORTAMIENTO EN SHEETS:
   - Si es nuevo → lo agrega
 """
 
-import os, json, requests, gspread, calendar
+import os, json, time, random, requests, gspread, calendar
 from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta, date
 import pytz
@@ -104,27 +104,6 @@ SMARTRR_API_KEYS = {
     "corro":  os.environ.get("SMARTRR_API_KEY_CORRO")  or os.environ.get("SMARTRR_TOKEN_CORRO")  or "",
 }
 
-# Last-known Cavali subscriber counts from the dashboard review / Smartrr screen recording.
-# This is used ONLY as a visible fallback when the Smartrr API returns 0/error,
-# so the dashboard does not show empty circles. The `error` column keeps the warning.
-SMARTRR_FALLBACK_CAVALI = {
-    "seasonal": 337,   # Smartrr label: Cavali Club Membership
-    "signature": 7,
-    "premier": 17,
-    "junior": 0,
-    "other": 0,
-}
-
-
-def _smartrr_fallback_row(now_str, brand_name, source, reason):
-    counts = SMARTRR_FALLBACK_CAVALI.copy()
-    total = sum(counts.values())
-    msg = (reason or "Smartrr unavailable") + " | Showing last-known review fallback; rerun pipeline when API access is fixed."
-    return [
-        now_str, brand_name,
-        counts["seasonal"], counts["signature"], counts["premier"], counts["junior"],
-        counts["other"], total, source + " + review fallback", msg,
-    ]
 
 # ─────────────────────────────────────────────────────────────────
 # GOOGLE SHEETS
@@ -322,6 +301,94 @@ def rest(store_url, token, endpoint, params):
     return results
 
 
+
+CUSTOMER_ORDER_COUNT_CACHE = {}
+
+
+def _shopify_rest_get_json_with_retry(store_url, token, endpoint, params=None, max_retries=7):
+    """Small REST GET helper for customer enrichment, with 429/5xx retry."""
+    url = f"https://{store_url}/admin/api/2024-01/{endpoint}"
+    headers = {"X-Shopify-Access-Token": token}
+    params = params or {}
+    for attempt in range(max_retries):
+        r = requests.get(url, headers=headers, params=params, timeout=60)
+        if r.status_code == 429 or r.status_code in (500, 502, 503, 504):
+            retry_after = r.headers.get("Retry-After")
+            if retry_after:
+                try:
+                    sleep_for = float(retry_after)
+                except Exception:
+                    sleep_for = 2.0
+            else:
+                sleep_for = min(45, (2 ** attempt) + random.random())
+            print(f"    Shopify REST {r.status_code} on {endpoint}; retrying in {sleep_for:.1f}s")
+            time.sleep(sleep_for)
+            continue
+        r.raise_for_status()
+        # Slow down if Shopify REST bucket is close to full.
+        lim = r.headers.get("X-Shopify-Shop-Api-Call-Limit", "")
+        try:
+            used, cap = [int(x) for x in lim.split("/", 1)]
+            if cap and used / cap >= 0.80:
+                time.sleep(0.75)
+        except Exception:
+            pass
+        return r.json()
+    r.raise_for_status()
+
+
+def _order_customer_id(order):
+    customer = order.get("customer") or {}
+    cid = customer.get("id")
+    return str(cid) if cid not in (None, "") else ""
+
+
+def enrich_orders_with_customer_order_counts(store_url, token, orders):
+    """
+    Shopify order payloads do not always include customer.orders_count.
+    New vs Returning must not default every missing customer to New.
+    This enriches each order.customer.orders_count from Shopify Customer REST.
+    """
+    ids = []
+    seen = set()
+    for o in orders or []:
+        cid = _order_customer_id(o)
+        if not cid or cid in seen:
+            continue
+        seen.add(cid)
+        customer = o.get("customer") or {}
+        current = customer.get("orders_count")
+        if current not in (None, ""):
+            try:
+                CUSTOMER_ORDER_COUNT_CACHE[cid] = int(current)
+                continue
+            except Exception:
+                pass
+        if cid not in CUSTOMER_ORDER_COUNT_CACHE:
+            ids.append(cid)
+
+    for i, cid in enumerate(ids, 1):
+        try:
+            data = _shopify_rest_get_json_with_retry(store_url, token, f"customers/{cid}.json", {"fields": "id,orders_count"})
+            customer = data.get("customer") or {}
+            CUSTOMER_ORDER_COUNT_CACHE[cid] = int(customer.get("orders_count", 1) or 1)
+        except Exception as e:
+            print(f"    ⚠ customer orders_count fallback cid={cid}: {e}")
+            CUSTOMER_ORDER_COUNT_CACHE[cid] = 1
+        if i % 40 == 0:
+            time.sleep(0.5)
+
+    for o in orders or []:
+        cid = _order_customer_id(o)
+        if not cid:
+            continue
+        if not o.get("customer"):
+            o["customer"] = {"id": cid}
+        if cid in CUSTOMER_ORDER_COUNT_CACHE:
+            o["customer"]["orders_count"] = CUSTOMER_ORDER_COUNT_CACHE[cid]
+    return orders
+
+
 def fetch_new_vs_returning(url, token, s, e):
     orders = rest(url, token, "orders.json", {
         "status":           "any",
@@ -331,6 +398,7 @@ def fetch_new_vs_returning(url, token, s, e):
         "limit":            250,
         "fields":           "id,subtotal_price,customer",
     })
+    orders = enrich_orders_with_customer_order_counts(url, token, orders)
 
     result = {
         "new_customers":          0,
@@ -361,14 +429,15 @@ def fetch_new_vs_returning(url, token, s, e):
 
 
 def fetch_orders(url, token, s, e):
-    return rest(url, token, "orders.json", {
+    orders = rest(url, token, "orders.json", {
         "status":           "any",
         "financial_status": "paid,partially_paid,partially_refunded,refunded",
         "created_at_min":   f"{s}T00:00:00-05:00",
         "created_at_max":   f"{e}T23:59:59-05:00",
         "limit":            250,
-        "fields":           "id,subtotal_price,line_items,source_name,tags",
+        "fields":           "id,subtotal_price,line_items,source_name,tags,customer",
     })
+    return enrich_orders_with_customer_order_counts(url, token, orders)
 
 
 def calc_units(orders):
@@ -561,243 +630,192 @@ def get_periods():
 
 
 # ─────────────────────────────────────────────────────────────────
-# SMARTRR — fetch in backend, then write to Sheets
+# SMARTRR — fetch active subscriptions and split by real Cavali box/product
 # ─────────────────────────────────────────────────────────────────
-def _dig(obj, *paths):
-    """Return first non-empty nested value from a dict/list using dot paths."""
-    for path in paths:
-        cur = obj
-        ok = True
-        for part in path.split("."):
-            if isinstance(cur, dict):
-                cur = cur.get(part)
-            elif isinstance(cur, list):
-                try:
-                    cur = cur[int(part)]
-                except Exception:
-                    ok = False
-                    break
-            else:
-                ok = False
-                break
-        if ok and cur not in (None, ""):
-            return cur
+def _smartrr_empty_row(now_str, brand_name, source, reason):
+    """Write an explicit empty/error row. No hardcoded reviewed fallback values."""
+    return [now_str, brand_name, 0, 0, 0, 0, 0, 0, source, reason or ""]
+
+
+def _find_contract_gid(obj, depth=0):
+    """Find gid://shopify/SubscriptionContract/... anywhere in the Smartrr object."""
+    if depth > 8 or obj is None:
+        return ""
+    if isinstance(obj, str):
+        m = re.search(r'gid://shopify/SubscriptionContract/(\d+)', obj)
+        if m:
+            return f"gid://shopify/SubscriptionContract/{m.group(1)}"
+        m = re.search(r'SubscriptionContract/(\d+)', obj)
+        if m:
+            return f"gid://shopify/SubscriptionContract/{m.group(1)}"
+        return ""
+    if isinstance(obj, dict):
+        # Prefer obvious id fields first.
+        for key in (
+            "shopifyId", "shopify_id", "shopifySubscriptionContractId", "shopify_subscription_contract_id",
+            "subscriptionContractId", "subscription_contract_id", "externalSubscriptionId", "external_subscription_id",
+        ):
+            val = obj.get(key)
+            found = _find_contract_gid(val, depth + 1)
+            if found:
+                return found
+            if val is not None:
+                s = str(val).strip()
+                if re.fullmatch(r'\d{6,}', s) and "contract" in key.lower():
+                    return f"gid://shopify/SubscriptionContract/{s}"
+        for v in obj.values():
+            found = _find_contract_gid(v, depth + 1)
+            if found:
+                return found
+    if isinstance(obj, list):
+        for v in obj[:80]:
+            found = _find_contract_gid(v, depth + 1)
+            if found:
+                return found
     return ""
 
 
-def _smartrr_items(payload):
-    """Normalize Smartrr list responses into a list."""
-    if isinstance(payload, list):
-        return payload
-    if not isinstance(payload, dict):
-        return []
-
-    # Common containers used by Smartrr/vendor APIs and ETL connectors.
-    for key in (
-        "data", "items", "results", "records",
-        "purchaseStates", "purchase_states", "purchaseState", "purchase_state",
-        "subscriptions", "subscription_contracts", "contracts",
-    ):
-        val = payload.get(key)
-        if isinstance(val, list):
-            return val
-        if isinstance(val, dict):
-            nested = _smartrr_items(val)
-            if nested:
-                return nested
-    return []
+def _classify_box_text(text):
+    """Map Cavali product/box names to dashboard buckets."""
+    t = _norm_txt(text)
+    if not t:
+        return "other"
+    # Specific first so Junior Membership does not get swallowed by generic Membership.
+    if "cavali club junior membership" in t or "junior membership" in t or re.search(r'\bjunior\b', t):
+        return "junior"
+    if "the signature box" in t or "signature box" in t or re.search(r'\bsignature\b', t):
+        return "signature"
+    if "the premier box" in t or "premier box" in t or re.search(r'\bpremier\b', t):
+        return "premier"
+    if "cavali club membership" in t or "club membership" in t or re.search(r'\bseasonal\b', t):
+        return "seasonal"
+    return "other"
 
 
-def _smartrr_total_hint(payload):
-    if not isinstance(payload, dict):
-        return None
-    for path in ("total", "totalCount", "count", "meta.total", "pagination.total", "page.total"):
-        val = _dig(payload, path)
-        if val not in (None, ""):
-            try:
-                return int(float(str(val).replace(",", "")))
-            except Exception:
-                pass
-    return None
+def fetch_shopify_subscription_contract_titles(store_url, token, contract_gids):
+    """
+    Smartrr purchase-state can return active subscription IDs without product labels.
+    Resolve those Shopify SubscriptionContract IDs through Shopify GraphQL and read line titles.
+    """
+    ids = sorted({gid for gid in contract_gids if gid and str(gid).startswith("gid://shopify/SubscriptionContract/")})
+    result = {}
+    if not ids:
+        return result
+
+    for i in range(0, len(ids), 50):
+        chunk = ids[i:i + 50]
+        ids_arg = ",".join(json.dumps(x) for x in chunk)
+        q = f'''
+        {{
+          nodes(ids: [{ids_arg}]) {{
+            id
+            ... on SubscriptionContract {{
+              lines(first: 10) {{
+                edges {{
+                  node {{
+                    title
+                    variantTitle
+                    productId
+                    variantId
+                  }}
+                }}
+              }}
+            }}
+          }}
+        }}
+        '''
+        data = gql(store_url, token, q)
+        nodes = (data or {}).get("nodes") or []
+        for node in nodes:
+            if not node or not node.get("id"):
+                continue
+            parts = []
+            for edge in (((node.get("lines") or {}).get("edges")) or []):
+                ln = edge.get("node") or {}
+                for key in ("title", "variantTitle", "productId", "variantId"):
+                    if ln.get(key):
+                        parts.append(str(ln.get(key)))
+            result[node["id"]] = " | ".join(parts)
+        # Be gentle with Shopify GraphQL during large active-sub lists.
+        if i + 50 < len(ids):
+            time.sleep(0.35)
+    return result
 
 
-def _collect_text(obj, depth=0, out=None):
-    """Collect useful text fields from nested Smartrr objects for plan classification."""
-    if out is None:
-        out = []
-    if depth > 5 or obj is None:
-        return out
-    if isinstance(obj, dict):
-        for k, v in obj.items():
-            lk = str(k).lower()
-            # These keys commonly hold product / plan / line item names.
-            useful_key = any(x in lk for x in (
-                "name", "title", "label", "program", "plan", "product", "variant", "sku"
-            ))
-            if isinstance(v, (dict, list)):
-                _collect_text(v, depth + 1, out)
-            elif useful_key and v not in (None, ""):
-                out.append(str(v))
-    elif isinstance(obj, list):
-        for v in obj[:20]:
-            _collect_text(v, depth + 1, out)
-    return out
-
-
-def _smartrr_plan_name(subscription):
-    vals = [
-        _dig(subscription, "planName"),
-        _dig(subscription, "plan_name"),
-        _dig(subscription, "sellingPlan.name"),
-        _dig(subscription, "selling_plan.name"),
-        _dig(subscription, "sellingPlanName"),
-        _dig(subscription, "selling_plan_name"),
-        _dig(subscription, "subscriptionProgram.name"),
-        _dig(subscription, "subscription_program.name"),
-        _dig(subscription, "subscriptionContractLine.title"),
-        _dig(subscription, "subscription_contract_line.title"),
-        _dig(subscription, "stLineItems.0.title"),
-        _dig(subscription, "stLineItems.0.name"),
-        _dig(subscription, "stLineItems.0.productTitle"),
-        _dig(subscription, "stLineItems.0.product_title"),
-        _dig(subscription, "stLineItems.0.productName"),
-        _dig(subscription, "stLineItems.0.product_name"),
-        _dig(subscription, "lineItems.0.title"),
-        _dig(subscription, "line_items.0.title"),
-        _dig(subscription, "items.0.title"),
-        _dig(subscription, "product.title"),
-        _dig(subscription, "variant.title"),
-        _dig(subscription, "name"),
-        _dig(subscription, "title"),
-    ]
-    vals.extend(_collect_text(subscription))
-    return " ".join(str(v) for v in vals if v).lower()
-
-
-def _smartrr_is_active(subscription):
-    status = str(
-        _dig(subscription, "purchaseStateStatus") or
-        _dig(subscription, "purchase_state_status") or
-        _dig(subscription, "status") or
-        _dig(subscription, "subscriptionStatus") or
-        _dig(subscription, "subscription_status") or
-        _dig(subscription, "state") or
-        _dig(subscription, "sts.0.purchaseStateStatus") or
-        _dig(subscription, "sts.0.status")
-    ).strip().lower()
-
-    cancelled = (
-        _dig(subscription, "cancelledAt") or
-        _dig(subscription, "cancelled_at") or
-        _dig(subscription, "deletedAt") or
-        _dig(subscription, "deleted_at")
-    )
-    if cancelled:
-        return False
-
-    # Endpoint is filtered by ACTIVE. If no status field is returned, count it.
-    return status in ("", "active", "activated")
-
-
-def _smartrr_headers(api_key, mode="token"):
-    # Smartrr support docs use x-smartrr-access-token for GET integrations.
-    if mode == "bearer":
-        return {
-            "Authorization": f"Bearer {api_key}",
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-        }
-    return {
-        "x-smartrr-access-token": api_key,
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-    }
-
-
-def _smartrr_get(url, api_key, params=None):
-    """Try the documented Smartrr access-token header first; retry bearer only if needed."""
-    r = requests.get(url, headers=_smartrr_headers(api_key, "token"), params=params, timeout=60)
-    if r.status_code in (401, 403):
-        rb = requests.get(url, headers=_smartrr_headers(api_key, "bearer"), params=params, timeout=60)
-        if rb.status_code < 400:
-            return rb
-    return r
-
-
-def fetch_smartrr_active_subs(brand_name):
+def fetch_smartrr_active_subs(brand_name, store_url=None, token=None):
     """
     Returns one Sheets row for smartrr_subscribers.
-    Uses Smartrr's vendor purchase-state endpoint, filtered to ACTIVE subscriptions.
-    Runs server-side in GitHub Actions so the API key never lives in the HTML.
+
+    Correct source of truth for Cavali box split:
+      1) Smartrr ACTIVE purchase states for the active subscriber universe.
+      2) Product/box name from Smartrr payload when present.
+      3) If Smartrr does not expose product labels, resolve Shopify SubscriptionContract
+         line titles through Shopify GraphQL and classify:
+           Cavali Club Membership        -> Seasonal
+           The Signature Box             -> Signature
+           The Premier Box               -> Premier
+           Cavali Club Junior Membership -> Junior
     """
     now_str = datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M")
     key = SMARTRR_API_KEYS.get(brand_name, "")
+    source = "Smartrr ACTIVE purchase-state + Shopify SubscriptionContract lines"
     if brand_name != "cavali":
         return None
     if not key:
-        return _smartrr_fallback_row(now_str, brand_name, "Smartrr /vendor/purchase-state", "SMARTRR_API_KEY_CAVALI missing")
+        return _smartrr_empty_row(now_str, brand_name, source, "SMARTRR_API_KEY_CAVALI missing")
 
-    counts = {"seasonal": 0, "signature": 0, "premier": 0, "junior": 0, "other": 0}
-    source = "Smartrr /vendor/purchase-state → GitHub Actions → Sheets"
     base_url = "https://api.smartrr.com/vendor/purchase-state"
+    active_subs = []
+    seen_ids = set()
+    last_status = ""
 
     try:
         page_size = 250
         page_number = 0
-        seen_ids = set()
-        active_rows_seen = 0
-        last_status = ""
+        total_hint = None
 
         while page_number < 200:
             params = {
                 "pageSize": page_size,
                 "pageNumber": page_number,
                 "filterEquals[purchaseStateStatus]": "ACTIVE",
+                "include": "items,lineItems,stLineItems,product,variant,subscriptionProgram,sellingPlan",
             }
             r = _smartrr_get(base_url, key, params=params)
             last_status = f"HTTP {r.status_code}"
             if r.status_code >= 400:
                 body = (r.text or "")[:350]
-                return _smartrr_fallback_row(now_str, brand_name, source, f"Smartrr {last_status}: {body}")
+                return _smartrr_empty_row(now_str, brand_name, source, f"Smartrr {last_status}: {body}")
 
             payload = r.json()
             items = _smartrr_items(payload)
             total_hint = _smartrr_total_hint(payload)
-
             if not items:
                 break
 
             for sub in items:
-                # Defensive de-dupe across pages.
-                sid = str(
-                    _dig(sub, "id") or
-                    _dig(sub, "shopifyId") or
-                    _dig(sub, "externalSubscriptionId") or
-                    _dig(sub, "external_subscription_id") or
-                    ""
+                raw_id = str(
+                    _dig(sub, "id") or _dig(sub, "purchaseStateId") or _dig(sub, "purchase_state_id") or
+                    _dig(sub, "shopifyId") or _dig(sub, "shopify_id") or
+                    _dig(sub, "externalSubscriptionId") or _dig(sub, "external_subscription_id") or
+                    _dig(sub, "subscriptionId") or _dig(sub, "subscription_id") or ""
                 )
-                if sid and sid in seen_ids:
+                contract_gid = _find_contract_gid(sub)
+                dedupe_id = contract_gid or raw_id or json.dumps(sub, sort_keys=True)[:200]
+                if dedupe_id in seen_ids:
                     continue
-                if sid:
-                    seen_ids.add(sid)
+                seen_ids.add(dedupe_id)
 
                 if not _smartrr_is_active(sub):
                     continue
 
-                active_rows_seen += 1
-                name = _smartrr_plan_name(sub)
-
-                # Cavali naming from Smartrr: "Cavali Club Membership" = Seasonal.
-                if "seasonal" in name or "cavali club membership" in name or "club membership" in name:
-                    counts["seasonal"] += 1
-                elif "signature" in name:
-                    counts["signature"] += 1
-                elif "premier" in name or "premium" in name:
-                    counts["premier"] += 1
-                elif "junior" in name:
-                    counts["junior"] += 1
-                else:
-                    counts["other"] += 1
+                direct_text = _smartrr_plan_text(sub)
+                direct_bucket = _classify_box_text(direct_text)
+                active_subs.append({
+                    "bucket": direct_bucket,
+                    "direct_text": direct_text,
+                    "contract_gid": contract_gid,
+                })
 
             if len(items) < page_size:
                 break
@@ -805,32 +823,49 @@ def fetch_smartrr_active_subs(brand_name):
                 break
             page_number += 1
 
-        total = sum(counts.values())
+        if not active_subs:
+            return _smartrr_empty_row(now_str, brand_name, source, f"Smartrr returned 0 ACTIVE rows. Last status: {last_status or 'no response'}")
 
-        if total == 0:
-            msg = (
-                "Smartrr returned 0 ACTIVE purchase-state rows. "
-                "Check that SMARTRR_API_KEY_CAVALI belongs to Cavali and has vendor API access. "
-                f"Last status: {last_status or 'no response'}"
-            )
-            print(f"    ⚠ smartrr: {msg}")
-            return _smartrr_fallback_row(now_str, brand_name, source, msg)
+        # Resolve the records that Smartrr could not classify by product label.
+        unresolved_gids = [s["contract_gid"] for s in active_subs if s["bucket"] == "other" and s.get("contract_gid")]
+        contract_titles = {}
+        if unresolved_gids and store_url and token:
+            contract_titles = fetch_shopify_subscription_contract_titles(store_url, token, unresolved_gids)
+
+        counts = {"seasonal": 0, "signature": 0, "premier": 0, "junior": 0, "other": 0}
+        unknown_examples = []
+        for sub in active_subs:
+            bucket = sub["bucket"]
+            if bucket == "other" and sub.get("contract_gid"):
+                title_text = contract_titles.get(sub["contract_gid"], "")
+                resolved_bucket = _classify_box_text(title_text)
+                if resolved_bucket != "other":
+                    bucket = resolved_bucket
+                elif title_text and len(unknown_examples) < 5:
+                    unknown_examples.append(title_text[:180])
+            elif bucket == "other" and sub.get("direct_text") and len(unknown_examples) < 5:
+                unknown_examples.append(sub["direct_text"][:180])
+            counts[bucket] += 1
+
+        total = sum(counts.values())
+        error = ""
+        if counts["other"] > 0:
+            error = "Unmapped active subscriptions remained after product lookup: " + "; ".join(unknown_examples[:5])
 
         print(
-            f"    smartrr: seasonal={counts['seasonal']} "
-            f"signature={counts['signature']} premier={counts['premier']} "
-            f"junior={counts['junior']} other={counts['other']} total={total} "
-            f"active_rows_seen={active_rows_seen}"
+            f"    smartrr: seasonal={counts['seasonal']} signature={counts['signature']} "
+            f"premier={counts['premier']} junior={counts['junior']} other={counts['other']} total={total}"
         )
         return [
             now_str, brand_name,
             counts["seasonal"], counts["signature"], counts["premier"], counts["junior"],
-            counts["other"], total, source, "",
+            counts["other"], total, source, error,
         ]
 
     except Exception as e:
         print(f"    ⚠ smartrr error: {e}")
-        return _smartrr_fallback_row(now_str, brand_name, source, str(e))
+        return _smartrr_empty_row(now_str, brand_name, source, str(e))
+
 
 
 def write_smartrr(gc, sheet_id, smartrr_row):
@@ -847,7 +882,6 @@ def write_smartrr(gc, sheet_id, smartrr_row):
     ws.append_row(smartrr_row, value_input_option="USER_ENTERED")
     print("    smartrr_subscribers: 1 row")
 
-# ─────────────────────────────────────────────────────────────────
 # HELPERS SHEETS
 # ─────────────────────────────────────────────────────────────────
 def _safe_date(v):
@@ -1096,7 +1130,7 @@ def main():
 
         write_all(gc, cfg["sheet_id"], kpi_rows, rs_rows, nvr_rows, brand_name)
 
-        smartrr_row = fetch_smartrr_active_subs(brand_name)
+        smartrr_row = fetch_smartrr_active_subs(brand_name, url, token)
         write_smartrr(gc, cfg["sheet_id"], smartrr_row)
 
         print(f"\n  ✓ {brand_name.upper()} — {len(kpi_rows)} periods written")
