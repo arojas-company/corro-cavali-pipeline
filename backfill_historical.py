@@ -1,13 +1,15 @@
 """
-BACKFILL HISTÓRICO v2.2 — Shopify → Google Sheets
+BACKFILL HISTÓRICO v2.3 — Shopify → Google Sheets
 ===================================================
 Jala datos desde 2024-01-01 hasta hoy para todos los meses, semanas y quarters.
 
-FIXES v2.2:
-- ql_run usa rowData (correcto en API 2025-10) con fallback a rows plano y rows+cells
+FIXES v2.3:
+- ql_run corregido para API 2025-10: `rows` devuelve OBJETOS JSON (dicts),
+  NO rowData (eliminado) NI arrays de listas.
+  Estructura real: tableData.rows = [{"col_name": "value", ...}, ...]
+  Solo se pide `rows` en el query GQL, sin `rowData`.
 - UNTIL date es e+1 cuando e == hoy para incluir el día actual en ShopifyQL
-- new_vs_returning usa REST orders con customer.orders_count (ShopifyQL GROUP BY
-  customer_type devuelve 0 para Cavali — confirmado)
+- new_vs_returning usa REST orders con customer.orders_count
 - gross_profit viene directo de ShopifyQL (campo gross_profit)
 
 EJECUCIÓN:
@@ -17,8 +19,6 @@ EJECUCIÓN:
 COMPORTAMIENTO EN SHEETS:
   ⚠️  BORRA y reescribe completamente los tabs:
       kpis_daily, revenue_share, new_vs_returning
-  Usa esto cuando quieres reconstruir todo el histórico desde cero.
-  Para actualizar solo períodos recientes usa pipeline_v4.py.
 """
 
 import os, json, requests, gspread
@@ -80,7 +80,7 @@ def _until(e):
     return e
 
 # ─────────────────────────────────────────────────────────────────
-# SHOPIFY GQL
+# SHOPIFY GQL — raw request
 # ─────────────────────────────────────────────────────────────────
 def gql(store_url, token, query):
     url = f"https://{store_url}/admin/api/{GQL_VERSION}/graphql.json"
@@ -97,65 +97,64 @@ def gql(store_url, token, query):
     return d.get("data")
 
 # ─────────────────────────────────────────────────────────────────
-# ql_run — FIX v2.2
-# Usa rowData (correcto en 2025-10) con fallback completo.
+# ql_run — FIX v2.3
+# API 2025-10: tableData.rows = lista de OBJETOS {col: val, ...}
+# Se pide solo `rows` (NO rowData, que fue eliminado de la API).
 # ─────────────────────────────────────────────────────────────────
 def ql_run(store_url, token, ql_query):
     """
     Ejecuta una ShopifyQL query.
-    Intenta primero con rowData (API 2025-10+).
-    Si rowData viene vacío prueba con rows plano.
+    API 2025-10+: tableData.rows devuelve lista de objetos JSON.
     Devuelve lista de {columna: valor}.
     """
     escaped = ql_query.replace("\\", "\\\\").replace('"', '\\"')
 
-    # Intento 1: rowData (formato correcto 2025-10)
-    q = f'{{ shopifyqlQuery(query: "{escaped}") {{ tableData {{ columns {{ name }} rowData }} parseErrors }} }}'
+    q = (
+        f'{{ shopifyqlQuery(query: "{escaped}") {{ '
+        f'tableData {{ columns {{ name }} rows }} '
+        f'parseErrors {{ code message }} }} }}'
+    )
     data = gql(store_url, token, q)
 
-    row_data = None
-    cols     = []
+    if not data:
+        return []
 
-    if data:
-        ql   = data.get("shopifyqlQuery") or {}
-        errs = ql.get("parseErrors") or []
-        if errs:
-            print(f"parseErrors: {errs}")
-            return []
-        td       = ql.get("tableData") or {}
-        cols     = [c["name"] for c in (td.get("columns") or [])]
-        row_data = td.get("rowData")
+    ql_obj = data.get("shopifyqlQuery") or {}
+    errs   = ql_obj.get("parseErrors") or []
+    if errs:
+        print(f"parseErrors: {errs}")
+        return []
 
-    # Intento 2: rows plano (fallback)
-    if not row_data:
-        q2 = f'{{ shopifyqlQuery(query: "{escaped}") {{ tableData {{ columns {{ name }} rows }} parseErrors }} }}'
-        data2 = gql(store_url, token, q2)
-        if data2:
-            ql2      = data2.get("shopifyqlQuery") or {}
-            td2      = ql2.get("tableData") or {}
-            cols     = [c["name"] for c in (td2.get("columns") or [])]
-            row_data = td2.get("rows")
+    td   = ql_obj.get("tableData") or {}
+    rows = td.get("rows") or []
 
-    if not row_data or not cols:
+    if not rows:
+        return []
+
+    # API 2025-10: cada row ES un objeto dict {col_name: value}
+    # Validamos que sea dict; si fuera lista (API antigua) hacemos fallback.
+    if isinstance(rows[0], dict):
+        # Formato correcto 2025-10 — devolver directo
+        return rows
+
+    # Fallback para API antigua donde rows era lista de listas
+    cols = [c["name"] for c in (td.get("columns") or [])]
+    if not cols:
         return []
 
     result = []
-    for row in row_data:
+    for row in rows:
         if isinstance(row, list):
-            vals = row
-        elif isinstance(row, dict):
-            cells = row.get("cells") or []
-            vals  = [c.get("value") if isinstance(c, dict) else c for c in cells]
+            result.append({cols[i]: (row[i] if i < len(row) else "") for i in range(len(cols))})
         elif isinstance(row, str):
             try:
                 parsed = json.loads(row)
-                vals   = parsed if isinstance(parsed, list) else [row]
+                if isinstance(parsed, list):
+                    result.append({cols[i]: (parsed[i] if i < len(parsed) else "") for i in range(len(cols))})
+                elif isinstance(parsed, dict):
+                    result.append(parsed)
             except Exception:
-                vals = [row]
-        else:
-            continue
-        result.append({cols[i]: (vals[i] if i < len(vals) else "") for i in range(len(cols))})
-
+                pass
     return result
 
 
@@ -268,7 +267,7 @@ def fetch_orders(store_url, token, start, end):
     })
 
 # ─────────────────────────────────────────────────────────────────
-# NEW vs RETURNING via REST (ShopifyQL GROUP BY customer_type = 0 en Cavali)
+# NEW vs RETURNING via REST
 # ─────────────────────────────────────────────────────────────────
 def calc_new_returning(orders):
     new_rev = ret_rev = 0.0
