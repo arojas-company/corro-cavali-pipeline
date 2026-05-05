@@ -437,7 +437,8 @@ async function fetchSmartrrSubs() {
   _smartrrCache = {
     sea, sig, pre, jun, other, total,
     updated_at: row.updated_at || "",
-    source: row.source || "Smartrr → Sheets"
+    source: row.source || "Smartrr → Sheets",
+    error: row.error || ""
   };
   _smartrrTs = Date.now();
   return _smartrrCache;
@@ -907,10 +908,18 @@ async function renderSubs() {
   const data = await fetchSmartrrSubs();
   const ft = document.getElementById("ft-smartrr");
 
-  if (data === null || !data.total) {
-    if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-warn">⚠ Smartrr data not loaded yet. Run pipeline/backfill.</div>`;
+  if (data === null) {
+    if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-warn">⚠ Smartrr data not loaded yet. Run pipeline.</div>`;
     if (ft) { ft.textContent = "Smartrr"; ft.style.color = "var(--am)"; }
-    renderSubsEmpty("No active subscription split in smartrr_subscribers");
+    renderSubsEmpty("Missing smartrr_subscribers tab or empty Sheet row");
+    return;
+  }
+
+  if (!data.total) {
+    const msg = data.error || "Smartrr returned 0 active subscriptions";
+    if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-warn">⚠ ${msg}</div>`;
+    if (ft) { ft.textContent = "Smartrr"; ft.style.color = "var(--am)"; }
+    renderSubsEmpty(msg);
     return;
   }
 
