@@ -336,7 +336,7 @@ select:focus{border-color:var(--gr)}
           <div class="mi-wrap"><span class="mi-pre">$</span><input class="mi-inp" id="mi-ns" type="number" min="0" step="0.01" placeholder="auto" oninput="calcDerived()"></div>
         </div>
         <div class="mi-field cavali-only">
-          <div class="mi-lbl" style="color:var(--pu)">Subscribers manual (fallback if Smartrr fails)</div>
+          <div class="mi-lbl" style="color:var(--pu)">Subscribers manual (optional override)</div>
           <div class="mi-sub-grid">
             <div><div class="mi-sub-lbl">Seasonal</div><input class="mi-inp no-pre" id="mi-sea" type="number" min="0" placeholder="0" oninput="renderSubsFallback()"></div>
             <div><div class="mi-sub-lbl">Signature</div><input class="mi-inp no-pre" id="mi-sig" type="number" min="0" placeholder="0" oninput="renderSubsFallback()"></div>
@@ -402,22 +402,11 @@ const CH_COLORS = {
 let brand = "corro", ptype = "mtd";
 let cache = {}, manualData = {};
 
-// Last-known values from the Cavali/Smartrr review screen.
-// Used only when the pipeline tab is missing, errored or returns 0, so the dashboard never shows blank circles.
-const CAVALI_SMARTRR_LAST_KNOWN = {
-  sea: 337,   // Cavali Club Membership / Seasonal
-  sig: 7,
-  pre: 17,
-  jun: 0,
-  other: 0,
-  total: 361,
-  source: "Review fallback · Smartrr screen Apr 30"
-};
-
 /* ══════════════════════════════════════════════════════
    SMARTRR
-   Fetches active subscriber counts from Cavali's Smartrr instance.
-   Categorizes by plan name: seasonal / signature / premier / junior.
+   Reads the real active subscriber split from the smartrr_subscribers tab.
+   Python creates that tab from Smartrr ACTIVE subscriptions and classifies by product/box:
+   Cavali Club Membership / The Signature Box / The Premier Box / Junior.
 ══════════════════════════════════════════════════════ */
 let _smartrrCache = null, _smartrrTs = 0;
 
@@ -444,31 +433,20 @@ async function fetchSmartrrSubs() {
   const jun = _smartrrNum(row.junior);
   const other = _smartrrNum(row.other);
   const total = _smartrrNum(row.total_subscribers) || (sea + sig + pre + jun + other);
-  const err = (row.error || "").trim();
 
-  // If the Python wrote counts plus an error/warning, still show the counts and display a warning.
-  if (total > 0) {
-    _smartrrCache = {
-      sea, sig, pre, jun, other, total,
-      updated_at: row.updated_at || "",
-      source: row.source || "Smartrr → Sheets",
-      warning: err || ""
-    };
-    _smartrrTs = Date.now();
-    return _smartrrCache;
-  }
-
-  // If the tab exists but is 0, do NOT render empty circles. Use review fallback with visible warning.
-  return {
-    ...CAVALI_SMARTRR_LAST_KNOWN,
+  _smartrrCache = {
+    sea, sig, pre, jun, other, total,
     updated_at: row.updated_at || "",
-    warning: err || "Smartrr tab exists but total_subscribers is 0. Showing review fallback until the pipeline pulls live Smartrr data."
+    source: row.source || "Smartrr → Sheets"
   };
+  _smartrrTs = Date.now();
+  return _smartrrCache;
 }
 
 /* ══════════════════════════════════════════════════════
    DATE HELPERS
 ══════════════════════════════════════════════════════ */
+
 const NOW = new Date(), CY = NOW.getFullYear(), CM = NOW.getMonth();
 const MN  = ["January","February","March","April","May","June",
               "July","August","September","October","November","December"];
@@ -897,35 +875,6 @@ function renderCAC(cacVal, ltvVal, source) {
 /* ══════════════════════════════════════════════════════
    CAVALI SUBSCRIBERS (Smartrr)
 ══════════════════════════════════════════════════════ */
-function renderSubsFallback(reason) {
-  const el = document.getElementById("s-subs"); if (!el) return;
-  let sea = parseInt(document.getElementById("mi-sea")?.value||0)||0;
-  let sig = parseInt(document.getElementById("mi-sig")?.value||0)||0;
-  let pre = parseInt(document.getElementById("mi-pre-sub")?.value||0)||0;
-  let jun = 0, other = 0;
-  let source = "Manual fallback — enter values below";
-
-  // If manual fields are empty, use last-known Smartrr review values instead of showing zero.
-  if ((sea + sig + pre) === 0) {
-    sea = CAVALI_SMARTRR_LAST_KNOWN.sea;
-    sig = CAVALI_SMARTRR_LAST_KNOWN.sig;
-    pre = CAVALI_SMARTRR_LAST_KNOWN.pre;
-    jun = CAVALI_SMARTRR_LAST_KNOWN.jun;
-    other = CAVALI_SMARTRR_LAST_KNOWN.other;
-    source = CAVALI_SMARTRR_LAST_KNOWN.source + (reason ? " · " + reason : "");
-  }
-
-  const tot = sea + sig + pre + jun + other;
-  _renderSubCards([
-    { l:"Seasonal",          v:sea, c:"#D8B054" },
-    { l:"Signature",         v:sig, c:"#A090FF" },
-    { l:"Premier",           v:pre, c:"#2EE896" },
-    ...(jun > 0 ? [{ l:"Junior", v:jun, c:"#F06868" }] : []),
-    ...(other > 0 ? [{ l:"Other", v:other, c:"#707070" }] : []),
-    { l:"Total Subscribers", v:tot, c:"#72AEFF" },
-  ], source);
-}
-
 function _renderSubCards(cards, source) {
   const el = document.getElementById("s-subs"); if (!el) return;
   el.innerHTML = cards.map(s => `
@@ -937,6 +886,17 @@ function _renderSubCards(cards, source) {
     </div>`).join('');
 }
 
+function renderSubsEmpty(reason) {
+  const el = document.getElementById("s-subs"); if (!el) return;
+  el.innerHTML = `
+    <div class="kc-sub">
+      <div class="kc-bar"></div>
+      <div class="kc-lbl" style="color:#D8B054">Smartrr</div>
+      <div class="kc-val" style="color:#D8B054">—</div>
+      <div class="kc-note">${reason || "Run pipeline to load active subscriptions"}</div>
+    </div>`;
+}
+
 async function renderSubs() {
   if (brand !== "cavali") return;
   const el = document.getElementById("s-subs"); if (!el) return;
@@ -945,31 +905,24 @@ async function renderSubs() {
   if (statusEl) statusEl.innerHTML = "";
 
   const data = await fetchSmartrrSubs();
+  const ft = document.getElementById("ft-smartrr");
 
-  if (data === null) {
-    if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-warn">⚠ No smartrr_subscribers tab/data yet. Showing review fallback.</div>`;
-    renderSubsFallback("pipeline tab missing");
-    const ft = document.getElementById("ft-smartrr");
-    if (ft) { ft.textContent = "Smartrr ⚠"; ft.style.color = "var(--am)"; }
+  if (data === null || !data.total) {
+    if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-warn">⚠ Smartrr data not loaded yet. Run pipeline/backfill.</div>`;
+    if (ft) { ft.textContent = "Smartrr"; ft.style.color = "var(--am)"; }
+    renderSubsEmpty("No active subscription split in smartrr_subscribers");
     return;
   }
 
   const storeLabel = "cavaliclub.com";
-  if (data.warning) {
-    if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-warn">⚠ Smartrr warning: ${data.warning}</div>`;
-    const ft = document.getElementById("ft-smartrr");
-    if (ft) { ft.textContent = "Smartrr ⚠"; ft.style.color = "var(--am)"; }
-  } else {
-    if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-ok">✓ Smartrr · ${data.total} active subs · ${storeLabel}</div>`;
-    const ft = document.getElementById("ft-smartrr");
-    if (ft) { ft.textContent = "Smartrr ✓"; ft.style.color = "var(--gr)"; }
-  }
+  if (statusEl) statusEl.innerHTML = `<div class="smartrr-badge smartrr-ok">✓ Smartrr · ${data.total} active subs · ${storeLabel}</div>`;
+  if (ft) { ft.textContent = "Smartrr ✓"; ft.style.color = "var(--gr)"; }
 
   const cards = [
     { l:"Seasonal",          v:data.sea, c:"#D8B054" },
     { l:"Signature",         v:data.sig, c:"#A090FF" },
     { l:"Premier",           v:data.pre, c:"#2EE896" },
-    ...(data.jun > 0 ? [{ l:"Junior", v:data.jun, c:"#F06868" }] : []),
+    { l:"Junior",            v:data.jun, c:"#F06868" },
     ...(data.other > 0 ? [{ l:"Other", v:data.other, c:"#707070" }] : []),
     { l:"Total Subscribers", v:data.total || (data.sea + data.sig + data.pre + data.jun + data.other), c:"#72AEFF" },
   ];
@@ -979,6 +932,7 @@ async function renderSubs() {
 /* ══════════════════════════════════════════════════════
    Q1 2026 SNAPSHOT
 ══════════════════════════════════════════════════════ */
+
 async function renderQ1(kpiRows) {
   const el   = document.getElementById("q1-grid");
   const note = document.getElementById("q1-note");
