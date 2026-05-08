@@ -249,7 +249,7 @@ select:focus{border-color:var(--gr)}
 
   <div class="selbar" id="selbar"></div>
   <div class="ibar" id="ibar"></div>
-  <div class="warn-bar" id="roas-warn">⚠ <strong>ROAS & CAC</strong> — using Shopify attributed data (last-click, may be inflated). Enter <strong>Google + Meta Ad Spend</strong> in Manual Inputs below for exact figures.</div>
+  <div class="warn-bar" id="roas-warn">⚠ <strong>ROAS & CAC</strong> — Shopify attributed data is directional. Enter <strong>Google + Meta Ad Spend</strong> in Manual Inputs below for exact ROAS and CAC.</div>
 
   <div class="sec"><div class="sec-num">01</div><div class="sec-line"></div><div class="sec-lbl">Website KPIs</div><div class="sec-line"></div></div>
   <div class="kg" id="s-web"></div>
@@ -282,7 +282,7 @@ select:focus{border-color:var(--gr)}
   <div class="kg" id="s-mkt"></div>
 
   <div class="sec"><div class="sec-num">05</div><div class="sec-line"></div><div class="sec-lbl">CAC to LTV — Ratio & Health</div><div class="sec-line"></div></div>
-  <div class="cac-note-box" id="cac-note-box">⏳ <strong>CAC note:</strong> When G+M spend is entered below, CAC is calculated automatically (G+M ÷ new customers from pipeline v4). LTV reference: <strong>$178</strong> · CAC reference: <strong>$47</strong>.</div>
+  <div class="cac-note-box" id="cac-note-box">⏳ <strong>CAC note:</strong> When G+M spend is entered below, CAC is calculated automatically (G+M ÷ new customers from pipeline v4). Until full LTV data is ready, LTV uses the Shopify reference: <strong>$178</strong>. If no CAC can be calculated, CAC is shown only as a reference fallback: <strong>$47</strong>.</div>
   <div class="cac-grid" id="s-cac"></div>
 
   <!-- 06 · Cavali Subscribers (Smartrr) -->
@@ -451,6 +451,8 @@ async function fetchSmartrrSubs() {
 const NOW = new Date(), CY = NOW.getFullYear(), CM = NOW.getMonth();
 const MN  = ["January","February","March","April","May","June",
               "July","August","September","October","November","December"];
+const DEFAULT_LTV_12M = 178;
+const DEFAULT_CAC_REF = 47;
 
 function iso(d) {
   if (!(d instanceof Date)) return String(d);
@@ -460,6 +462,29 @@ function lastDay(y, m) { return new Date(y, m+1, 0); }
 function fmtD(s) {
   try { return new Date(s+'T12:00').toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'}); }
   catch(e) { return s||"—"; }
+}
+function dateFromISO(s) { return new Date((s||"") + 'T12:00'); }
+function mtdRange(y, month1, dayLimit) {
+  const m0 = month1 - 1;
+  const endDay = Math.min(dayLimit || 1, lastDay(y, m0).getDate());
+  return {
+    start: `${y}-${String(month1).padStart(2,'0')}-01`,
+    end: iso(new Date(y, m0, endDay)),
+  };
+}
+function exactRow(rows, pk, start, end) {
+  if (!rows?.length) return null;
+  const st = String(start || "").trim(), en = String(end || "").trim();
+  let m = rows.filter(r => (r.period || "").trim() === pk && (r.period_start || "").trim() === st && (r.period_end || "").trim() === en);
+  if (m.length) return bestRow(m);
+  m = rows.filter(r => (r.period || "").trim() === pk && (r.period_end || "").trim() === en);
+  if (m.length) return bestRow(m);
+  m = rows.filter(r => (r.period_start || "").trim() === st && (r.period_end || "").trim() === en && String(r.period || "").startsWith("mtd_"));
+  return m.length ? bestRow(m) : null;
+}
+function isFullMonthOpt(opt) {
+  if (!opt || opt.y === undefined || opt.m === undefined) return false;
+  return opt.end === iso(lastDay(opt.y, opt.m));
 }
 
 function buildWeeks() {
@@ -476,10 +501,13 @@ function buildWeeks() {
 }
 function buildMTDs() {
   const out = [];
+  const dayLimit = NOW.getDate();
   for (let y = CY; y >= 2024; y--) {
     for (let m = (y===CY?CM:11); m >= 0; m--) {
-      const s = `${y}-${String(m+1).padStart(2,'0')}-01`, cur = y===CY&&m===CM;
-      out.push({ val: s+'__'+(cur?iso(NOW):iso(lastDay(y,m))), label: `${MN[m]} ${y}${cur?' (MTD)':''}`, start: s, end: cur?iso(NOW):iso(lastDay(y,m)), m, y });
+      const cur = y===CY&&m===CM;
+      const rg = mtdRange(y, m+1, dayLimit);
+      const e = cur ? iso(NOW) : rg.end;
+      out.push({ val: rg.start+'__'+e, label: `${MN[m]} ${y}${cur?' (MTD)':''}`, start: rg.start, end: e, m, y, cur });
     }
   }
   return out;
@@ -488,8 +516,11 @@ function buildMonths() {
   const out = [];
   for (let y = CY; y >= 2024; y--) {
     for (let m = (y===CY?CM:11); m >= 0; m--) {
-      const s = `${y}-${String(m+1).padStart(2,'0')}-01`, e = iso(lastDay(y,m)), cur = y===CY&&m===CM;
-      out.push({ val: s+'__'+e, label: `${MN[m]} ${y}${cur?' (current)':''}`, start: s, end: e, m, y });
+      const cur = y===CY&&m===CM;
+      const s = `${y}-${String(m+1).padStart(2,'0')}-01`;
+      // Current month is not complete yet, so it behaves like MTD and compares date-to-date.
+      const e = cur ? iso(NOW) : iso(lastDay(y,m));
+      out.push({ val: s+'__'+e, label: `${MN[m]} ${y}${cur?' (current MTD)':''}`, start: s, end: e, m, y, cur });
     }
   }
   return out;
@@ -589,12 +620,17 @@ function findRow(rows, opt) {
   }
   if (ptype==="mtd") {
     const pk=`mtd_${(opt.start||"").slice(0,7)}`;
-    m=rows.filter(r=>r.period===pk); if(m.length) return bestRow(m);
-    m=rows.filter(r=>r.period==="mtd"&&r.period_start===opt.start); if(m.length) return bestRow(m);
-    m=rows.filter(r=>r.period===(opt.start||"").slice(0,7)); if(m.length) return bestRow(m);
+    const exact = exactRow(rows, pk, opt.start, opt.end);
+    if (exact) return exact;
+    m=rows.filter(r=>r.period==="mtd"&&r.period_start===opt.start&&r.period_end===opt.end); if(m.length) return bestRow(m);
+    // Important: do not fall back to the full month for MTD. It creates false negative comparisons.
   }
   if (ptype==="month") {
     const pk=(opt.start||"").slice(0,7);
+    if (!isFullMonthOpt(opt)) {
+      const mtd = exactRow(rows, `mtd_${pk}`, opt.start, opt.end);
+      if (mtd) return mtd;
+    }
     m=rows.filter(r=>r.period===pk); if(m.length) return bestRow(m);
     m=rows.filter(r=>r.period_start===opt.start&&r.period_end===opt.end); if(m.length) return bestRow(m);
   }
@@ -616,19 +652,26 @@ function findCmp(rows, opt) {
   }
   if (ptype==="mtd") {
     const yr=parseInt((opt.start||"").slice(0,4)), mo=parseInt((opt.start||"").slice(5,7));
-    if (!isNaN(yr) && !isNaN(mo)) {
+    const dayLimit = dateFromISO(opt.end).getDate();
+    if (!isNaN(yr) && !isNaN(mo) && !isNaN(dayLimit)) {
       const [pmo,py] = prev ? [mo===1?12:mo-1, mo===1?yr-1:yr] : [mo, yr-1];
       const pk=`mtd_${py}-${String(pmo).padStart(2,'0')}`;
-      const lbl=new Date(py,pmo-1,1).toLocaleDateString('en',{month:'long',year:'numeric'});
-      let m=rows.filter(r=>r.period===pk);
-      if (!m.length) m=rows.filter(r=>r.period===`${py}-${String(pmo).padStart(2,'0')}`);
-      return { row:bestRow(m)||null, lbl:prev?lbl:`${lbl} (YOY)` };
+      const rg = mtdRange(py, pmo, dayLimit);
+      const row = exactRow(rows, pk, rg.start, rg.end);
+      return { row, lbl:`${fmtD(rg.start)} – ${fmtD(rg.end)}${prev?'':' (YOY)'}` };
     }
   }
   if (ptype==="month") {
     const yr=parseInt((opt.start||"").slice(0,4)), mo=parseInt((opt.start||"").slice(5,7));
     if (!isNaN(yr) && !isNaN(mo)) {
       const [pmo,py] = prev ? [mo===1?12:mo-1, mo===1?yr-1:yr] : [mo, yr-1];
+      if (!isFullMonthOpt(opt)) {
+        const dayLimit = dateFromISO(opt.end).getDate();
+        const rg = mtdRange(py, pmo, dayLimit);
+        const pk = `mtd_${py}-${String(pmo).padStart(2,'0')}`;
+        const row = exactRow(rows, pk, rg.start, rg.end);
+        return { row, lbl:`${fmtD(rg.start)} – ${fmtD(rg.end)}${prev?'':' (YOY)'}` };
+      }
       const pk=`${py}-${String(pmo).padStart(2,'0')}`;
       const lbl=new Date(py,pmo-1,1).toLocaleDateString('en',{month:'long',year:'numeric'});
       return { row:bestRow(rows.filter(r=>r.period===pk))||null, lbl:prev?lbl:`${lbl} (YOY)` };
@@ -850,27 +893,30 @@ function renderNVR(nvrRows, kpiRow) {
 ══════════════════════════════════════════════════════ */
 function renderCAC(cacVal, ltvVal, source) {
   const el = document.getElementById("s-cac"); if (!el) return;
-  const ltv = ltvVal > 0 ? ltvVal : 178;
-  const cac = cacVal > 0 ? cacVal : 47;
+  const ltv = ltvVal > 0 ? ltvVal : DEFAULT_LTV_12M;
+  const cac = cacVal > 0 ? cacVal : DEFAULT_CAC_REF;
+  const hasActualCAC = cacVal > 0;
+  const hasManualLTV = ltvVal > 0;
   const ratio = ltv / cac;
   const health = ratio >= 3 ? "✅ Healthy (≥3x)" : ratio >= 2 ? "⚠ Acceptable (2–3x)" : "🔴 Low (<2x)";
   const hcol   = ratio >= 3 ? "var(--gr)" : ratio >= 2 ? "var(--am)" : "var(--rd)";
   const hbg    = ratio >= 3 ? "var(--gr-bg)" : ratio >= 2 ? "var(--am-bg)" : "var(--rd-bg)";
   const hbd    = ratio >= 3 ? "var(--gr-bd)" : ratio >= 2 ? "var(--am-bd)" : "var(--rd-bd)";
+  const cacNote = hasActualCAC ? (source || "Calculated") : "Reference fallback: ~$47";
   el.innerHTML = `
     <div class="kc"><div class="kc-bar" style="background:var(--bl)"></div>
       <div class="kc-lbl">LTV (12M)</div>
       <div class="kc-val" style="color:var(--bl)">${fv(ltv,"$")}</div>
-      <div class="kc-note">${ltvVal>0?"Manual entry":"Ref: Shopify $178"}</div></div>
+      <div class="kc-note">${hasManualLTV?"Manual entry":"Shopify reference: $178"}</div></div>
     <div class="kc"><div class="kc-bar" style="background:var(--gd)"></div>
-      <div class="kc-lbl">CAC${source?" ("+source+")":""}</div>
+      <div class="kc-lbl">CAC${hasActualCAC&&source?" ("+source+")":""}</div>
       <div class="kc-val" style="color:var(--gd)">${fv(cac,"$")}</div>
-      <div class="kc-note">${source||"Ref: ~$47"}</div></div>
+      <div class="kc-note">${cacNote}</div></div>
     <div class="kc"><div class="kc-bar" style="background:${hcol}"></div>
       <div class="kc-lbl">LTV / CAC Ratio</div>
       <div class="kc-val" style="color:${hcol}">${ratio.toFixed(2)}x</div>
       <div class="kc-badges"><span class="bdg" style="background:${hbg};color:${hcol};border:1px solid ${hbd}">${health}</span></div>
-      <div class="kc-note">Target ≥ 3x</div></div>`;
+      <div class="kc-note">Target ≥ 3x${hasActualCAC?"":" · uses reference CAC"}</div></div>`;
 }
 
 /* ══════════════════════════════════════════════════════
@@ -1025,7 +1071,8 @@ function clearManual() {
 function calcDerived() {
   const spend = parseFloat(document.getElementById("mi-spend")?.value)||0;
   const nc    = parseInt(document.getElementById("mi-newcust")?.value)||0;
-  const ltv   = parseFloat(document.getElementById("mi-ltv")?.value)||0;
+  const ltvIn = parseFloat(document.getElementById("mi-ltv")?.value)||0;
+  const ltv   = ltvIn > 0 ? ltvIn : DEFAULT_LTV_12M;
   const cacOv = parseFloat(document.getElementById("mi-cac-ov")?.value)||0;
   const nsOv  = parseFloat(document.getElementById("mi-ns")?.value)||0;
   const roas  = nsOv>0&&spend>0 ? nsOv/spend : null;
@@ -1040,7 +1087,7 @@ function calcDerived() {
     dc("CAC (G+M)",     cac,                "$", "var(--gd)", nc>0?"G+M spend ÷ new customers":"Enter new customers") +
     dc("LTV / CAC",     ltvCac,             "x", "var(--gd)", "LTV-12M ÷ CAC") +
     dc("LTV-12M",       ltv>0?ltv:null,     "$", "var(--pu)");
-  renderCAC(cac||0, ltv||0, spend>0?"G+M":"");
+  renderCAC(cac||0, ltvIn, spend>0?"G+M":"");
 }
 
 /* ══════════════════════════════════════════════════════
@@ -1158,10 +1205,11 @@ async function render() {
   const ncReal  = ncManual || (newCustRow>0 ? newCustRow : null);
   const cacCalc = hasManualSpend && ncReal ? m.spend/ncReal : null;
   const cacV    = cacOv || cacCalc || cacAuto || (activeSpend&&nbVal ? activeSpend/nbVal : null);
-  const cacSrc  = cacOv?"override" : cacCalc?"G+M ÷ new_customers" : cacAuto?"pipeline v4 auto" : "Shopify (approx)";
+  const cacDisplay = cacV || DEFAULT_CAC_REF;
+  const cacSrc  = cacOv?"override" : cacCalc?"G+M ÷ new_customers" : cacAuto?"pipeline v4 auto" : (cacV?"Shopify (approx)":"Reference fallback (~$47)");
   const cacIsApprox = !cacOv && !cacCalc && !cacAuto;
 
-  const ltvV = (m.ltv||0) > 0 ? m.ltv : 178;
+  const ltvV = (m.ltv||0) > 0 ? m.ltv : DEFAULT_LTV_12M;
 
   const ftManual = document.getElementById("ft-manual");
   if (ftManual) ftManual.style.display = hasManualSpend ? "" : "none";
@@ -1177,11 +1225,11 @@ async function render() {
   safeHTML("s-mkt", [
     { l:"Ad Spend",                           v:activeSpend?fv(activeSpend,"$"):"—", note:hasManualSpend?"Google+Meta (manual)":"Sheets total — enter G+M ↓", warn:!hasManualSpend },
     { l:hasManualSpend?"ROAS (G+M)":"ROAS",   v:roasV?fv(roasV,"x"):"—",            note:roasSrc, warn:!hasManualSpend&&roasV!==null },
-    { l:"CAC",                                v:cacV?fv(cacV,"$"):"—",              note:cacSrc, warn:cacIsApprox },
-    { l:"LTV / CAC",                          v:(ltvV&&cacV)?fv(ltvV/cacV,"x"):"—", note:`LTV $${ltvV} ÷ CAC`, warn:false },
+    { l:"CAC",                                v:fv(cacDisplay,"$"),                  note:cacSrc, warn:cacIsApprox },
+    { l:"LTV / CAC",                          v:fv(ltvV/cacDisplay,"x"),             note:`LTV $${ltvV} ÷ CAC`, warn:!cacV },
   ].map(({l,v,note,warn})=> warn?kcardAmber(l,v,"⚠",note):kcard(l,v,null,null,note,"var(--gd)")).join(''));
 
-  renderCAC(cacV||0, ltvV, cacSrc);
+  renderCAC(cacV||0, (m.ltv||0), cacSrc);
 
   if (brand==="cavali") await renderSubs();
 
