@@ -621,6 +621,12 @@ def last_day(y, m):
     return (date(y, m + 1, 1) - timedelta(days=1)) if m < 12 else date(y, 12, 31)
 
 
+def month_to_day_end(month_start, month_end, anchor_day):
+    """Return an MTD end date aligned to anchor_day, capped by this month and available data."""
+    aligned = month_start.replace(day=min(anchor_day, last_day(month_start.year, month_start.month).day))
+    return min(month_end, aligned)
+
+
 def monday_of(d):
     return d - timedelta(days=d.weekday())
 
@@ -1144,6 +1150,11 @@ def main():
         kpi_rows, rs_rows, nvr_rows = [], [], []
 
         # ── MONTHLY ──────────────────────────────────────────────
+        # For each month we write:
+        #   - YYYY-MM     = full/completed month row
+        #   - mtd_YYYY-MM = date-aligned MTD row (same day-of-month as today's MTD)
+        # This prevents the dashboard from comparing current MTD against a full previous month.
+        mtd_anchor_day = today.day
         for y in range(2024, today.year + 1):
             m_start = 1
             m_end   = today.month if y == today.year else 12
@@ -1152,16 +1163,29 @@ def main():
                 mo_end       = last_day(y, m) if (y < today.year or m < today.month) else today
                 period_label = f"{y}-{str(m).zfill(2)}"
                 mtd_label    = f"mtd_{period_label}"
+                mtd_end      = month_to_day_end(mo_start, mo_end, mtd_anchor_day)
 
                 print(f"\n  Month {period_label} ({mo_start} → {mo_end})")
 
+                # Full/completed month row
                 ql_cur = fetch_sales(url, token, mo_start, mo_end)
                 s_cur  = fetch_sessions(url, token, mo_start, mo_end)
                 of_cur = fetch_orders_fulfilled(url, token, mo_start, mo_end)
                 o_cur  = fetch_orders(url, token, mo_start, mo_end)
                 cur    = build(ql_cur, o_cur, s_cur, of_cur)
 
-                # Prev month
+                # Date-aligned MTD row for this month
+                if mtd_end == mo_end:
+                    ql_mtd, s_mtd, of_mtd, o_mtd, cur_mtd = ql_cur, s_cur, of_cur, o_cur, cur
+                else:
+                    print(f"  MTD {mtd_label} ({mo_start} → {mtd_end})")
+                    ql_mtd = fetch_sales(url, token, mo_start, mtd_end)
+                    s_mtd  = fetch_sessions(url, token, mo_start, mtd_end)
+                    of_mtd = fetch_orders_fulfilled(url, token, mo_start, mtd_end)
+                    o_mtd  = fetch_orders(url, token, mo_start, mtd_end)
+                    cur_mtd = build(ql_mtd, o_mtd, s_mtd, of_mtd)
+
+                # Previous full month for the YYYY-MM row
                 pm = m - 1 if m > 1 else 12
                 py = y if m > 1 else y - 1
                 prev_start = date(py, pm, 1)
@@ -1171,7 +1195,15 @@ def main():
                 o_prev     = fetch_orders(url, token, prev_start, prev_end)
                 prev       = build(ql_prev, o_prev, 0, of_prev)
 
-                # YOY
+                # Previous date-aligned MTD for the mtd_YYYY-MM row
+                prev_mtd_start = prev_start
+                prev_mtd_end   = month_to_day_end(prev_mtd_start, prev_end, mtd_anchor_day)
+                ql_prev_mtd    = fetch_sales(url, token, prev_mtd_start, prev_mtd_end)
+                of_prev_mtd    = fetch_orders_fulfilled(url, token, prev_mtd_start, prev_mtd_end)
+                o_prev_mtd     = fetch_orders(url, token, prev_mtd_start, prev_mtd_end)
+                prev_mtd       = build(ql_prev_mtd, o_prev_mtd, 0, of_prev_mtd)
+
+                # YOY full month + YOY date-aligned MTD
                 if y > 2024:
                     yoy_start = date(y - 1, m, 1)
                     yoy_end   = last_day(y - 1, m)
@@ -1179,31 +1211,53 @@ def main():
                     of_yoy    = fetch_orders_fulfilled(url, token, yoy_start, yoy_end)
                     o_yoy     = fetch_orders(url, token, yoy_start, yoy_end)
                     yoy       = build(ql_yoy, o_yoy, 0, of_yoy)
+
+                    yoy_mtd_start = yoy_start
+                    yoy_mtd_end   = month_to_day_end(yoy_mtd_start, yoy_end, mtd_anchor_day)
+                    ql_yoy_mtd    = fetch_sales(url, token, yoy_mtd_start, yoy_mtd_end)
+                    of_yoy_mtd    = fetch_orders_fulfilled(url, token, yoy_mtd_start, yoy_mtd_end)
+                    o_yoy_mtd     = fetch_orders(url, token, yoy_mtd_start, yoy_mtd_end)
+                    yoy_mtd       = build(ql_yoy_mtd, o_yoy_mtd, 0, of_yoy_mtd)
                 else:
                     yoy = {}
+                    yoy_mtd = {}
 
                 # Revenue share
                 rs = calc_rs(o_cur)
                 for ch, v in rs.items():
                     rs_rows.append([now_str, period_label, ch, v["amount"], v["pct"]])
-                    rs_rows.append([now_str, mtd_label,    ch, v["amount"], v["pct"]])
+
+                rs_mtd = calc_rs(o_mtd)
+                for ch, v in rs_mtd.items():
+                    rs_rows.append([now_str, mtd_label, ch, v["amount"], v["pct"]])
 
                 # New vs returning
                 nvr     = calc_new_returning(o_cur)
                 gm_rate = (cur.get("pct_gm", 0) or 0) / 100
-                for lbl in [period_label, mtd_label]:
-                    nvr_rows.append([
-                        now_str, lbl, str(mo_start), str(mo_end),
-                        nvr["new_customers"],
-                        nvr["returning_customers"],
-                        nvr["new_revenue"],
-                        nvr["returning_revenue"],
-                        round(nvr["new_revenue"]       * gm_rate, 2),
-                        round(nvr["returning_revenue"] * gm_rate, 2),
-                    ])
+                nvr_rows.append([
+                    now_str, period_label, str(mo_start), str(mo_end),
+                    nvr["new_customers"],
+                    nvr["returning_customers"],
+                    nvr["new_revenue"],
+                    nvr["returning_revenue"],
+                    round(nvr["new_revenue"]       * gm_rate, 2),
+                    round(nvr["returning_revenue"] * gm_rate, 2),
+                ])
+
+                nvr_mtd     = calc_new_returning(o_mtd)
+                gm_rate_mtd = (cur_mtd.get("pct_gm", 0) or 0) / 100
+                nvr_rows.append([
+                    now_str, mtd_label, str(mo_start), str(mtd_end),
+                    nvr_mtd["new_customers"],
+                    nvr_mtd["returning_customers"],
+                    nvr_mtd["new_revenue"],
+                    nvr_mtd["returning_revenue"],
+                    round(nvr_mtd["new_revenue"]       * gm_rate_mtd, 2),
+                    round(nvr_mtd["returning_revenue"] * gm_rate_mtd, 2),
+                ])
 
                 kpi_rows.append(make_kpi_row(now_str, period_label, mo_start, mo_end, cur, prev, yoy))
-                kpi_rows.append(make_kpi_row(now_str, mtd_label,    mo_start, mo_end, cur, prev, yoy))
+                kpi_rows.append(make_kpi_row(now_str, mtd_label,    mo_start, mtd_end, cur_mtd, prev_mtd, yoy_mtd))
 
         # ── WEEKLY ───────────────────────────────────────────────
         wk_start = monday_of(date(2024, 1, 1))
