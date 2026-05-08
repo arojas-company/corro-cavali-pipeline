@@ -602,9 +602,11 @@ def get_periods():
     prev_mo_end    = mtd_s - timedelta(days=1)
     prev_mo_s      = prev_mo_end.replace(day=1)
     prev_mo_mtd_e  = prev_mo_end.replace(day=min(today.day, prev_mo_end.day))
+    prev_mo_mtd_pk = f"mtd_{prev_mo_s.strftime('%Y-%m')}"
 
     yoy_mtd_s = mtd_s.replace(year=mtd_s.year - 1)
     yoy_mtd_e = today.replace(year=today.year - 1)
+    yoy_mtd_pk = f"mtd_{yoy_mtd_s.strftime('%Y-%m')}"
 
     wk_s   = today - timedelta(days=dow)
     wk_e   = today
@@ -646,8 +648,9 @@ def get_periods():
 
     return {
         "mtd":          (mtd_s,        mtd_e,         mtd_pk),
-        "mtd_prev":     (prev_mo_s,    prev_mo_mtd_e, None),
-        "mtd_yoy":      (yoy_mtd_s,    yoy_mtd_e,     None),
+        # Keep MTD comparison rows as exact date-to-date ranges (e.g. May 1–7 vs Apr 1–7).
+        "mtd_prev":     (prev_mo_s,    prev_mo_mtd_e, prev_mo_mtd_pk),
+        "mtd_yoy":      (yoy_mtd_s,    yoy_mtd_e,     yoy_mtd_pk),
         "week":         (wk_s,         wk_e,           wk_pk),
         "week_prev":    (pwk_s,        pwk_e,          pwk_pk),
         "week_yoy":     (yoy_wk_s,     yoy_wk_e,       None),
@@ -1308,6 +1311,10 @@ def main():
 
         periods_to_run = [
             {"label": "MTD",          "cur": "mtd",          "is_snapshot": False},
+            # These MTD snapshots are required by the dashboard so Previous Period and YOY compare MTD vs MTD,
+            # never current partial month vs a full month.
+            {"label": "MTD_PREV",     "cur": "mtd_prev",     "is_snapshot": True},
+            {"label": "MTD_YOY",      "cur": "mtd_yoy",      "is_snapshot": True},
             {"label": "WEEK",         "cur": "week",         "is_snapshot": False},
             {"label": "MONTH",        "cur": "month",        "is_snapshot": False},
             {"label": "QUARTER",      "cur": "quarter",      "is_snapshot": False},
