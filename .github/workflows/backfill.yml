@@ -1,4 +1,4 @@
-name: Backfill Historical Data (2024-present)
+name: Historical Dashboard Backfill
 
 on:
   workflow_dispatch:
@@ -6,17 +6,26 @@ on:
 jobs:
   backfill:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 360
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
       - name: Install dependencies
-        run: pip install requests gspread google-auth pytz
-      - name: Run backfill
+        run: |
+          pip install requests gspread google-auth pytz
+
+      - name: Check backfill version
+        run: |
+          grep -n "FAST / SAFE MODE\|Limpiando tabs existentes\|Safe mode" backfill_historical.py || true
+
+      - name: Run historical backfill
         env:
           SHOPIFY_TOKEN_CORRO: ${{ secrets.SHOPIFY_TOKEN_CORRO }}
           SHOPIFY_TOKEN_CAVALI: ${{ secrets.SHOPIFY_TOKEN_CAVALI }}
