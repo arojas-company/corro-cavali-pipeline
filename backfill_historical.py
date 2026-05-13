@@ -19,9 +19,16 @@ EJECUCIÓN:
   Opcional/recomendado para Cavali: SMARTRR_API_KEY_CAVALI
 
 COMPORTAMIENTO EN SHEETS:
-  ⚠️  BORRA y reescribe completamente los tabs:
+  SAFE MODE: no borra tabs al inicio.
+  Reconstruye todo en memoria por brand y recién al final reemplaza:
       kpis_daily, revenue_share, new_vs_returning
-      Además actualiza smartrr_subscribers para Cavali
+  Además actualiza smartrr_subscribers para Cavali.
+
+OPTIMIZACIÓN:
+  - Descarga REST orders UNA SOLA VEZ por brand desde 2023-01-01.
+  - Corta orders por rango en memoria para Month / MTD / Week / Quarter.
+  - Evita cientos de llamadas repetidas a Shopify REST.
+  - No consulta customers/{id}/orders.json por cada cliente durante backfill.
 """
 
 import os, json, time, random, requests, gspread, sys
@@ -1124,192 +1131,262 @@ def write_smartrr(gc, sheet_id, smartrr_row):
     ws.append_row(smartrr_row, value_input_option="USER_ENTERED")
     print("    smartrr_subscribers: 1 row")
 
+
+# ─────────────────────────────────────────────────────────────────
+# FAST HISTORICAL HELPERS
+# ─────────────────────────────────────────────────────────────────
+def _order_date(o):
+    dt = _parse_shopify_dt(o.get("created_at"))
+    if dt:
+        return dt.date()
+    try:
+        return date.fromisoformat(str(o.get("created_at", ""))[:10])
+    except Exception:
+        return None
+
+
+def _annotate_orders_first_seen_without_customer_api(orders):
+    """
+    Fast new-vs-returning enrichment for historical backfill.
+
+    We avoid per-customer API calls. Instead:
+      1) use all preloaded orders to find the first order we see for each customer;
+      2) if Shopify customer.orders_count says the customer has more orders than we
+         loaded, assume they were already returning before the preload window.
+    """
+    first_by_customer = {}
+    count_by_customer = {}
+
+    for o in orders or []:
+        cid = _order_customer_id(o)
+        if not cid:
+            continue
+        count_by_customer[cid] = count_by_customer.get(cid, 0) + 1
+        dt = _parse_shopify_dt(o.get("created_at"))
+        if not dt:
+            continue
+        if cid not in first_by_customer or dt < first_by_customer[cid]:
+            first_by_customer[cid] = dt
+
+    very_old = "1900-01-01T00:00:00-05:00"
+    for o in orders or []:
+        cid = _order_customer_id(o)
+        if not cid:
+            continue
+        customer = o.get("customer") or {}
+        if not isinstance(customer, dict):
+            customer = {"id": cid}
+            o["customer"] = customer
+
+        try:
+            total_orders = int(customer.get("orders_count", 0) or 0)
+        except Exception:
+            total_orders = 0
+
+        fetched_count = count_by_customer.get(cid, 0)
+        if total_orders and total_orders > fetched_count:
+            # Customer had older orders before our preload window.
+            customer["_first_order_created_at"] = very_old
+        elif cid in first_by_customer:
+            customer["_first_order_created_at"] = first_by_customer[cid].isoformat()
+
+        if total_orders:
+            customer["orders_count"] = total_orders
+        else:
+            customer["orders_count"] = fetched_count or customer.get("orders_count", 1)
+
+    return orders
+
+
+def prefetch_orders_for_brand(store_url, token, start, end):
+    print(f"  Prefetching REST orders once: {start} → {end}", flush=True)
+    orders = rest_get(store_url, token, "orders.json", {
+        "status":           "any",
+        "financial_status": "paid,partially_paid,partially_refunded,refunded",
+        "created_at_min":   f"{start}T00:00:00-05:00",
+        "created_at_max":   f"{end}T23:59:59-05:00",
+        "limit":            250,
+        "fields":           "id,subtotal_price,created_at,line_items,source_name,tags,customer",
+    })
+    _annotate_orders_first_seen_without_customer_api(orders)
+    print(f"  REST orders prefetched: {len(orders):,}", flush=True)
+    return orders
+
+
+def orders_in_range(all_orders, start, end):
+    return [o for o in all_orders if (d := _order_date(o)) and start <= d <= end]
+
+
+def get_or_create_ws(sh, title, rows=1000, cols=40):
+    try:
+        return sh.worksheet(title)
+    except Exception:
+        return sh.add_worksheet(title, rows=rows, cols=cols)
+
+
+def replace_tab(ws, headers, rows, batch_size=500):
+    ws.clear()
+    ws.append_row(headers, value_input_option="USER_ENTERED")
+    for i in range(0, len(rows), batch_size):
+        ws.append_rows(rows[i:i+batch_size], value_input_option="USER_ENTERED")
+        print(f"    wrote batch {i//batch_size+1} ({min(i+batch_size, len(rows))}/{len(rows)})", flush=True)
+
 # MAIN
 # ─────────────────────────────────────────────────────────────────
 def main():
-    print("Starting historical backfill...", flush=True)
+    print("Starting historical backfill FAST / SAFE MODE...", flush=True)
     gc      = get_gc()
     print("Google Sheets auth OK.", flush=True)
+    print("Safe mode: tabs will NOT be cleared at start. Each brand replaces tabs only after that brand is fully rebuilt.", flush=True)
+
     now_str = datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M")
     today   = datetime.now(TIMEZONE).date()
 
-    # ── Limpiar tabs antes del backfill completo ──────────────────
-    print("Limpiando tabs existentes...")
     for brand, cfg in STORES.items():
-        sh = gc.open_by_key(cfg["sheet_id"])
-        for tab, headers in [
-            ("kpis_daily",      HEADERS_KPIS),
-            ("revenue_share",   ["updated_at","period","channel","amount","pct"]),
-            ("new_vs_returning",["updated_at","period","period_start","period_end",
-                                  "new_customers","returning_customers",
-                                  "new_revenue","returning_revenue",
-                                  "new_gross_profit","returning_gross_profit"]),
-        ]:
-            try:
-                ws = sh.worksheet(tab)
-                ws.clear()
-                ws.append_row(headers)
-                print(f"  ✓ Limpiado {tab} para {brand}")
-            except Exception as ex:
-                print(f"  ✗ No se pudo limpiar {tab} para {brand}: {ex}")
-
-    for brand, cfg in STORES.items():
-        print(f"\n{'='*55}\n  {brand.upper()} — BACKFILL 2024-01 → {today}\n{'='*55}")
+        print(f"\n{'='*55}\n  {brand.upper()} — FAST BACKFILL 2024-01 → {today}\n{'='*55}", flush=True)
         url, token, sid = cfg["url"], cfg["token"], cfg["sheet_id"]
         kpi_rows, rs_rows, nvr_rows = [], [], []
 
-        # ── MONTHLY ──────────────────────────────────────────────
-        # For each month we write:
-        #   - YYYY-MM     = full/completed month row
-        #   - mtd_YYYY-MM = date-aligned MTD row (same day-of-month as today's MTD)
-        # This prevents the dashboard from comparing current MTD against a full previous month.
+        # We need 2023 data only for previous / YoY comparisons.
+        all_orders = prefetch_orders_for_brand(url, token, date(2023, 1, 1), today)
+
+        sales_cache = {}
+        sessions_cache = {}
+        fulfilled_cache = {}
+        orders_cache = {}
+
+        def _key(s, e):
+            return (str(s), str(e))
+
+        def get_sales_cached(s, e):
+            k = _key(s, e)
+            if k not in sales_cache:
+                sales_cache[k] = fetch_sales(url, token, s, e)
+            return sales_cache[k]
+
+        def get_sessions_cached(s, e):
+            k = _key(s, e)
+            if k not in sessions_cache:
+                sessions_cache[k] = fetch_sessions(url, token, s, e)
+            return sessions_cache[k]
+
+        def get_fulfilled_cached(s, e):
+            k = _key(s, e)
+            if k not in fulfilled_cache:
+                fulfilled_cache[k] = fetch_orders_fulfilled(url, token, s, e)
+            return fulfilled_cache[k]
+
+        def get_orders_cached(s, e):
+            k = _key(s, e)
+            if k not in orders_cache:
+                orders_cache[k] = orders_in_range(all_orders, s, e)
+            return orders_cache[k]
+
+        def build_period(s, e, include_sessions=False):
+            ql = get_sales_cached(s, e)
+            ss = get_sessions_cached(s, e) if include_sessions else 0
+            of = get_fulfilled_cached(s, e)
+            oo = get_orders_cached(s, e)
+            return build(ql, oo, ss, of), oo
+
         mtd_anchor_day = today.day
+
+        # ── MONTHLY + MTD ────────────────────────────────────────
         for y in range(2024, today.year + 1):
-            m_start = 1
-            m_end   = today.month if y == today.year else 12
-            for m in range(m_start, m_end + 1):
+            m_end = today.month if y == today.year else 12
+            for m in range(1, m_end + 1):
                 mo_start     = date(y, m, 1)
                 mo_end       = last_day(y, m) if (y < today.year or m < today.month) else today
                 period_label = f"{y}-{str(m).zfill(2)}"
                 mtd_label    = f"mtd_{period_label}"
                 mtd_end      = month_to_day_end(mo_start, mo_end, mtd_anchor_day)
 
-                print(f"\n  Month {period_label} ({mo_start} → {mo_end})")
+                print(f"\n  Month {period_label} ({mo_start} → {mo_end})", flush=True)
+                cur, o_cur = build_period(mo_start, mo_end, include_sessions=True)
 
-                # Full/completed month row
-                ql_cur = fetch_sales(url, token, mo_start, mo_end)
-                s_cur  = fetch_sessions(url, token, mo_start, mo_end)
-                of_cur = fetch_orders_fulfilled(url, token, mo_start, mo_end)
-                o_cur  = fetch_orders(url, token, mo_start, mo_end)
-                cur    = build(ql_cur, o_cur, s_cur, of_cur)
-
-                # Date-aligned MTD row for this month
                 if mtd_end == mo_end:
-                    ql_mtd, s_mtd, of_mtd, o_mtd, cur_mtd = ql_cur, s_cur, of_cur, o_cur, cur
+                    cur_mtd, o_mtd = cur, o_cur
                 else:
-                    print(f"  MTD {mtd_label} ({mo_start} → {mtd_end})")
-                    ql_mtd = fetch_sales(url, token, mo_start, mtd_end)
-                    s_mtd  = fetch_sessions(url, token, mo_start, mtd_end)
-                    of_mtd = fetch_orders_fulfilled(url, token, mo_start, mtd_end)
-                    o_mtd  = fetch_orders(url, token, mo_start, mtd_end)
-                    cur_mtd = build(ql_mtd, o_mtd, s_mtd, of_mtd)
+                    print(f"  MTD {mtd_label} ({mo_start} → {mtd_end})", flush=True)
+                    cur_mtd, o_mtd = build_period(mo_start, mtd_end, include_sessions=True)
 
-                # Previous full month for the YYYY-MM row
                 pm = m - 1 if m > 1 else 12
                 py = y if m > 1 else y - 1
                 prev_start = date(py, pm, 1)
                 prev_end   = last_day(py, pm)
-                ql_prev    = fetch_sales(url, token, prev_start, prev_end)
-                of_prev    = fetch_orders_fulfilled(url, token, prev_start, prev_end)
-                o_prev     = fetch_orders(url, token, prev_start, prev_end)
-                prev       = build(ql_prev, o_prev, 0, of_prev)
+                prev, _    = build_period(prev_start, prev_end, include_sessions=False)
 
-                # Previous date-aligned MTD for the mtd_YYYY-MM row
                 prev_mtd_start = prev_start
                 prev_mtd_end   = month_to_day_end(prev_mtd_start, prev_end, mtd_anchor_day)
-                ql_prev_mtd    = fetch_sales(url, token, prev_mtd_start, prev_mtd_end)
-                of_prev_mtd    = fetch_orders_fulfilled(url, token, prev_mtd_start, prev_mtd_end)
-                o_prev_mtd     = fetch_orders(url, token, prev_mtd_start, prev_mtd_end)
-                prev_mtd       = build(ql_prev_mtd, o_prev_mtd, 0, of_prev_mtd)
+                prev_mtd, _    = build_period(prev_mtd_start, prev_mtd_end, include_sessions=False)
 
-                # YOY full month + YOY date-aligned MTD
                 if y > 2024:
                     yoy_start = date(y - 1, m, 1)
                     yoy_end   = last_day(y - 1, m)
-                    ql_yoy    = fetch_sales(url, token, yoy_start, yoy_end)
-                    of_yoy    = fetch_orders_fulfilled(url, token, yoy_start, yoy_end)
-                    o_yoy     = fetch_orders(url, token, yoy_start, yoy_end)
-                    yoy       = build(ql_yoy, o_yoy, 0, of_yoy)
+                    yoy, _    = build_period(yoy_start, yoy_end, include_sessions=False)
 
                     yoy_mtd_start = yoy_start
                     yoy_mtd_end   = month_to_day_end(yoy_mtd_start, yoy_end, mtd_anchor_day)
-                    ql_yoy_mtd    = fetch_sales(url, token, yoy_mtd_start, yoy_mtd_end)
-                    of_yoy_mtd    = fetch_orders_fulfilled(url, token, yoy_mtd_start, yoy_mtd_end)
-                    o_yoy_mtd     = fetch_orders(url, token, yoy_mtd_start, yoy_mtd_end)
-                    yoy_mtd       = build(ql_yoy_mtd, o_yoy_mtd, 0, of_yoy_mtd)
+                    yoy_mtd, _    = build_period(yoy_mtd_start, yoy_mtd_end, include_sessions=False)
                 else:
                     yoy = {}
                     yoy_mtd = {}
 
-                # Revenue share
-                rs = calc_rs(o_cur)
-                for ch, v in rs.items():
+                for ch, v in calc_rs(o_cur).items():
                     rs_rows.append([now_str, period_label, ch, v["amount"], v["pct"]])
-
-                rs_mtd = calc_rs(o_mtd)
-                for ch, v in rs_mtd.items():
+                for ch, v in calc_rs(o_mtd).items():
                     rs_rows.append([now_str, mtd_label, ch, v["amount"], v["pct"]])
 
-                # New vs returning
-                nvr     = calc_new_returning(o_cur)
+                nvr = calc_new_returning(o_cur)
                 gm_rate = (cur.get("pct_gm", 0) or 0) / 100
                 nvr_rows.append([
                     now_str, period_label, str(mo_start), str(mo_end),
-                    nvr["new_customers"],
-                    nvr["returning_customers"],
-                    nvr["new_revenue"],
-                    nvr["returning_revenue"],
-                    round(nvr["new_revenue"]       * gm_rate, 2),
+                    nvr["new_customers"], nvr["returning_customers"],
+                    nvr["new_revenue"], nvr["returning_revenue"],
+                    round(nvr["new_revenue"] * gm_rate, 2),
                     round(nvr["returning_revenue"] * gm_rate, 2),
                 ])
 
-                nvr_mtd     = calc_new_returning(o_mtd)
+                nvr_mtd = calc_new_returning(o_mtd)
                 gm_rate_mtd = (cur_mtd.get("pct_gm", 0) or 0) / 100
                 nvr_rows.append([
                     now_str, mtd_label, str(mo_start), str(mtd_end),
-                    nvr_mtd["new_customers"],
-                    nvr_mtd["returning_customers"],
-                    nvr_mtd["new_revenue"],
-                    nvr_mtd["returning_revenue"],
-                    round(nvr_mtd["new_revenue"]       * gm_rate_mtd, 2),
+                    nvr_mtd["new_customers"], nvr_mtd["returning_customers"],
+                    nvr_mtd["new_revenue"], nvr_mtd["returning_revenue"],
+                    round(nvr_mtd["new_revenue"] * gm_rate_mtd, 2),
                     round(nvr_mtd["returning_revenue"] * gm_rate_mtd, 2),
                 ])
 
                 kpi_rows.append(make_kpi_row(now_str, period_label, mo_start, mo_end, cur, prev, yoy))
-                kpi_rows.append(make_kpi_row(now_str, mtd_label,    mo_start, mtd_end, cur_mtd, prev_mtd, yoy_mtd))
+                kpi_rows.append(make_kpi_row(now_str, mtd_label, mo_start, mtd_end, cur_mtd, prev_mtd, yoy_mtd))
 
         # ── WEEKLY ───────────────────────────────────────────────
         wk_start = monday_of(date(2024, 1, 1))
         while wk_start <= today:
             wk_end   = min(wk_start + timedelta(days=6), today)
             wk_label = f"week_{wk_start}"
+            print(f"\n  Week {wk_label} ({wk_start} → {wk_end})", flush=True)
 
-            print(f"\n  Week {wk_label} ({wk_start} → {wk_end})")
+            cur, o_cur = build_period(wk_start, wk_end, include_sessions=True)
 
-            ql_cur = fetch_sales(url, token, wk_start, wk_end)
-            s_cur  = fetch_sessions(url, token, wk_start, wk_end)
-            of_cur = fetch_orders_fulfilled(url, token, wk_start, wk_end)
-            o_cur  = fetch_orders(url, token, wk_start, wk_end)
-            cur    = build(ql_cur, o_cur, s_cur, of_cur)
+            pws = wk_start - timedelta(days=7)
+            pwe = pws + timedelta(days=(wk_end - wk_start).days)
+            prev, _ = build_period(pws, pwe, include_sessions=False)
 
-            pws    = wk_start - timedelta(days=7)
-            pwe    = pws + timedelta(days=(wk_end - wk_start).days)
-            ql_prev = fetch_sales(url, token, pws, pwe)
-            of_prev = fetch_orders_fulfilled(url, token, pws, pwe)
-            o_prev  = fetch_orders(url, token, pws, pwe)
-            prev    = build(ql_prev, o_prev, 0, of_prev)
+            yws = wk_start - timedelta(days=364)
+            ywe = wk_end - timedelta(days=364)
+            yoy, _ = build_period(yws, ywe, include_sessions=False)
 
-            yws    = wk_start - timedelta(days=364)
-            ywe    = wk_end   - timedelta(days=364)
-            ql_yoy = fetch_sales(url, token, yws, ywe)
-            of_yoy = fetch_orders_fulfilled(url, token, yws, ywe)
-            o_yoy  = fetch_orders(url, token, yws, ywe)
-            yoy    = build(ql_yoy, o_yoy, 0, of_yoy)
-
-            rs  = calc_rs(o_cur)
-            nvr = calc_new_returning(o_cur)
-            gm_rate = (cur.get("pct_gm", 0) or 0) / 100
-
-            for ch, v in rs.items():
+            for ch, v in calc_rs(o_cur).items():
                 rs_rows.append([now_str, wk_label, ch, v["amount"], v["pct"]])
 
+            nvr = calc_new_returning(o_cur)
+            gm_rate = (cur.get("pct_gm", 0) or 0) / 100
             nvr_rows.append([
                 now_str, wk_label, str(wk_start), str(wk_end),
-                nvr["new_customers"],
-                nvr["returning_customers"],
-                nvr["new_revenue"],
-                nvr["returning_revenue"],
-                round(nvr["new_revenue"]       * gm_rate, 2),
+                nvr["new_customers"], nvr["returning_customers"],
+                nvr["new_revenue"], nvr["returning_revenue"],
+                round(nvr["new_revenue"] * gm_rate, 2),
                 round(nvr["returning_revenue"] * gm_rate, 2),
             ])
 
@@ -1324,90 +1401,65 @@ def main():
                 q_end_m = q * 3
                 q_end   = last_day(y, q_end_m) if (y < today.year or q < max_q) else today
                 q_label = f"q{q}_{y}"
+                print(f"\n  Quarter {q_label} ({q_start} → {q_end})", flush=True)
 
-                print(f"\n  Quarter {q_label} ({q_start} → {q_end})")
+                cur_q, o_q = build_period(q_start, q_end, include_sessions=True)
 
-                ql_q   = fetch_sales(url, token, q_start, q_end)
-                s_q    = fetch_sessions(url, token, q_start, q_end)
-                of_q   = fetch_orders_fulfilled(url, token, q_start, q_end)
-                o_q    = fetch_orders(url, token, q_start, q_end)
-                cur_q  = build(ql_q, o_q, s_q, of_q)
-
-                pq_    = q - 1 if q > 1 else 4
-                py_    = y if q > 1 else y - 1
-                pq_start = date(py_, (pq_ - 1) * 3 + 1, 1)
-                pq_end   = last_day(py_, pq_ * 3)
-                ql_pq    = fetch_sales(url, token, pq_start, pq_end)
-                of_pq    = fetch_orders_fulfilled(url, token, pq_start, pq_end)
-                o_pq     = fetch_orders(url, token, pq_start, pq_end)
-                prev_q   = build(ql_pq, o_pq, 0, of_pq)
+                pq = q - 1 if q > 1 else 4
+                py = y if q > 1 else y - 1
+                pq_start = date(py, (pq - 1) * 3 + 1, 1)
+                pq_end   = last_day(py, pq * 3)
+                prev_q, _ = build_period(pq_start, pq_end, include_sessions=False)
 
                 if y > 2024:
                     yq_start = date(y - 1, (q - 1) * 3 + 1, 1)
                     yq_end   = last_day(y - 1, q * 3)
-                    ql_yq    = fetch_sales(url, token, yq_start, yq_end)
-                    of_yq    = fetch_orders_fulfilled(url, token, yq_start, yq_end)
-                    o_yq     = fetch_orders(url, token, yq_start, yq_end)
-                    yoy_q    = build(ql_yq, o_yq, 0, of_yq)
+                    yoy_q, _ = build_period(yq_start, yq_end, include_sessions=False)
                 else:
                     yoy_q = {}
 
-                rs_q  = calc_rs(o_q)
-                nvr_q = calc_new_returning(o_q)
-                gm_rate = (cur_q.get("pct_gm", 0) or 0) / 100
-
-                for ch, v in rs_q.items():
+                for ch, v in calc_rs(o_q).items():
                     rs_rows.append([now_str, q_label, ch, v["amount"], v["pct"]])
 
+                nvr_q = calc_new_returning(o_q)
+                gm_rate = (cur_q.get("pct_gm", 0) or 0) / 100
                 nvr_rows.append([
                     now_str, q_label, str(q_start), str(q_end),
-                    nvr_q["new_customers"],
-                    nvr_q["returning_customers"],
-                    nvr_q["new_revenue"],
-                    nvr_q["returning_revenue"],
-                    round(nvr_q["new_revenue"]       * gm_rate, 2),
+                    nvr_q["new_customers"], nvr_q["returning_customers"],
+                    nvr_q["new_revenue"], nvr_q["returning_revenue"],
+                    round(nvr_q["new_revenue"] * gm_rate, 2),
                     round(nvr_q["returning_revenue"] * gm_rate, 2),
                 ])
 
                 kpi_rows.append(make_kpi_row(now_str, q_label, q_start, q_end, cur_q, prev_q, yoy_q))
 
-        # ── WRITE ────────────────────────────────────────────────
-        print(f"\n  Escribiendo {len(kpi_rows)} filas KPI...")
+        # ── WRITE ONLY AFTER BRAND IS FULLY REBUILT ───────────────
+        print(f"\n  Replacing Sheets tabs for {brand} after full rebuild...", flush=True)
+        print(f"  Rows ready: {len(kpi_rows)} KPI + {len(rs_rows)} RS + {len(nvr_rows)} NVR", flush=True)
+
         sh    = gc.open_by_key(sid)
-        ws    = sh.worksheet("kpis_daily")
-        ws_rs = sh.worksheet("revenue_share")
+        ws    = get_or_create_ws(sh, "kpis_daily", rows=max(1000, len(kpi_rows) + 10), cols=len(HEADERS_KPIS))
+        ws_rs = get_or_create_ws(sh, "revenue_share", rows=max(1000, len(rs_rows) + 10), cols=5)
+        ws_nvr = get_or_create_ws(sh, "new_vs_returning", rows=max(1000, len(nvr_rows) + 10), cols=10)
 
-        try:
-            ws_nvr = sh.worksheet("new_vs_returning")
-        except Exception:
-            ws_nvr = sh.add_worksheet("new_vs_returning", rows=600, cols=12)
-            ws_nvr.append_row([
-                "updated_at","period","period_start","period_end",
-                "new_customers","returning_customers",
-                "new_revenue","returning_revenue",
-                "new_gross_profit","returning_gross_profit",
-            ])
+        print("  Writing kpis_daily...", flush=True)
+        replace_tab(ws, HEADERS_KPIS, kpi_rows)
+        print("  Writing revenue_share...", flush=True)
+        replace_tab(ws_rs, ["updated_at","period","channel","amount","pct"], rs_rows)
+        print("  Writing new_vs_returning...", flush=True)
+        replace_tab(ws_nvr, [
+            "updated_at","period","period_start","period_end",
+            "new_customers","returning_customers",
+            "new_revenue","returning_revenue",
+            "new_gross_profit","returning_gross_profit",
+        ], nvr_rows)
 
-        for i in range(0, len(kpi_rows), 50):
-            ws.append_rows(kpi_rows[i:i+50])
-            print(f"  KPI batch {i//50+1} escrito")
-
-        for i in range(0, len(rs_rows), 50):
-            ws_rs.append_rows(rs_rows[i:i+50])
-            print(f"  RS batch {i//50+1} escrito")
-
-        for i in range(0, len(nvr_rows), 50):
-            ws_nvr.append_rows(nvr_rows[i:i+50])
-            print(f"  NVR batch {i//50+1} escrito")
-
-        # Smartrr no es histórico por periodo: es snapshot actual de suscriptores activos.
-        # Se escribe aquí para que, al correr backfill, el dashboard también tenga esta pestaña lista.
         smartrr_row = fetch_smartrr_active_subs(brand, url, token)
         write_smartrr(gc, sid, smartrr_row)
 
-        print(f"\n  ✓ {brand.upper()} completado: "
-              f"{len(kpi_rows)} KPI + {len(rs_rows)} RS + {len(nvr_rows)} NVR filas")
+        print(f"\n  ✓ {brand.upper()} completed safely.", flush=True)
 
+    print("\nHistorical backfill completed successfully.", flush=True)
 
 if __name__ == "__main__":
     main()
