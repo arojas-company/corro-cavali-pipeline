@@ -1134,7 +1134,7 @@ def main():
     today   = datetime.now(TIMEZONE).date()
 
     # ── Limpiar tabs antes del backfill completo ──────────────────
-    print("Safe mode: tabs will NOT be cleared at start.", flush=True)print("Limpiando tabs existentes...")
+    print("Safe mode: tabs will NOT be cleared at start.", flush=True)
     for brand, cfg in STORES.items():
         sh = gc.open_by_key(cfg["sheet_id"])
         for tab, headers in [
