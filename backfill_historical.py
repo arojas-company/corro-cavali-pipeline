@@ -1,4 +1,3 @@
-
 """
 BACKFILL HISTÓRICO v2.3 — Shopify → Google Sheets
 ===================================================
